@@ -105,12 +105,6 @@ export default function LoginPage() {
             </Button>
           </form>
           
-          <div className="mt-6 text-center text-sm">
-            <span className="text-gray-600">אין לך חשבון? </span>
-            <Link href="/register" className="text-blue-600 hover:underline font-medium">
-              הירשם עכשיו
-            </Link>
-          </div>
           
           {/* Demo credentials for development */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
