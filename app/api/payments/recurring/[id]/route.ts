@@ -19,7 +19,7 @@ const updateRecurringPaymentSchema = z.object({
 // PUT /api/payments/recurring/[id] - Update recurring payment
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const recurringPaymentId = params.id as string
+    const { id: recurringPaymentId } = await params
     const body = await req.json()
     const validatedData = updateRecurringPaymentSchema.parse(body)
     
@@ -44,7 +44,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // POST /api/payments/recurring/[id]/process - Process recurring payment (create next payment)
 export const POST = withAuth(async (req, { params, userId }) => {
   try {
-    const recurringPaymentId = params.id as string
+    const { id: recurringPaymentId } = await params
     const payment = await PaymentsService.processRecurringPayment(recurringPaymentId, userId)
     return createResponse(payment)
   } catch (error) {

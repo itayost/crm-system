@@ -43,6 +43,8 @@ import {
 import { PaymentForm } from '@/components/forms/payment-form'
 import api from '@/lib/api/client'
 import { toast } from 'react-hot-toast'
+import { format, differenceInDays } from 'date-fns'
+import { he } from 'date-fns/locale'
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800',
@@ -111,7 +113,7 @@ export default function PaymentsPage() {
     client?: { name?: string }
   }>>([])
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
-  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
+  const [projects, setProjects] = useState<Array<{ id: string; name: string; type: string }>>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -250,12 +252,12 @@ export default function PaymentsPage() {
     )
     
     return {
-      totalPending: pendingPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0),
-      totalOverdue: overduePayments.reduce((sum, p) => sum + parseFloat(p.amount), 0),
-      monthlyRevenue: paidThisMonth.reduce((sum, p) => sum + parseFloat(p.amount), 0),
+      totalPending: pendingPayments.reduce((sum, p) => sum + p.amount, 0),
+      totalOverdue: overduePayments.reduce((sum, p) => sum + p.amount, 0),
+      monthlyRevenue: paidThisMonth.reduce((sum, p) => sum + p.amount, 0),
       recurringRevenue: recurringPayments
         .filter(r => r.isActive)
-        .reduce((sum, r) => sum + parseFloat(r.amount), 0),
+        .reduce((sum, r) => sum + r.amount, 0),
       overdueCount: overduePayments.length,
       pendingCount: pendingPayments.length
     }
@@ -489,7 +491,7 @@ export default function PaymentsPage() {
                             {isOverdue 
                               ? `באיחור ${Math.abs(daysUntilDue)} ימים`
                               : payment.status === 'PAID'
-                              ? `שולם ב-${format(new Date(payment.paidAt), 'dd/MM/yyyy', { locale: he })}`
+                              ? payment.paidAt ? `שולם ב-${format(new Date(payment.paidAt), 'dd/MM/yyyy', { locale: he })}` : 'שולם'
                               : `${daysUntilDue} ימים לתשלום`
                             }
                           </span>
@@ -608,7 +610,15 @@ export default function PaymentsPage() {
             onSubmit={editingPayment ? handleUpdatePayment : handleCreatePayment}
             clients={clients}
             projects={projects}
-            defaultValues={editingPayment}
+            defaultValues={editingPayment ? {
+              clientId: editingPayment.client?.name || '',
+              amount: editingPayment.amount,
+              type: editingPayment.type as 'PROJECT' | 'MAINTENANCE' | 'CONSULTATION' | 'OTHER',
+              dueDate: editingPayment.dueDate,
+              projectId: editingPayment.project?.name,
+              invoiceNumber: editingPayment.invoiceNumber,
+              notes: editingPayment.notes
+            } : undefined}
           />
         </DialogContent>
       </Dialog>

@@ -306,7 +306,7 @@ export default function ProjectsPage() {
             </div>
             
             <div className="bg-gray-50 min-h-[500px] p-3 space-y-3 rounded-b-lg">
-              {projectsByStage[column.id]?.map((project: unknown) => (
+              {projectsByStage[column.id]?.map((project) => (
                 <Card 
                   key={project.id} 
                   className={`cursor-pointer hover:shadow-md transition-shadow border-r-4 ${priorityColors[project.priority as keyof typeof priorityColors]}`}
@@ -317,7 +317,7 @@ export default function ProjectsPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-sm">{project.name}</h4>
-                          <p className="text-xs text-gray-600 mt-1">{project.client.name}</p>
+                          <p className="text-xs text-gray-600 mt-1">{project.client?.name || 'ללא לקוח'}</p>
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -400,7 +400,7 @@ export default function ProjectsPage() {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex items-center gap-1 text-gray-600">
                           <Calendar className="w-3 h-3" />
-                          <span>{new Date(project.deadline).toLocaleDateString('he-IL')}</span>
+                          <span>{project.deadline ? new Date(project.deadline).toLocaleDateString('he-IL') : 'לא נקבע'}</span>
                         </div>
                         <div className="flex items-center gap-1 text-gray-600">
                           <DollarSign className="w-3 h-3" />

@@ -20,7 +20,7 @@ const updateTaskSchema = z.object({
 // GET /api/tasks/[id] - Get single task
 export const GET = withAuth(async (req, { params, userId }) => {
   try {
-    const taskId = params.id as string
+    const { id: taskId } = await params
     const task = await TasksService.getById(taskId, userId)
     return createResponse(task)
   } catch (error) {
@@ -31,7 +31,7 @@ export const GET = withAuth(async (req, { params, userId }) => {
 // PUT /api/tasks/[id] - Update task
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const taskId = params.id as string
+    const { id: taskId } = await params
     const body = await req.json()
     const validatedData = updateTaskSchema.parse(body)
     
@@ -53,7 +53,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/tasks/[id] - Delete task
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const taskId = params.id as string
+    const { id: taskId } = await params
     const result = await TasksService.delete(taskId, userId)
     return createResponse(result)
   } catch (error) {

@@ -9,7 +9,7 @@ const sendMessageSchema = z.object({
   message: z.string().min(1, 'Message is required'),
   type: z.enum(['text', 'template']).default('text'),
   templateName: z.string().optional(),
-  templateParams: z.record(z.string()).optional(),
+  templateParams: z.record(z.string(), z.string()).optional(),
 })
 
 // POST /api/whatsapp/send - Send WhatsApp message

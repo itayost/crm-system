@@ -5,7 +5,7 @@ import { PaymentsService } from '@/lib/services/payments.service'
 // POST /api/payments/recurring/[id]/process - Process recurring payment
 export const POST = withAuth(async (req, { params, userId }) => {
   try {
-    const recurringPaymentId = params.id as string
+    const { id: recurringPaymentId } = await params
     const payment = await PaymentsService.processRecurringPayment(recurringPaymentId, userId)
     return createResponse(payment)
   } catch (error) {

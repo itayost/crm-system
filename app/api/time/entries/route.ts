@@ -1,7 +1,7 @@
 // app/api/time/entries/route.ts
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { withAuth, createResponse } from '@/lib/api/api-handler'
+import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { mockDb } from '@/lib/api/mock-db'
 
 const createManualEntrySchema = z.object({

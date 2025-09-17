@@ -294,7 +294,15 @@ export default function TasksPage() {
           </CardHeader>
           <CardContent>
             <TaskForm
-              task={selectedTask}
+              task={selectedTask ? {
+                id: selectedTask.id,
+                name: selectedTask.title,
+                description: selectedTask.description,
+                priority: selectedTask.priority,
+                status: selectedTask.status,
+                projectId: selectedTask.project?.id,
+                dueDate: selectedTask.dueDate
+              } : undefined}
               projects={projects}
               clients={clients}
               onSubmit={handleSubmit}

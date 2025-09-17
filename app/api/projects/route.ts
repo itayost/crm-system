@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ProjectsService } from '@/lib/services/projects.service'
-import { ProjectStage, ProjectPriority, ProjectType } from '@prisma/client'
+import { ProjectStage, Priority, ProjectType } from '@prisma/client'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'שם הפרויקט חובה'),
@@ -22,7 +22,7 @@ export const GET = withAuth(async (req, { userId }) => {
   try {
     const { searchParams } = new URL(req.url)
     const stage = searchParams.get('stage') as ProjectStage | null
-    const priority = searchParams.get('priority') as ProjectPriority | null
+    const priority = searchParams.get('priority') as Priority | null
     const type = searchParams.get('type') as ProjectType | null
     const clientId = searchParams.get('clientId') || undefined
     const search = searchParams.get('search') || undefined
@@ -50,7 +50,7 @@ export const POST = withAuth(async (req, { userId }) => {
     const project = await ProjectsService.create(userId, {
       ...validatedData,
       type: validatedData.type as ProjectType,
-      priority: validatedData.priority as ProjectPriority | undefined
+      priority: validatedData.priority as Priority | undefined
     })
     
     return createResponse(project, 201)

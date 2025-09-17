@@ -5,7 +5,7 @@ import { LeadsService } from '@/lib/services/leads.service'
 // POST /api/leads/[id]/convert - Convert lead to client
 export const POST = withAuth(async (req, { params, userId }) => {
   try {
-    const leadId = params.id as string
+    const { id: leadId } = await params
     const result = await LeadsService.convertToClient(leadId, userId)
     
     return createResponse({

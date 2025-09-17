@@ -28,7 +28,12 @@ export async function GET(req: NextRequest) {
   })
   
   // Send notifications (mock)
-  const notifications = []
+  const notifications: Array<{
+    type: string
+    message: string
+    projectId?: string
+    paymentId?: string
+  }> = []
   
   upcomingDeadlines.forEach(project => {
     notifications.push({

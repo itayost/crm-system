@@ -22,7 +22,7 @@ const updatePaymentSchema = z.object({
 // GET /api/payments/[id] - Get single payment
 export const GET = withAuth(async (req, { params, userId }) => {
   try {
-    const paymentId = params.id as string
+    const { id: paymentId } = await params
     
     const payment = await prisma.payment.findFirst({
       where: { 
@@ -69,7 +69,7 @@ export const GET = withAuth(async (req, { params, userId }) => {
 // PUT /api/payments/[id] - Update payment
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const paymentId = params.id as string
+    const { id: paymentId } = await params
     const body = await req.json()
     const validatedData = updatePaymentSchema.parse(body)
     
@@ -91,7 +91,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/payments/[id] - Delete payment
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const paymentId = params.id as string
+    const { id: paymentId } = await params
     const result = await PaymentsService.delete(paymentId, userId)
     return createResponse(result)
   } catch (error) {

@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           }
         )
         console.log('Message status:', statusResponse.data)
-      } catch (error) {
+      } catch {
         console.log('Could not fetch message status')
       }
     }
@@ -93,12 +93,15 @@ export async function POST(req: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Debug error:', error.response?.data || error.message)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorDetails = (error as unknown as { response?: { data?: unknown } })?.response?.data || null
+
+    console.error('Debug error:', errorDetails || errorMessage)
 
     return errorResponse(
       JSON.stringify({
-        error: error.message,
-        details: error.response?.data,
+        error: errorMessage,
+        details: errorDetails,
         tips: [
           'Check if number is in your test numbers',
           'Verify the number has WhatsApp',

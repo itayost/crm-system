@@ -77,13 +77,30 @@ interface ProjectAnalytics {
   status: string
 }
 
+interface ClientAnalytics {
+  id: string
+  name: string
+  company?: string
+  type: string
+  totalRevenue: number
+  projectsCount: number
+  averageProjectValue: number
+  lastProject: string
+}
+
+interface LeadFunnelData {
+  stage: string
+  count: number
+  percentage: number
+}
+
 export default function ReportsPage() {
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null)
   const [revenueData, setRevenueData] = useState<RevenueData[]>([])
   const [timeData, setTimeData] = useState<TimeData[]>([])
   const [projectAnalytics, setProjectAnalytics] = useState<ProjectAnalytics[]>([])
-  const [leadFunnelData, setLeadFunnelData] = useState([])
-  const [clientAnalytics, setClientAnalytics] = useState([])
+  const [leadFunnelData, setLeadFunnelData] = useState<LeadFunnelData[]>([])
+  const [clientAnalytics, setClientAnalytics] = useState<ClientAnalytics[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30')
 

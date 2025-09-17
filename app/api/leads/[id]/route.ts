@@ -19,7 +19,7 @@ const updateLeadSchema = z.object({
 // GET /api/leads/[id] - Get single lead
 export const GET = withAuth(async (req, { params, userId }) => {
   try {
-    const leadId = params.id as string
+    const { id: leadId } = await params
     const lead = await LeadsService.getById(leadId, userId)
     return createResponse(lead)
   } catch (error) {
@@ -30,7 +30,7 @@ export const GET = withAuth(async (req, { params, userId }) => {
 // PUT /api/leads/[id] - Update lead
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const leadId = params.id as string
+    const { id: leadId } = await params
     const body = await req.json()
     const validatedData = updateLeadSchema.parse(body)
     
@@ -51,7 +51,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/leads/[id] - Delete lead
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const leadId = params.id as string
+    const { id: leadId } = await params
     const result = await LeadsService.delete(leadId, userId)
     return createResponse(result)
   } catch (error) {

@@ -20,7 +20,7 @@ const updateClientSchema = z.object({
 // GET /api/clients/[id] - Get single client
 export const GET = withAuth(async (req, { params, userId }) => {
   try {
-    const clientId = params.id as string
+    const { id: clientId } = await params
     const client = await ClientsService.getById(clientId, userId)
     return createResponse(client)
   } catch (error) {
@@ -31,7 +31,7 @@ export const GET = withAuth(async (req, { params, userId }) => {
 // PUT /api/clients/[id] - Update client
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const clientId = params.id as string
+    const { id: clientId } = await params
     const body = await req.json()
     const validatedData = updateClientSchema.parse(body)
     
@@ -53,7 +53,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/clients/[id] - Delete client
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const clientId = params.id as string
+    const { id: clientId } = await params
     const result = await ClientsService.delete(clientId, userId)
     return createResponse(result)
   } catch (error) {

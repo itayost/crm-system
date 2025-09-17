@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
     const newLead = {
       id: Date.now().toString(),
       name: validatedData.name,
-      email: validatedData.email,
+      email: validatedData.email || '',
       phone: validatedData.phone,
       company: '',
       source: 'WEBSITE' as const,
       status: 'NEW' as const,
       projectType: '',
       estimatedBudget: 0,
-      notes: validatedData.message,
+      notes: validatedData.message || '',
       userId: 'user_123', // Default user for webhooks
       createdAt: new Date(),
       updatedAt: new Date(),

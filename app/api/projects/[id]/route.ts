@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ProjectsService } from '@/lib/services/projects.service'
-import { ProjectType, ProjectStage, ProjectPriority } from '@prisma/client'
+import { ProjectType, ProjectStage, Priority } from '@prisma/client'
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).optional(),
@@ -23,7 +23,7 @@ const updateProjectSchema = z.object({
 // GET /api/projects/[id] - Get single project
 export const GET = withAuth(async (req, { params, userId }) => {
   try {
-    const projectId = params.id as string
+    const { id: projectId } = await params
     const project = await ProjectsService.getById(projectId, userId)
     return createResponse(project)
   } catch (error) {
@@ -34,7 +34,7 @@ export const GET = withAuth(async (req, { params, userId }) => {
 // PUT /api/projects/[id] - Update project
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const projectId = params.id as string
+    const { id: projectId } = await params
     const body = await req.json()
     const validatedData = updateProjectSchema.parse(body)
     
@@ -42,7 +42,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
       ...validatedData,
       type: validatedData.type as ProjectType | undefined,
       stage: validatedData.stage as ProjectStage | undefined,
-      priority: validatedData.priority as ProjectPriority | undefined
+      priority: validatedData.priority as Priority | undefined
     })
     
     return createResponse(project)
@@ -57,7 +57,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/projects/[id] - Delete project
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const projectId = params.id as string
+    const { id: projectId } = await params
     const result = await ProjectsService.delete(projectId, userId)
     return createResponse(result)
   } catch (error) {

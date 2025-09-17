@@ -6,22 +6,22 @@ import { ZodError } from 'zod'
 
 type Handler = (
   req: NextRequest,
-  context: { params: Record<string, string>; userId: string }
+  context: { params: Promise<{ [key: string]: string }>; userId: string }
 ) => Promise<NextResponse>
 
 export function withAuth(handler: Handler) {
-  return async (req: NextRequest, context: { params: Record<string, string> }) => {
+  return async (req: NextRequest, context: { params: Promise<{ [key: string]: string }> }) => {
     try {
-      // Get the user session 
+      // Get the user session
       const session = await getServerSession(authOptions)
-      
+
       if (!session?.user?.id) {
         return NextResponse.json(
           { error: 'Unauthorized' },
           { status: 401 }
         )
       }
-      
+
       return await handler(req, { ...context, userId: session.user.id })
     } catch (error) {
       if (error instanceof ZodError) {

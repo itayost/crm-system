@@ -86,7 +86,36 @@ export const mockDb = {
     },
   ],
   
-  tasks: [],
-  timeEntries: [],
-  payments: [],
+  tasks: [] as Array<{
+    id: string
+    title: string
+    description?: string
+    status: string
+    priority: string
+    dueDate?: Date
+    projectId?: string
+    userId: string
+  }>,
+  timeEntries: [] as Array<{
+    id: string
+    projectId: string
+    taskId?: string
+    startTime: Date
+    endTime?: Date
+    duration?: number
+    description?: string
+    userId: string
+  }>,
+  payments: [] as Array<{
+    id: string
+    amount: number
+    status: string
+    dueDate: Date
+    paymentDate?: Date
+    method?: string
+    notes?: string
+    projectId?: string
+    clientId: string
+    userId: string
+  }>,
 }

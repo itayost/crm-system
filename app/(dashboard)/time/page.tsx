@@ -78,17 +78,16 @@ export default function TimePage() {
       {
         id: '1',
         project: { name: 'דף נחיתה - חברת X' },
-        task: 'עיצוב',
+        task: { name: 'עיצוב' },
         startTime: '2024-12-15T10:35:00',
-        endTime: null,
-        duration: null,
+        endTime: undefined,
+        duration: 0,
         description: 'עיצוב וקידוד הדף הראשי',
-        isActive: true,
       },
       {
         id: '2',
         project: { name: 'אפליקציה - סטארטאפ Y' },
-        task: 'פיתוח Backend',
+        task: { name: 'פיתוח Backend' },
         startTime: '2024-12-15T08:00:00',
         endTime: '2024-12-15T10:30:00',
         duration: 150,
@@ -97,14 +96,14 @@ export default function TimePage() {
       {
         id: '3',
         project: { name: 'ייעוץ CRM' },
-        task: 'פגישה',
+        task: { name: 'פגישה' },
         startTime: '2024-12-14T14:00:00',
         endTime: '2024-12-14T14:45:00',
         duration: 45,
         description: 'שיחת ייעוץ טלפונית',
       },
     ]
-    
+
     setTimeEntries(mockEntries)
   }
   
@@ -489,9 +488,9 @@ export default function TimePage() {
                       {new Date(entry.startTime).toLocaleDateString('he-IL')}
                     </td>
                     <td className="py-3 text-sm">
-                      <Badge variant="outline">{entry.project.name}</Badge>
+                      <Badge variant="outline">{entry.project?.name || '-'}</Badge>
                     </td>
-                    <td className="py-3 text-sm">{entry.task || '-'}</td>
+                    <td className="py-3 text-sm">{entry.task?.name || '-'}</td>
                     <td className="py-3 text-sm">{entry.description || '-'}</td>
                     <td className="py-3 text-sm">
                       {new Date(entry.startTime).toLocaleTimeString('he-IL', {

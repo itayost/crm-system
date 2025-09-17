@@ -193,7 +193,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 text-yellow-600" />
               {data.stats.pendingPayments > 0 && (
-                <Badge variant="warning">{data.stats.pendingPayments}</Badge>
+                <Badge variant="secondary">{data.stats.pendingPayments}</Badge>
               )}
             </div>
             <p className="text-2xl font-bold">₪{data.stats.monthlyRevenue.toLocaleString()}</p>
@@ -317,7 +317,7 @@ export default function DashboardPage() {
                       <Badge variant="destructive" className="mt-1">באיחור</Badge>
                     )}
                     {payment.status === 'pending' && (
-                      <Badge variant="warning" className="mt-1">ממתין</Badge>
+                      <Badge variant="secondary" className="mt-1">ממתין</Badge>
                     )}
                   </div>
                 </div>

@@ -66,12 +66,12 @@ export function TaskForm({
   } = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
     defaultValues: task ? {
-      title: task.title,
+      title: task.name,
       description: task.description || '',
-      priority: task.priority || 'MEDIUM',
+      priority: (task.priority as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT') || 'MEDIUM',
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
       projectId: task.projectId || '',
-      clientId: task.clientId || ''
+      clientId: undefined
     } : {
       priority: 'MEDIUM'
     }

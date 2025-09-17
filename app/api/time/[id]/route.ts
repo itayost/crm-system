@@ -14,7 +14,7 @@ const updateTimeEntrySchema = z.object({
 // PUT /api/time/[id] - Update time entry
 export const PUT = withAuth(async (req, { params, userId }) => {
   try {
-    const timeEntryId = params.id as string
+    const { id: timeEntryId } = await params
     const body = await req.json()
     const validatedData = updateTimeEntrySchema.parse(body)
     
@@ -32,7 +32,7 @@ export const PUT = withAuth(async (req, { params, userId }) => {
 // DELETE /api/time/[id] - Delete time entry
 export const DELETE = withAuth(async (req, { params, userId }) => {
   try {
-    const timeEntryId = params.id as string
+    const { id: timeEntryId } = await params
     const result = await TimeService.delete(timeEntryId, userId)
     return createResponse(result)
   } catch (error) {
