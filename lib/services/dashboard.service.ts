@@ -206,8 +206,8 @@ export class DashboardService extends BaseService {
         where: {
           userId,
           OR: [
-            { description: { contains: query, mode: 'insensitive' } },
-            { client: { 
+            { notes: { contains: query, mode: 'insensitive' } },
+            { client: {
               OR: [
                 { name: { contains: query, mode: 'insensitive' } },
                 { company: { contains: query, mode: 'insensitive' } }
@@ -217,7 +217,7 @@ export class DashboardService extends BaseService {
         },
         select: {
           id: true,
-          description: true,
+          notes: true,
           amount: true,
           client: {
             select: { name: true, company: true }
@@ -235,7 +235,7 @@ export class DashboardService extends BaseService {
         id: lead.id,
         title: lead.name,
         type: 'lead',
-        subtitle: lead.company || lead.email,
+        subtitle: lead.company || lead.email || undefined,
         href: `/leads?id=${lead.id}`
       })
     })
@@ -266,7 +266,7 @@ export class DashboardService extends BaseService {
     payments.forEach(payment => {
       results.push({
         id: payment.id,
-        title: payment.description || 'תשלום',
+        title: payment.notes || 'תשלום',
         type: 'payment',
         subtitle: `${payment.client?.name || payment.client?.company} - ₪${payment.amount}`,
         href: `/payments?id=${payment.id}`
@@ -319,7 +319,7 @@ export class DashboardService extends BaseService {
         id: lead.id,
         title: lead.name,
         type: 'lead',
-        subtitle: lead.company,
+        subtitle: lead.company || undefined,
         href: `/leads?id=${lead.id}`
       })
     })

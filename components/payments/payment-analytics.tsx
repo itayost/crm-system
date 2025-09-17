@@ -6,8 +6,15 @@ import { TrendingUp, TrendingDown, CreditCard, DollarSign } from 'lucide-react'
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
 
+interface Payment {
+  id: string
+  amount: number
+  status: string
+  dueDate?: string
+}
+
 interface PaymentAnalyticsProps {
-  payments: unknown
+  payments: Payment[]
   recurringPayments: unknown
 }
 
@@ -30,12 +37,12 @@ export function PaymentAnalytics({ payments, recurringPayments }: PaymentAnalyti
   ]
 
   const totalPending = payments
-    .filter((p: unknown) => p.status === 'PENDING')
-    .reduce((sum: unknown) => sum + p.amount, 0)
-  
+    .filter((p) => p.status === 'PENDING')
+    .reduce((sum, p) => sum + p.amount, 0)
+
   const totalOverdue = payments
-    .filter((p: unknown) => p.status === 'OVERDUE')
-    .reduce((sum: unknown) => sum + p.amount, 0)
+    .filter((p) => p.status === 'OVERDUE')
+    .reduce((sum, p) => sum + p.amount, 0)
 
   return (
     <Card>

@@ -82,21 +82,14 @@ export class TasksService extends BaseService {
             select: {
               id: true,
               name: true,
-              type: true
-            }
-          },
-          client: {
-            select: {
-              id: true,
-              name: true,
-              company: true
-            }
-          },
-          assignedTo: {
-            select: {
-              id: true,
-              name: true,
-              email: true
+              type: true,
+              client: {
+                select: {
+                  id: true,
+                  name: true,
+                  company: true
+                }
+              }
             }
           },
           timeEntries: {
@@ -136,9 +129,11 @@ export class TasksService extends BaseService {
           userId
         },
         include: {
-          project: true,
-          client: true,
-          assignedTo: true,
+          project: {
+            include: {
+              client: true
+            }
+          },
           timeEntries: {
             orderBy: { startTime: 'desc' }
           }
@@ -160,37 +155,38 @@ export class TasksService extends BaseService {
    */
   static async create(userId: string, data: CreateTaskInput) {
     try {
-      // Verify project if provided
-      if (data.projectId) {
-        const project = await prisma.project.findFirst({
-          where: { id: data.projectId, userId }
-        })
-        if (!project) {
-          throw new Error('פרויקט לא נמצא')
-        }
+      // Project is required for tasks
+      if (!data.projectId) {
+        throw new Error('פרויקט חובה למשימה')
       }
 
-      // Verify client if provided
-      if (data.clientId) {
-        const client = await prisma.client.findFirst({
-          where: { id: data.clientId, userId }
-        })
-        if (!client) {
-          throw new Error('לקוח לא נמצא')
-        }
+      // Verify project
+      const project = await prisma.project.findFirst({
+        where: { id: data.projectId, userId }
+      })
+      if (!project) {
+        throw new Error('פרויקט לא נמצא')
       }
+
+      // Remove fields that don't exist in Task model
+      const { clientId, assignedToId, tags, ...taskData } = data
 
       const task = await prisma.task.create({
         data: {
-          ...data,
+          title: taskData.title,
+          description: taskData.description,
+          projectId: data.projectId, // We know this exists from the check above
           userId,
           status: 'TODO',
-          priority: data.priority || 'MEDIUM',
-          dueDate: data.dueDate ? new Date(data.dueDate) : undefined
+          priority: taskData.priority || 'MEDIUM',
+          dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined
         },
         include: {
-          project: true,
-          client: true
+          project: {
+            include: {
+              client: true
+            }
+          }
         }
       })
 
@@ -239,21 +235,27 @@ export class TasksService extends BaseService {
         throw new Error('משימה לא נמצאה')
       }
 
+      // Remove fields that don't exist in Task model
+      const { clientId, assignedToId, tags, ...taskData } = data
+
       // If marking as completed, set completedAt
-      if (data.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
-        data.completedAt = new Date()
+      if (taskData.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
+        taskData.completedAt = new Date()
       }
 
       const task = await prisma.task.update({
         where: { id: taskId },
         data: {
-          ...data,
-          dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-          completedAt: data.completedAt ? new Date(data.completedAt) : undefined
+          ...taskData,
+          dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
+          completedAt: taskData.completedAt ? new Date(taskData.completedAt) : undefined
         },
         include: {
-          project: true,
-          client: true
+          project: {
+            include: {
+              client: true
+            }
+          }
         }
       })
 

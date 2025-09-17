@@ -11,6 +11,7 @@ const loginSchema = z.object({
 })
 
 export const authOptions: NextAuthOptions = {
+  // @ts-expect-error - Type mismatch between @auth/prisma-adapter and next-auth versions
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',

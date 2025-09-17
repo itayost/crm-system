@@ -34,7 +34,7 @@ const getNavigation = (badges: SidebarBadges | null) => [
     name: 'לידים', 
     href: '/leads', 
     icon: Target,
-    badge: badges?.leads.hot > 0 ? { count: badges.leads.hot, variant: 'destructive' as const } : null
+    badge: badges?.leads?.hot && badges.leads.hot > 0 ? { count: badges.leads.hot, variant: 'destructive' as const } : null
   },
   { 
     name: 'לקוחות', 
@@ -46,7 +46,7 @@ const getNavigation = (badges: SidebarBadges | null) => [
     name: 'פרויקטים', 
     href: '/projects', 
     icon: Briefcase,
-    badge: badges?.projects.active > 0 ? { count: badges.projects.active, variant: 'default' as const } : null
+    badge: badges?.projects?.active && badges.projects.active > 0 ? { count: badges.projects.active, variant: 'default' as const } : null
   },
   { 
     name: 'זמנים', 
@@ -58,8 +58,8 @@ const getNavigation = (badges: SidebarBadges | null) => [
     name: 'תשלומים', 
     href: '/payments', 
     icon: DollarSign,
-    badge: badges?.payments.overdue > 0 ? { count: badges.payments.overdue, variant: 'destructive' as const } : 
-           badges?.payments.pending > 0 ? { count: badges.payments.pending, variant: 'warning' as const } : null
+    badge: badges?.payments?.overdue && badges.payments.overdue > 0 ? { count: badges.payments.overdue, variant: 'destructive' as const } :
+           badges?.payments?.pending && badges.payments.pending > 0 ? { count: badges.payments.pending, variant: 'secondary' as const } : null
   },
   { 
     name: 'דוחות', 

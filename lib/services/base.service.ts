@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/db/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, NotificationType } from '@prisma/client'
 
 export class BaseService {
   /**
    * Handle database errors and return user-friendly messages
    */
-  protected static handleError(error): never {
+  protected static handleError(error: unknown): never {
     console.error('Database error:', error)
     
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -40,7 +40,7 @@ export class BaseService {
           action: params.action,
           entityType: params.entityType,
           entityId: params.entityId,
-          metadata: params.metadata || {}
+          metadata: (params.metadata || {}) as Prisma.InputJsonValue
         }
       })
     } catch (error) {
@@ -54,7 +54,7 @@ export class BaseService {
    */
   protected static async createNotification(params: {
     userId: string
-    type: string
+    type: NotificationType
     title: string
     message?: string
     entityType?: string

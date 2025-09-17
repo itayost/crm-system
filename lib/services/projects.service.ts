@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/db/prisma'
 import { BaseService } from './base.service'
-import { ProjectType, ProjectStage, ProjectPriority, Prisma } from '@prisma/client'
+import { ProjectType, ProjectStage, Priority, Prisma, NotificationType } from '@prisma/client'
 
 interface CreateProjectInput {
   name: string
   description?: string
   clientId: string
   type: ProjectType
-  priority?: ProjectPriority
+  priority?: Priority
   budget?: number
   estimatedHours?: number
   startDate?: Date | string
@@ -20,7 +20,7 @@ interface UpdateProjectInput {
   clientId?: string
   type?: ProjectType
   stage?: ProjectStage
-  priority?: ProjectPriority
+  priority?: Priority
   budget?: number
   estimatedHours?: number
   actualHours?: number
@@ -31,7 +31,7 @@ interface UpdateProjectInput {
 
 interface ProjectFilters {
   stage?: ProjectStage
-  priority?: ProjectPriority
+  priority?: Priority
   type?: ProjectType
   clientId?: string
   search?: string
@@ -245,7 +245,7 @@ export class ProjectsService extends BaseService {
       // Create notification
       await this.createNotification({
         userId,
-        type: 'PROJECT',
+        type: 'PROJECT_UPDATE',
         title: 'פרויקט חדש נוצר',
         message: `פרויקט "${project.name}" נוצר עבור ${client.name}`,
         entityType: 'Project',
@@ -320,7 +320,7 @@ export class ProjectsService extends BaseService {
         if (data.stage === 'DELIVERY') {
           await this.createNotification({
             userId,
-            type: 'PROJECT',
+            type: 'PROJECT_UPDATE',
             title: 'פרויקט הושלם',
             message: `הפרויקט "${project.name}" מוכן למסירה`,
             entityType: 'Project',
@@ -414,7 +414,8 @@ export class ProjectsService extends BaseService {
       DEVELOPMENT: 40,
       TESTING: 70,
       REVIEW: 85,
-      DELIVERY: 100
+      DELIVERY: 100,
+      MAINTENANCE: 100
     }
     return stageProgress[stage] || 0
   }

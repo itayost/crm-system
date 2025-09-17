@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { BaseService } from './base.service'
 import { PaymentStatus, PaymentType, Frequency, Prisma } from '@prisma/client'
-import { addDays, addWeeks, addMonths, addYears } from 'date-fns'
+import { addDays, addMonths, addYears } from 'date-fns'
 interface CreatePaymentInput {
   amount: number
   type: PaymentType
@@ -414,6 +414,7 @@ export class PaymentsService extends BaseService {
       const recurringPayment = await prisma.recurringPayment.create({
         data: {
           ...data,
+          serviceType: data.serviceType || 'MAINTENANCE',
           amount: new Prisma.Decimal(data.amount),
           nextDueDate: new Date(data.nextDueDate),
           isActive: data.isActive !== false
@@ -426,7 +427,7 @@ export class PaymentsService extends BaseService {
       // Create the first payment
       await this.create(userId, {
         amount: data.amount,
-        type: 'RECURRING',
+        type: 'MAINTENANCE',
         dueDate: data.nextDueDate,
         clientId: data.clientId,
         recurringPaymentId: recurringPayment.id,
@@ -514,12 +515,6 @@ export class PaymentsService extends BaseService {
       const currentDueDate = new Date(recurringPayment.nextDueDate)
 
       switch (recurringPayment.frequency) {
-        case 'DAILY':
-          nextDueDate = addDays(currentDueDate, 1)
-          break
-        case 'WEEKLY':
-          nextDueDate = addWeeks(currentDueDate, 1)
-          break
         case 'MONTHLY':
           nextDueDate = addMonths(currentDueDate, 1)
           break
@@ -545,7 +540,7 @@ export class PaymentsService extends BaseService {
       // Create next payment
       const newPayment = await this.create(userId, {
         amount: Number(recurringPayment.amount),
-        type: 'RECURRING',
+        type: 'MAINTENANCE',
         dueDate: nextDueDate,
         clientId: recurringPayment.clientId,
         recurringPaymentId: recurringPayment.id,
