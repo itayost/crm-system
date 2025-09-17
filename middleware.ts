@@ -9,8 +9,7 @@ export async function middleware(request: NextRequest) {
   })
   
   const isAuth = !!token
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') ||
-                     request.nextUrl.pathname.startsWith('/register')
+  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
   
   // If user is authenticated and trying to access auth pages, redirect to dashboard
   if (isAuthPage) {
