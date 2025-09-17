@@ -141,7 +141,7 @@ export function QuickPayment({
                   <SelectItem value="BANK_TRANSFER">העברה בנקאית</SelectItem>
                   <SelectItem value="CREDIT_CARD">כרטיס אשראי</SelectItem>
                   <SelectItem value="CASH">מזומן</SelectItem>
-                  <SelectItem value="CHECK">צ'ק</SelectItem>
+                  <SelectItem value="CHECK">צ&apos;ק</SelectItem>
                   <SelectItem value="PAYPAL">PayPal</SelectItem>
                 </SelectContent>
               </Select>

@@ -58,7 +58,7 @@ export function PaymentAnalytics({ payments, recurringPayments }: PaymentAnalyti
               </div>
               <div className="border-t pt-2">
                 <div className="flex justify-between">
-                  <span className="font-bold">סה"כ:</span>
+                  <span className="font-bold">סה&quot;כ:</span>
                   <span className="font-bold text-green-600">{formatCurrency(22700)}</span>
                 </div>
               </div>
@@ -78,7 +78,7 @@ export function PaymentAnalytics({ payments, recurringPayments }: PaymentAnalyti
               </div>
               <div className="border-t pt-2">
                 <div className="flex justify-between">
-                  <span className="font-bold">סה"כ:</span>
+                  <span className="font-bold">סה&quot;כ:</span>
                   <span className="font-bold">{formatCurrency(totalPending + totalOverdue)}</span>
                 </div>
               </div>
@@ -98,7 +98,7 @@ export function PaymentAnalytics({ payments, recurringPayments }: PaymentAnalyti
               </div>
               <div className="border-t pt-2">
                 <div className="flex justify-between">
-                  <span className="font-bold">סה"כ צפוי:</span>
+                  <span className="font-bold">סה&quot;כ צפוי:</span>
                   <span className="font-bold text-blue-600">{formatCurrency(29200)}</span>
                 </div>
               </div>

@@ -31,7 +31,7 @@ export class BaseService {
     action: string
     entityType: string
     entityId: string
-    metadata?: any
+    metadata?: Record<string, unknown>
   }) {
     try {
       await prisma.activity.create({
@@ -64,7 +64,7 @@ export class BaseService {
       await prisma.notification.create({
         data: {
           userId: params.userId,
-          type: params.type as any,
+          type: params.type,
           title: params.title,
           message: params.message,
           entityType: params.entityType,

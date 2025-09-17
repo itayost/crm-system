@@ -6,11 +6,11 @@ import { ZodError } from 'zod'
 
 type Handler = (
   req: NextRequest,
-  context: { params: any; userId: string }
+  context: { params: Record<string, string>; userId: string }
 ) => Promise<NextResponse>
 
 export function withAuth(handler: Handler) {
-  return async (req: NextRequest, context: { params: any }) => {
+  return async (req: NextRequest, context: { params: Record<string, string> }) => {
     try {
       // Get the user session 
       const session = await getServerSession(authOptions)
@@ -40,7 +40,7 @@ export function withAuth(handler: Handler) {
   }
 }
 
-export function createResponse(data: any, status = 200) {
+export function createResponse(data: unknown, status = 200) {
   return NextResponse.json(data, { status })
 }
 

@@ -110,7 +110,7 @@ export function RecurringPaymentForm({
           <Label>תדירות *</Label>
           <Select 
             value={watch('frequency')} 
-            onValueChange={(value) => setValue('frequency', value as any)}
+            onValueChange={(value) => setValue('frequency', value as 'MONTHLY' | 'QUARTERLY' | 'YEARLY')}
           >
             <SelectTrigger>
               <SelectValue />

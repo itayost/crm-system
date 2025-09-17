@@ -415,7 +415,11 @@ export class TimeService extends BaseService {
       const totalHours = totalMinutes / 60
 
       // Group by project
-      const byProject = timeEntries.reduce((acc: any, entry) => {
+      const byProject = timeEntries.reduce((acc: Record<string, {
+        project: typeof entry.project
+        minutes: number
+        tasks: Set<string>
+      }>, entry) => {
         if (!entry.projectId) return acc
         
         if (!acc[entry.projectId]) {
@@ -435,14 +439,14 @@ export class TimeService extends BaseService {
       }, {})
 
       // Convert to array and calculate hours
-      const projectStats = Object.values(byProject).map((stat: any) => ({
+      const projectStats = Object.values(byProject).map((stat) => ({
         project: stat.project,
         hours: stat.minutes / 60,
         taskCount: stat.tasks.size
       }))
 
       // Sort by hours
-      projectStats.sort((a: any, b: any) => b.hours - a.hours)
+      projectStats.sort((a, b) => b.hours - a.hours)
 
       return {
         totalHours,

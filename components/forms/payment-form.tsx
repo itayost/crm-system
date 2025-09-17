@@ -123,7 +123,7 @@ export function PaymentForm({
           <Label htmlFor="type">סוג תשלום *</Label>
           <Select 
             value={watch('type')} 
-            onValueChange={(value) => setValue('type', value as any)}
+            onValueChange={(value) => setValue('type', value as 'PROJECT' | 'MAINTENANCE' | 'CONSULTATION' | 'OTHER')}
           >
             <SelectTrigger>
               <SelectValue />

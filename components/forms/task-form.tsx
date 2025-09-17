@@ -28,7 +28,15 @@ const taskSchema = z.object({
 type TaskFormData = z.infer<typeof taskSchema>
 
 interface TaskFormProps {
-  task?: any
+  task?: {
+    id: string
+    name: string
+    description?: string
+    priority: string
+    status: string
+    projectId?: string
+    dueDate?: string
+  }
   projects?: Array<{ id: string; name: string; type: string }>
   clients?: Array<{ id: string; name: string; company?: string }>
   onSubmit: (data: TaskFormData) => void
@@ -103,7 +111,7 @@ export function TaskForm({
           <Label htmlFor="priority">עדיפות</Label>
           <Select 
             value={watch('priority') || 'MEDIUM'}
-            onValueChange={(value) => setValue('priority', value as any)}
+            onValueChange={(value) => setValue('priority', value as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT')}
           >
             <SelectTrigger>
               <SelectValue placeholder="בחר עדיפות" />
