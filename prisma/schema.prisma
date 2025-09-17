@@ -1,0 +1,406 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User model
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String
+  role            UserRole @default(OWNER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  leads           Lead[]
+  clients         Client[]
+  projects        Project[]
+  tasks           Task[]
+  payments        Payment[]
+  notifications   Notification[]
+  timeEntries     TimeEntry[]
+  activities      Activity[]
+}
+
+// Lead model
+model Lead {
+  id              String      @id @default(cuid())
+  name            String
+  email           String?
+  phone           String
+  company         String?
+  source          LeadSource
+  status          LeadStatus  @default(NEW)
+  projectType     String?
+  estimatedBudget Decimal?    @db.Decimal(10, 2)
+  notes           String?     @db.Text
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  convertedToClientId String?
+  convertedAt     DateTime?
+  client          Client?     @relation(fields: [convertedToClientId], references: [id])
+  
+  activities      Activity[]
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Client model
+model Client {
+  id              String    @id @default(cuid())
+  name            String
+  email           String
+  phone           String
+  company         String?
+  address         String?
+  taxId           String?
+  type            ClientType @default(REGULAR)
+  status          ClientStatus @default(ACTIVE)
+  notes           String?   @db.Text
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  projects        Project[]
+  payments        Payment[]
+  recurringPayments RecurringPayment[]
+  leads           Lead[]
+  
+  totalRevenue    Decimal   @default(0) @db.Decimal(10, 2)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([type])
+}
+
+// Project model
+model Project {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?   @db.Text
+  type            ProjectType
+  status          ProjectStatus @default(DRAFT)
+  priority        Priority  @default(MEDIUM)
+  stage           ProjectStage @default(PLANNING)
+  
+  startDate       DateTime?
+  deadline        DateTime?
+  completedAt     DateTime?
+  
+  estimatedHours  Int?
+  actualHours     Float?
+  budget          Decimal?  @db.Decimal(10, 2)
+  
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  tasks           Task[]
+  payments        Payment[]
+  timeEntries     TimeEntry[]
+  milestones      Milestone[]
+  documents       Document[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([deadline])
+}
+
+// Task model
+model Task {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?   @db.Text
+  status          TaskStatus @default(TODO)
+  priority        Priority  @default(MEDIUM)
+  
+  dueDate         DateTime?
+  completedAt     DateTime?
+  
+  estimatedHours  Float?
+  actualHours     Float?
+  
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  parentTaskId    String?
+  parentTask      Task?     @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks        Task[]    @relation("SubTasks")
+  
+  timeEntries     TimeEntry[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([projectId])
+  @@index([status])
+}
+
+// TimeEntry model
+model TimeEntry {
+  id              String    @id @default(cuid())
+  startTime       DateTime
+  endTime         DateTime?
+  duration        Int?      // in minutes
+  description     String?   @db.Text
+  
+  taskId          String?
+  task            Task?     @relation(fields: [taskId], references: [id])
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([projectId])
+  @@index([startTime])
+}
+
+// Payment model
+model Payment {
+  id              String    @id @default(cuid())
+  amount          Decimal   @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  type            PaymentType
+  
+  dueDate         DateTime
+  paidAt          DateTime?
+  
+  invoiceNumber   String?
+  receiptNumber   String?
+  notes           String?   @db.Text
+  
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id])
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  recurringPaymentId String?
+  recurringPayment RecurringPayment? @relation(fields: [recurringPaymentId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([dueDate])
+}
+
+// RecurringPayment model
+model RecurringPayment {
+  id              String    @id @default(cuid())
+  name            String
+  amount          Decimal   @db.Decimal(10, 2)
+  frequency       Frequency
+  nextDueDate     DateTime
+  lastPaidDate    DateTime?
+  isActive        Boolean   @default(true)
+  serviceType     String
+  reminderDays    Int       @default(30)
+  
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id])
+  
+  paymentHistory  Payment[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([nextDueDate])
+}
+
+// Notification model
+model Notification {
+  id              String    @id @default(cuid())
+  type            NotificationType
+  title           String
+  message         String?   @db.Text
+  isRead          Boolean   @default(false)
+  
+  entityType      String?
+  entityId        String?
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([userId, isRead])
+}
+
+// Activity model
+model Activity {
+  id              String    @id @default(cuid())
+  action          String
+  entityType      String
+  entityId        String
+  
+  leadId          String?
+  lead            Lead?     @relation(fields: [leadId], references: [id])
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  metadata        Json?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([entityType, entityId])
+}
+
+// Document model
+model Document {
+  id              String    @id @default(cuid())
+  name            String
+  url             String
+  type            String
+  size            Int
+  
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+}
+
+// Milestone model
+model Milestone {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?   @db.Text
+  dueDate         DateTime
+  completedAt     DateTime?
+  
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Enums
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum LeadSource {
+  WEBSITE
+  PHONE
+  WHATSAPP
+  REFERRAL
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  NEGOTIATING
+  CONVERTED
+  LOST
+}
+
+enum ClientType {
+  REGULAR
+  VIP
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProjectType {
+  LANDING_PAGE
+  WEBSITE
+  ECOMMERCE
+  WEB_APP
+  MOBILE_APP
+  MANAGEMENT_SYSTEM
+  CONSULTATION
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectStage {
+  PLANNING
+  DEVELOPMENT
+  TESTING
+  REVIEW
+  DELIVERY
+  MAINTENANCE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING_APPROVAL
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentType {
+  PROJECT
+  MAINTENANCE
+  CONSULTATION
+  OTHER
+}
+
+enum Frequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum NotificationType {
+  LEAD_NEW
+  DEADLINE_APPROACHING
+  PAYMENT_DUE
+  PAYMENT_OVERDUE
+  TASK_ASSIGNED
+  PROJECT_UPDATE
+  SYSTEM
+}

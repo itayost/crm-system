@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM - ניהול לידים</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Heebo', sans-serif;
+        }
+        
+        .lead-new {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .8;
+            }
+        }
+        
+        .status-new { background: #fef2f2; border-right: 4px solid #ef4444; }
+        .status-contacted { background: #fff7ed; border-right: 4px solid #f97316; }
+        .status-quoted { background: #fefce8; border-right: 4px solid #eab308; }
+        .status-negotiating { background: #eff6ff; border-right: 4px solid #3b82f6; }
+        .status-converted { background: #f0fdf4; border-right: 4px solid #22c55e; }
+        .status-lost { background: #f3f4f6; border-right: 4px solid #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-800 text-white h-16 flex items-center px-6 shadow-lg">
+        <div class="flex items-center flex-1">
+            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white ml-3">
+                CRM
+            </div>
+            <h1 class="text-xl font-semibold">ניהול לידים</h1>
+        </div>
+        <div class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+            2 לידים חדשים!
+        </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="bg-white shadow-sm p-4">
+        <div class="grid grid-cols-6 gap-4 text-center">
+            <div class="border-l-4 border-gray-400 pr-4">
+                <p class="text-2xl font-bold">18</p>
+                <p class="text-sm text-gray-600">סה"כ לידים החודש</p>
+            </div>
+            <div class="border-l-4 border-red-500 pr-4">
+                <p class="text-2xl font-bold text-red-500">2</p>
+                <p class="text-sm text-gray-600">חדשים</p>
+            </div>
+            <div class="border-l-4 border-orange-500 pr-4">
+                <p class="text-2xl font-bold text-orange-500">5</p>
+                <p class="text-sm text-gray-600">בתהליך</p>
+            </div>
+            <div class="border-l-4 border-green-500 pr-4">
+                <p class="text-2xl font-bold text-green-500">3</p>
+                <p class="text-sm text-gray-600">הומרו</p>
+            </div>
+            <div class="border-l-4 border-blue-500 pr-4">
+                <p class="text-2xl font-bold text-blue-500">28%</p>
+                <p class="text-sm text-gray-600">אחוז המרה</p>
+            </div>
+            <div class="border-l-4 border-purple-500 pr-4">
+                <p class="text-2xl font-bold text-purple-500">2.5 שעות</p>
+                <p class="text-sm text-gray-600">זמן תגובה ממוצע</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="bg-gray-50 p-4 flex items-center justify-between border-b">
+        <div class="flex items-center gap-3">
+            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium">
+                + הוסף ליד ידנית
+            </button>
+            
+            <div class="flex gap-2 bg-white rounded-lg p-1">
+                <button class="px-3 py-1 rounded bg-blue-100 text-blue-700 font-medium">כל הלידים</button>
+                <button class="px-3 py-1 rounded hover:bg-gray-100">חדשים</button>
+                <button class="px-3 py-1 rounded hover:bg-gray-100">בטיפול</button>
+                <button class="px-3 py-1 rounded hover:bg-gray-100">ארכיון</button>
+            </div>
+            
+            <select class="border rounded-lg px-3 py-2 bg-white">
+                <option>כל המקורות</option>
+                <option>אתר</option>
+                <option>טלפון</option>
+                <option>המלצה</option>
+                <option>WhatsApp</option>
+            </select>
+            
+            <input type="text" placeholder="חיפוש ליד..." class="border rounded-lg px-3 py-2 w-64 bg-white">
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600">מיון:</span>
+            <select class="border rounded-lg px-3 py-2 bg-white">
+                <option>תאריך (חדש לישן)</option>
+                <option>תאריך (ישן לחדש)</option>
+                <option>סטטוס</option>
+                <option>ערך פוטנציאלי</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Leads Pipeline View -->
+    <div class="p-6">
+        <div class="grid grid-cols-5 gap-4">
+            
+            <!-- New Leads -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="bg-red-500 text-white p-3 rounded-t-lg">
+                    <h3 class="font-bold">פנייה ראשונית</h3>
+                    <p class="text-sm opacity-90">2 לידים</p>
+                </div>
+                <div class="p-3 space-y-3" style="min-height: 400px;">
+                    <div class="status-new rounded-lg p-4 lead-new cursor-pointer hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded font-bold">חדש!</span>
+                            <span class="text-xs text-gray-500">לפני 2 שעות</span>
+                        </div>
+                        <h4 class="font-bold text-sm mb-1">דני כהן</h4>
+                        <p class="text-xs text-gray-600 mb-2">חברת טכנולוגיה</p>
+                        <div class="bg-white rounded p-2 mb-2">
+                            <p class="text-xs">"צריכים אתר חדש לחברה, כ-10 עמודים עם מערכת ניהול תוכן"</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span>📱 054-1234567</span>
+                            <span>🌐 מהאתר</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t flex gap-2">
+                            <button class="flex-1 bg-green-500 text-white py-1 rounded text-xs hover:bg-green-600">
+                                📞 התקשר
+                            </button>
+                            <button class="flex-1 bg-blue-500 text-white py-1 rounded text-xs hover:bg-blue-600">
+                                💬 WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="status-new rounded-lg p-4 lead-new cursor-pointer hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded font-bold">חדש!</span>
+                            <span class="text-xs text-gray-500">אתמול</span>
+                        </div>
+                        <h4 class="font-bold text-sm mb-1">שרה לוי</h4>
+                        <p class="text-xs text-gray-600 mb-2">בוטיק אופנה</p>
+                        <div class="bg-white rounded p-2 mb-2">
+                            <p class="text-xs">"מעוניינת בחנות אונליין עם מערכת מלאי"</p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span>📱 052-9876543</span>
+                            <span>📞 טלפון</span>
+                        </div>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded p-2 mt-2">
+                            <p class="text-xs text-yellow-800">⏰ תזכורת: ליצור קשר היום!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacted -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="bg-orange-500 text-white p-3 rounded-t-lg">
+                    <h3 class="font-bold">יצרתי קשר</h3>
+                    <p class="text-sm opacity-90">3 לידים</p>
+                </div>
+                <div class="p-3 space-y-3" style="min-height: 400px;">
+                    <div class="status-contacted rounded-lg p-4 cursor-pointer hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs text-gray-500">לפני 3 ימים</span>
+                        </div>
+                        <h4 class="font-bold text-sm mb-1">משה ברגר</h4>
+                        <p class="text-xs text-gray-600 mb-2">משרד עו"ד</p>
+                        <div class="bg-white rounded p-2 mb-2">
+                            <p class="text-xs">"אתר תדמית + מערכת תורים"</p>
+                        </div>
+                        <div class="text-xs text-gray-600 mb-2">
+                            💬 דיברנו ב-12/12 - מעוניין, מחכה להצעת מחיר
+                        </div>
+                        <div class="mt-3 pt-3 border-t">
+                            <button class="w-full bg-orange-500 text-white py-1 rounded text-xs hover:bg-orange-600">
+                                📄 שלח הצעת מחיר
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="status-contacted rounded-lg p-4 cursor-pointer hover:shadow-md transition">
+                        <h4 class="font-bold text-sm mb-1">רונית שמיר</h4>
+                        <p class="text-xs text-gray-600 mb-2">קייטרינג</p>
+                        <div class="text-xs text-gray-600">
+                            💬 שלחתי WhatsApp - ממתינה לתגובה
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote Sent -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="bg-yellow-500 text-white p-3 rounded-t-lg">
+                    <h3 class="font-bold">הצעת מחיר</h3>
+                    <p class="text-sm opacity-90">2 לידים</p>
+                </div>
+                <div class="p-3 space-y-3" style="min-height: 400px;">
+                    <div class="status-quoted rounded-lg p-4 cursor-pointer hover:shadow-md transition">
+                        <h4 class="font-bold text-sm mb-1">איתן גולד</h4>
+                        <p class="text-xs text-gray-600 mb-2">חברת יבוא</p>
+                        <div class="bg-white rounded p-2 mb-2">
+                            <p class="text-xs font-bold">הצעה: ₪15,000</p>
+                            <p class="text-xs">אתר + קטלוג מוצרים</p>
+                        </div>
+                        <div class="text-xs text-gray-600 mb-2">
+                            📧 נשלחה ב-10/12
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded p-2">
+                            <p class="text-xs text-blue-800">3 ימים ללא תגובה - לעשות follow up</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Negotiating -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="bg-blue-500 text-white p-3 rounded-t-lg">
+                    <h3 class="font-bold">משא ומתן</h3>
+                    <p class="text-sm opacity-90">1 ליד</p>
+                </div>
+                <div class="p-3 space-y-3" style="min-height: 400px;">
+                    <div class="status-negotiating rounded-lg p-4 cursor-pointer hover:shadow-md transition">
+                        <h4 class="font-bold text-sm mb-1">ליאור אדלר</h4>
+                        <p class="text-xs text-gray-600 mb-2">סטארטאפ</p>
+                        <div class="bg-white rounded p-2 mb-2">
+                            <p class="text-xs font-bold">הצעה מקורית: ₪45,000</p>
+                            <p class="text-xs text-orange-600">ביקש הנחה של 20%</p>
+                        </div>
+                        <div class="text-xs text-gray-600 mb-2">
+                            💬 פגישה מחר ב-14:00
+                        </div>
+                        <div class="mt-3 pt-3 border-t">
+                            <button class="w-full bg-green-500 text-white py-1 rounded text-xs hover:bg-green-600">
+                                ✅ סגור עסקה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Converted/Lost -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="bg-gray-600 text-white p-3 rounded-t-lg">
+                    <h3 class="font-bold">סיום תהליך</h3>
+                    <p class="text-sm opacity-90">השבוע</p>
+                </div>
+                <div class="p-3 space-y-3" style="min-height: 400px;">
+                    <div class="status-converted rounded-lg p-4 cursor-pointer hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded font-bold">✅ הומר!</span>
+                            <span class="text-xs text-gray-500">אתמול</span>
+                        </div>
+                        <h4 class="font-bold text-sm mb-1">נעמי כץ</h4>
+                        <p class="text-xs text-gray-600 mb-2">מרפאת שיניים</p>
+                        <div class="bg-green-50 rounded p-2">
+                            <p class="text-xs font-bold text-green-800">נסגר ב-₪8,500</p>
+                            <p class="text-xs">אתר תדמית + מערכת תורים</p>
+                        </div>
+                        <button class="w-full mt-2 bg-blue-500 text-white py-1 rounded text-xs hover:bg-blue-600">
+                            → עבור לפרויקט
+                        </button>
+                    </div>
+                    
+                    <div class="status-lost rounded-lg p-4 cursor-pointer hover:shadow-md transition opacity-75">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">נדחה</span>
+                            <span class="text-xs text-gray-500">לפני 3 ימים</span>
+                        </div>
+                        <h4 class="font-bold text-sm mb-1">דוד לוי</h4>
+                        <p class="text-xs text-gray-600 mb-2">חנות רהיטים</p>
+                        <p class="text-xs text-gray-500">סיבה: מחיר גבוה מדי</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Add Lead Modal Preview -->
+    <div class="fixed bottom-6 left-6 bg-white rounded-lg shadow-xl p-4 w-80 border-2 border-blue-500" style="display: none;">
+        <h3 class="font-bold mb-3">הוספת ליד מהיר</h3>
+        <div class="space-y-3">
+            <input type="text" placeholder="שם מלא" class="w-full border rounded px-3 py-2 text-sm">
+            <input type="tel" placeholder="טלפון" class="w-full border rounded px-3 py-2 text-sm">
+            <input type="email" placeholder="אימייל" class="w-full border rounded px-3 py-2 text-sm">
+            <select class="w-full border rounded px-3 py-2 text-sm">
+                <option>סוג פרויקט...</option>
+                <option>אתר תדמית</option>
+                <option>חנות אונליין</option>
+                <option>אפליקציה</option>
+                <option>מערכת ניהול</option>
+                <option>דף נחיתה</option>
+                <option>ייעוץ</option>
+            </select>
+            <textarea placeholder="הערות..." class="w-full border rounded px-3 py-2 text-sm h-20"></textarea>
+            <div class="flex gap-2">
+                <button class="flex-1 bg-blue-500 text-white py-2 rounded text-sm hover:bg-blue-600">שמור</button>
+                <button class="flex-1 bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300">ביטול</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

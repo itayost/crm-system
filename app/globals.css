@@ -1,26 +1,165 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    font-family: 'Heebo', system-ui, sans-serif;
+  }
+  
+  body {
+    font-family: 'Heebo', system-ui, sans-serif;
+    @apply bg-gray-100;
+  }
+  
+  /* RTL Support */
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-200 rounded-lg;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-lg;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+  
+  /* Horizontal scrollbar for kanban boards */
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 12px;
+  }
+  
+  /* Vertical scrollbar for lead columns */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #9ca3af #e5e7eb;
+  }
+}
+
+@layer utilities {
+  /* Custom animations */
+  @keyframes pulse-dot {
+    0% {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+  }
+
+  .pulse-dot {
+    animation: pulse-dot 2s infinite;
+  }
+
+  /* Status colors */
+  .status-active { 
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  }
+
+  .status-inactive { 
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  }
+
+  .status-new { 
+    background: #fef2f2; 
+    border-right: 4px solid #ef4444; 
+  }
+
+  .status-contacted { 
+    background: #fff7ed; 
+    border-right: 4px solid #f97316; 
+  }
+
+  .status-quoted { 
+    background: #fefce8; 
+    border-right: 4px solid #eab308; 
+  }
+
+  .status-negotiating { 
+    background: #eff6ff; 
+    border-right: 4px solid #3b82f6; 
+  }
+
+  .status-converted { 
+    background: #f0fdf4; 
+    border-right: 4px solid #22c55e; 
+  }
+
+  .status-lost { 
+    background: #f3f4f6; 
+    border-right: 4px solid #6b7280; 
+  }
+
+  /* Priority colors */
+  .priority-urgent { 
+    border-right: 4px solid #ef4444; 
+  }
+
+  .priority-high { 
+    border-right: 4px solid #f59e0b; 
+  }
+
+  .priority-medium { 
+    border-right: 4px solid #3b82f6; 
+  }
+
+  .priority-low { 
+    border-right: 4px solid #10b981; 
+  }
+
+  /* Timer animation */
+  .timer-active {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
 }

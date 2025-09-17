@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM - מעקב זמנים</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Heebo', sans-serif;
+        }
+        
+        .timer-active {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .time-block {
+            transition: all 0.2s;
+        }
+        
+        .time-block:hover {
+            transform: translateX(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .chart-bar {
+            animation: growBar 0.5s ease-out;
+        }
+        
+        @keyframes growBar {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-800 text-white h-16 flex items-center px-6 shadow-lg">
+        <div class="flex items-center flex-1">
+            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white ml-3">
+                CRM
+            </div>
+            <h1 class="text-xl font-semibold">מעקב זמנים</h1>
+        </div>
+    </header>
+
+    <div class="p-6">
+        <!-- Active Timer Section -->
+        <div class="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl p-6 mb-6 timer-active">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold mb-2">טיימר פעיל</h2>
+                    <p class="text-xl opacity-90">דף נחיתה - חברת X</p>
+                    <p class="text-sm opacity-75 mt-1">התחלה: 10:35</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-6xl font-bold font-mono">02:34:15</p>
+                    <div class="flex gap-3 mt-4">
+                        <button class="bg-white text-red-600 px-6 py-2 rounded-lg font-bold hover:bg-gray-100 transition">
+                            ⏸️ השהה
+                        </button>
+                        <button class="bg-black bg-opacity-20 text-white px-6 py-2 rounded-lg font-bold hover:bg-opacity-30 transition">
+                            ⏹️ עצור וסיים
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Timer Start -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h3 class="text-lg font-bold mb-4">התחל טיימר חדש</h3>
+            <div class="grid grid-cols-4 gap-4">
+                <select class="border rounded-lg px-4 py-3 text-sm">
+                    <option>בחר פרויקט...</option>
+                    <option>דף נחיתה - חברת X</option>
+                    <option>אפליקציה - סטארטאפ Y</option>
+                    <option>אתר תדמית - חברת Z</option>
+                    <option>חנות אונליין - בוטיק שרה</option>
+                </select>
+                <select class="border rounded-lg px-4 py-3 text-sm">
+                    <option>בחר משימה...</option>
+                    <option>עיצוב</option>
+                    <option>פיתוח Frontend</option>
+                    <option>פיתוח Backend</option>
+                    <option>תיקוני באגים</option>
+                    <option>פגישה עם לקוח</option>
+                </select>
+                <input type="text" placeholder="תיאור (אופציונלי)" class="border rounded-lg px-4 py-3 text-sm">
+                <button class="bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition">
+                    ▶️ התחל טיימר
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-6">
+            <!-- Today's Summary -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h3 class="text-lg font-bold mb-4">סיכום היום</h3>
+                <div class="space-y-4">
+                    <div class="text-center py-4 border-b">
+                        <p class="text-4xl font-bold text-blue-600">5:42</p>
+                        <p class="text-sm text-gray-600">שעות עבודה</p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="time-block bg-gray-50 rounded-lg p-3 border-r-4 border-blue-500">
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="font-medium text-sm">אפליקציה - סטארטאפ Y</p>
+                                <span class="text-sm font-bold">3:15</span>
+                            </div>
+                            <p class="text-xs text-gray-600">פיתוח מודול תשלומים</p>
+                        </div>
+                        
+                        <div class="time-block bg-red-50 rounded-lg p-3 border-r-4 border-red-500">
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="font-medium text-sm">דף נחיתה - חברת X</p>
+                                <span class="text-sm font-bold text-red-600">2:34 🔴</span>
+                            </div>
+                            <p class="text-xs text-gray-600">עיצוב וקידוד - בתהליך</p>
+                        </div>
+                        
+                        <div class="time-block bg-gray-50 rounded-lg p-3 border-r-4 border-green-500">
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="font-medium text-sm">ייעוץ CRM</p>
+                                <span class="text-sm font-bold">0:45</span>
+                            </div>
+                            <p class="text-xs text-gray-600">שיחת ייעוץ טלפונית</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-t">
+                        <p class="text-xs text-gray-600 text-center">יעד יומי: 8 שעות | השלמת: 71%</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                            <div class="bg-blue-500 h-2 rounded-full chart-bar" style="width: 71%; transform-origin: left;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- This Week -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h3 class="text-lg font-bold mb-4">השבוע</h3>
+                <div class="space-y-4">
+                    <div class="text-center py-4 border-b">
+                        <p class="text-4xl font-bold text-purple-600">28:35</p>
+                        <p class="text-sm text-gray-600">שעות השבוע</p>
+                    </div>
+                    
+                    <!-- Daily Chart -->
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-12">ראשון</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-6">
+                                <div class="bg-gradient-to-l from-blue-500 to-blue-400 h-6 rounded-full flex items-center justify-end px-2 chart-bar" style="width: 90%; transform-origin: left;">
+                                    <span class="text-xs text-white font-bold">7:12</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-12">שני</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-6">
+                                <div class="bg-gradient-to-l from-blue-500 to-blue-400 h-6 rounded-full flex items-center justify-end px-2 chart-bar" style="width: 100%; transform-origin: left;">
+                                    <span class="text-xs text-white font-bold">8:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-12">שלישי</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-6">
+                                <div class="bg-gradient-to-l from-blue-500 to-blue-400 h-6 rounded-full flex items-center justify-end px-2 chart-bar" style="width: 75%; transform-origin: left;">
+                                    <span class="text-xs text-white font-bold">6:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-12">רביעי</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-6">
+                                <div class="bg-gradient-to-l from-blue-500 to-blue-400 h-6 rounded-full flex items-center justify-end px-2 chart-bar" style="width: 62%; transform-origin: left;">
+                                    <span class="text-xs text-white font-bold">4:58</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-12 font-bold">חמישי</span>
+                            <div class="flex-1 bg-gray-200 rounded-full h-6">
+                                <div class="bg-gradient-to-l from-red-500 to-red-400 h-6 rounded-full flex items-center justify-end px-2 chart-bar" style="width: 71%; transform-origin: left;">
+                                    <span class="text-xs text-white font-bold">5:42</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-t space-y-1">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">ממוצע יומי:</span>
+                            <span class="font-bold">5:43</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">יעד שבועי:</span>
+                            <span class="font-bold text-green-600">40 שעות</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project Time Distribution -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <h3 class="text-lg font-bold mb-4">חלוקה לפי פרויקטים</h3>
+                <div class="space-y-4">
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <p class="text-sm font-medium">אפליקציה - סטארטאפ Y</p>
+                                <span class="text-sm font-bold">45%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-purple-500 h-3 rounded-full" style="width: 45%"></div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">12:51 שעות</p>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <p class="text-sm font-medium">אתר תדמית - חברת Z</p>
+                                <span class="text-sm font-bold">25%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-blue-500 h-3 rounded-full" style="width: 25%"></div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">7:08 שעות</p>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <p class="text-sm font-medium">דף נחיתה - חברת X</p>
+                                <span class="text-sm font-bold">20%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-red-500 h-3 rounded-full" style="width: 20%"></div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">5:42 שעות</p>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <p class="text-sm font-medium">אחר</p>
+                                <span class="text-sm font-bold">10%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gray-500 h-3 rounded-full" style="width: 10%"></div>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1">2:51 שעות</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p class="text-sm font-medium text-yellow-800">💡 תובנה</p>
+                        <p class="text-xs text-yellow-700 mt-1">אתה משקיע הכי הרבה זמן באפליקציה - כדאי לוודא שהתמחור מתאים</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Entries Table -->
+        <div class="bg-white rounded-xl shadow-sm mt-6">
+            <div class="p-6 border-b flex items-center justify-between">
+                <h3 class="text-lg font-bold">היסטוריית זמנים</h3>
+                <div class="flex items-center gap-3">
+                    <input type="date" class="border rounded-lg px-3 py-2 text-sm">
+                    <select class="border rounded-lg px-3 py-2 text-sm">
+                        <option>כל הפרויקטים</option>
+                        <option>אפליקציה - סטארטאפ Y</option>
+                        <option>אתר תדמית - חברת Z</option>
+                        <option>דף נחיתה - חברת X</option>
+                    </select>
+                    <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">
+                        📥 ייצוא Excel
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr class="text-right text-sm">
+                            <th class="p-4">תאריך</th>
+                            <th class="p-4">פרויקט</th>
+                            <th class="p-4">משימה</th>
+                            <th class="p-4">תיאור</th>
+                            <th class="p-4">התחלה</th>
+                            <th class="p-4">סיום</th>
+                            <th class="p-4">משך</th>
+                            <th class="p-4">פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr class="hover:bg-gray-50 text-sm">
+                            <td class="p-4">15/12/24</td>
+                            <td class="p-4">
+                                <span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">דף נחיתה - X</span>
+                            </td>
+                            <td class="p-4">עיצוב</td>
+                            <td class="p-4">עיצוב וקידוד הדף הראשי</td>
+                            <td class="p-4">10:35</td>
+                            <td class="p-4 text-red-600 font-bold">פעיל</td>
+                            <td class="p-4 text-red-600 font-bold">2:34:15</td>
+                            <td class="p-4">
+                                <button class="text-red-600 hover:text-red-700">⏹️</button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 text-sm">
+                            <td class="p-4">15/12/24</td>
+                            <td class="p-4">
+                                <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">אפליקציה - Y</span>
+                            </td>
+                            <td class="p-4">Backend</td>
+                            <td class="p-4">פיתוח API לתשלומים</td>
+                            <td class="p-4">08:00</td>
+                            <td class="p-4">10:30</td>
+                            <td class="p-4">2:30:00</td>
+                            <td class="p-4">
+                                <button class="text-blue-600 hover:text-blue-700 ml-2">✏️</button>
+                                <button class="text-red-600 hover:text-red-700">🗑️</button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 text-sm">
+                            <td class="p-4">14/12/24</td>
+                            <td class="p-4">
+                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">ייעוץ CRM</span>
+                            </td>
+                            <td class="p-4">פגישה</td>
+                            <td class="p-4">שיחת ייעוץ טלפונית</td>
+                            <td class="p-4">14:00</td>
+                            <td class="p-4">14:45</td>
+                            <td class="p-4">0:45:00</td>
+                            <td class="p-4">
+                                <button class="text-blue-600 hover:text-blue-700 ml-2">✏️</button>
+                                <button class="text-red-600 hover:text-red-700">🗑️</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Manual Time Entry Modal (Hidden) -->
+        <div class="fixed bottom-6 left-6 bg-white rounded-lg shadow-xl p-4 w-96 border-2 border-blue-500" style="display: none;">
+            <h3 class="font-bold mb-3">הוספת זמן ידנית</h3>
+            <div class="space-y-3">
+                <select class="w-full border rounded px-3 py-2 text-sm">
+                    <option>בחר פרויקט...</option>
+                </select>
+                <input type="date" class="w-full border rounded px-3 py-2 text-sm">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="time" placeholder="התחלה" class="border rounded px-3 py-2 text-sm">
+                    <input type="time" placeholder="סיום" class="border rounded px-3 py-2 text-sm">
+                </div>
+                <textarea placeholder="תיאור העבודה..." class="w-full border rounded px-3 py-2 text-sm h-20"></textarea>
+                <div class="flex gap-2">
+                    <button class="flex-1 bg-blue-500 text-white py-2 rounded text-sm hover:bg-blue-600">שמור</button>
+                    <button class="flex-1 bg-gray-200 text-gray-700 py-2 rounded text-sm hover:bg-gray-300">ביטול</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Dashboard - Wireframe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Heebo', sans-serif;
+        }
+        
+        .wireframe-border {
+            border: 2px dashed #cbd5e0;
+            background: #f8fafc;
+        }
+        
+        .priority-high { background: #fee2e2; }
+        .priority-medium { background: #fed7aa; }
+        .priority-low { background: #d1fae5; }
+        
+        .nav-item {
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            background: #e2e8f0;
+            border-right: 3px solid #1e40af;
+        }
+        
+        .nav-item.active {
+            background: #dbeafe;
+            border-right: 3px solid #1e40af;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-800 text-white h-16 flex items-center px-6 shadow-lg">
+        <div class="flex items-center flex-1">
+            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white ml-3">
+                CRM
+            </div>
+            <h1 class="text-xl font-semibold">מערכת ניהול עסק</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <button class="relative p-2 hover:bg-gray-700 rounded-lg transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <button class="flex items-center gap-2 hover:bg-gray-700 px-3 py-2 rounded-lg transition">
+                <div class="w-8 h-8 bg-gray-600 rounded-full"></div>
+                <span class="text-sm">שלום, משה</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex h-screen pt-16">
+        <!-- Sidebar -->
+        <nav class="w-64 bg-white shadow-lg">
+            <div class="p-4">
+                <button class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-medium">
+                    + פרויקט חדש
+                </button>
+            </div>
+            
+            <ul class="p-2">
+                <li class="nav-item active p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span class="text-blue-600">🏠</span>
+                    <span>דשבורד</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>🎯</span>
+                    <span>לידים</span>
+                    <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full mr-auto">2</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>👥</span>
+                    <span>לקוחות</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>📁</span>
+                    <span>פרויקטים</span>
+                    <span class="bg-gray-400 text-white text-xs px-2 py-1 rounded-full mr-auto">7</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>⏱️</span>
+                    <span>מעקב זמנים</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>💰</span>
+                    <span>תשלומים</span>
+                </li>
+                <li class="nav-item p-3 rounded-lg cursor-pointer flex items-center gap-3">
+                    <span>📊</span>
+                    <span>דוחות</span>
+                </li>
+            </ul>
+            
+            <!-- Timer Widget -->
+            <div class="p-4 mt-auto border-t">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-600 mb-2">טיימר פעיל</p>
+                    <p class="text-2xl font-bold">02:34:15</p>
+                    <p class="text-sm text-gray-600 mt-1">אתר תדמית - לקוח א'</p>
+                    <button class="mt-3 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition">
+                        ⏸️ עצור
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 overflow-auto">
+            <!-- Welcome Section -->
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">בוקר טוב, משה! ☀️</h2>
+                <p class="text-gray-600 mt-1">יום ראשון, 15 בדצמבר 2024</p>
+            </div>
+
+            <!-- AI Recommendation -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-6 mb-6">
+                <h3 class="text-xl font-bold mb-3">🎯 המלצת המערכת להיום</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <p class="text-sm opacity-90">התחל עם:</p>
+                        <p class="font-bold">דף נחיתה - חברת X</p>
+                        <p class="text-sm mt-1">דדליין מחר!</p>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <p class="text-sm opacity-90">אחר כך:</p>
+                        <p class="font-bold">אפליקציה - סטארטאפ Y</p>
+                        <p class="text-sm mt-1">ממתין לאישור עיצוב</p>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-4">
+                        <p class="text-sm opacity-90">אם נשאר זמן:</p>
+                        <p class="font-bold">2 לידים חדשים</p>
+                        <p class="text-sm mt-1">ממתינים לתגובה</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-4 gap-6 mb-6">
+                <div class="bg-white rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600 text-sm">פרויקטים פעילים</span>
+                        <span class="text-2xl">📁</span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-800">7</p>
+                    <p class="text-green-500 text-sm mt-2">↑ 2 החודש</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600 text-sm">שעות השבוע</span>
+                        <span class="text-2xl">⏱️</span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-800">28.5</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 71%"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600 text-sm">לידים חדשים</span>
+                        <span class="text-2xl">🎯</span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-800">2</p>
+                    <p class="text-orange-500 text-sm mt-2">ממתינים לטיפול</p>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600 text-sm">לגבות החודש</span>
+                        <span class="text-2xl">💰</span>
+                    </div>
+                    <p class="text-3xl font-bold text-gray-800">₪12,500</p>
+                    <p class="text-gray-500 text-sm mt-2">3 חשבוניות</p>
+                </div>
+            </div>
+
+            <!-- Tasks and Projects Grid -->
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Today's Tasks -->
+                <div class="bg-white rounded-xl shadow-sm">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-bold text-gray-800">משימות להיום</h3>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <div class="priority-high rounded-lg p-4 border-r-4 border-red-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium">סיום דף נחיתה - חברת X</p>
+                                    <p class="text-sm text-gray-600 mt-1">דדליין: מחר 12:00</p>
+                                </div>
+                                <button class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600">
+                                    התחל טיימר
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="priority-medium rounded-lg p-4 border-r-4 border-orange-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium">שיחת אפיון - לקוח חדש</p>
+                                    <p class="text-sm text-gray-600 mt-1">14:00 - Zoom</p>
+                                </div>
+                                <span class="text-orange-500">⏰</span>
+                            </div>
+                        </div>
+                        
+                        <div class="priority-low rounded-lg p-4 border-r-4 border-green-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium">עדכון אתר תדמית - לקוח ב'</p>
+                                    <p class="text-sm text-gray-600 mt-1">2 שעות עבודה משוערות</p>
+                                </div>
+                                <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm hover:bg-gray-300">
+                                    התחל
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Projects Status -->
+                <div class="bg-white rounded-xl shadow-sm">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-bold text-gray-800">סטטוס פרויקטים</h3>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="font-medium">אפליקציה - סטארטאפ Y</p>
+                                <span class="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">ממתין לאישור</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-yellow-500 h-2 rounded-full" style="width: 65%"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">65% הושלם • נשאר 15 שעות</p>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="font-medium">אתר תדמית - חברת Z</p>
+                                <span class="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">בפיתוח</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full" style="width: 40%"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">40% הושלם • נשאר 20 שעות</p>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="font-medium">ייעוץ CRM - לקוח ד'</p>
+                                <span class="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">הושלם</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: 100%"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">ממתין לתשלום • ₪2,500</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="mt-6 bg-gray-50 rounded-xl p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">פעולות מהירות</h3>
+                <div class="grid grid-cols-4 gap-4">
+                    <button class="bg-white p-4 rounded-lg hover:shadow-md transition text-center">
+                        <span class="text-2xl">📝</span>
+                        <p class="text-sm mt-2">הצעת מחיר</p>
+                    </button>
+                    <button class="bg-white p-4 rounded-lg hover:shadow-md transition text-center">
+                        <span class="text-2xl">⏱️</span>
+                        <p class="text-sm mt-2">התחל טיימר</p>
+                    </button>
+                    <button class="bg-white p-4 rounded-lg hover:shadow-md transition text-center">
+                        <span class="text-2xl">📧</span>
+                        <p class="text-sm mt-2">שלח תזכורת</p>
+                    </button>
+                    <button class="bg-white p-4 rounded-lg hover:shadow-md transition text-center">
+                        <span class="text-2xl">📊</span>
+                        <p class="text-sm mt-2">דוח שבועי</p>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Timer Button (when timer is running) -->
+    <div class="fixed bottom-6 left-6 bg-blue-600 text-white rounded-full shadow-lg p-4 cursor-pointer hover:bg-blue-700 transition">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">⏱️</span>
+            <div>
+                <p class="font-bold">02:34:15</p>
+                <p class="text-xs">אתר תדמית - לקוח א'</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
