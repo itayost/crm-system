@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>טופס צור קשר</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .crm-lead-form {
+            font-family: 'Heebo', sans-serif;
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            direction: rtl;
+        }
+
+        .crm-lead-form h2 {
+            color: #1f2937;
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .crm-form-group {
+            margin-bottom: 20px;
+        }
+
+        .crm-form-group label {
+            display: block;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .crm-form-group input,
+        .crm-form-group select,
+        .crm-form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Heebo', sans-serif;
+            transition: border-color 0.15s ease-in-out;
+            background: white;
+        }
+
+        .crm-form-group input:focus,
+        .crm-form-group select:focus,
+        .crm-form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .crm-form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .crm-required {
+            color: #ef4444;
+            margin-right: 4px;
+        }
+
+        .crm-submit-btn {
+            width: 100%;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+            font-family: 'Heebo', sans-serif;
+        }
+
+        .crm-submit-btn:hover {
+            background: #2563eb;
+        }
+
+        .crm-submit-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .crm-alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .crm-alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+            display: block;
+        }
+
+        .crm-alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+
+        .crm-loading {
+            display: none;
+            text-align: center;
+            color: #6b7280;
+            margin-top: 12px;
+        }
+
+        .crm-loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-lead-form">
+        <h2>צור קשר</h2>
+
+        <div id="crm-alert" class="crm-alert"></div>
+
+        <form id="crm-lead-capture-form">
+            <div class="crm-form-group">
+                <label for="name">
+                    <span class="crm-required">*</span>שם מלא
+                </label>
+                <input type="text" id="name" name="name" required />
+            </div>
+
+            <div class="crm-form-group">
+                <label for="phone">
+                    <span class="crm-required">*</span>טלפון
+                </label>
+                <input type="tel" id="phone" name="phone" required pattern="[0-9]{9,10}" />
+            </div>
+
+            <div class="crm-form-group">
+                <label for="email">אימייל</label>
+                <input type="email" id="email" name="email" />
+            </div>
+
+            <div class="crm-form-group">
+                <label for="company">שם החברה</label>
+                <input type="text" id="company" name="company" />
+            </div>
+
+            <div class="crm-form-group">
+                <label for="projectType">סוג הפרויקט</label>
+                <select id="projectType" name="projectType">
+                    <option value="">בחר סוג פרויקט</option>
+                    <option value="דף נחיתה">דף נחיתה</option>
+                    <option value="אתר תדמית">אתר תדמית</option>
+                    <option value="חנות אונליין">חנות אונליין</option>
+                    <option value="אפליקציית ווב">אפליקציית ווב</option>
+                    <option value="אפליקציה נייטיב">אפליקציה נייטיב</option>
+                    <option value="מערכת ניהול">מערכת ניהול</option>
+                    <option value="ייעוץ">ייעוץ</option>
+                    <option value="אחר">אחר</option>
+                </select>
+            </div>
+
+            <div class="crm-form-group">
+                <label for="estimatedBudget">תקציב משוער (₪)</label>
+                <input type="number" id="estimatedBudget" name="estimatedBudget" min="0" step="100" />
+            </div>
+
+            <div class="crm-form-group">
+                <label for="notes">הערות נוספות</label>
+                <textarea id="notes" name="notes" placeholder="ספר לנו עוד על הפרויקט שלך..."></textarea>
+            </div>
+
+            <button type="submit" class="crm-submit-btn">שלח</button>
+
+            <div id="crm-loading" class="crm-loading">
+                שולח את הטופס...
+            </div>
+        </form>
+    </div>
+
+    <script src="lead-form.js"></script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דמו - הטמעת טופס ליד</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .demo-header h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .demo-header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .integration-methods {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .integration-methods h2 {
+            color: #1f2937;
+            margin-bottom: 24px;
+        }
+
+        .method-section {
+            margin-bottom: 32px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .method-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .method-section h3 {
+            color: #374151;
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 16px 0;
+        }
+
+        .code-block code {
+            color: #10b981;
+        }
+
+        .note {
+            background: #fef3c7;
+            border-right: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .note strong {
+            color: #92400e;
+        }
+
+        .success-note {
+            background: #d1fae5;
+            border-right: 4px solid #10b981;
+        }
+
+        .success-note strong {
+            color: #065f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🚀 הטמעת טופס לידים ב-CRM</h1>
+            <p>3 דרכים להטמיע את הטופס באתר שלך</p>
+        </div>
+
+        <div class="integration-methods">
+            <h2>הוראות הטמעה</h2>
+
+            <!-- Method 1: iframe -->
+            <div class="method-section">
+                <h3>שיטה 1: הטמעה באמצעות iframe (הכי פשוט)</h3>
+                <p>העתק והדבק את הקוד הבא בכל מקום באתר שלך:</p>
+                <div class="code-block">
+&lt;iframe
+    src="https://crm-system-alpha-eight.vercel.app/lead-form.html"
+    width="100%"
+    height="800"
+    frameborder="0"
+    style="max-width: 500px;"
+&gt;&lt;/iframe&gt;
+                </div>
+                <div class="note">
+                    <strong>יתרונות:</strong> התקנה פשוטה, עובד בכל אתר, מתעדכן אוטומטית
+                </div>
+            </div>
+
+            <!-- Method 2: Direct HTML -->
+            <div class="method-section">
+                <h3>שיטה 2: הטמעת HTML ישירות</h3>
+                <p>הוסף את הקישורים הבאים ב-&lt;head&gt; של האתר:</p>
+                <div class="code-block">
+&lt;link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet"&gt;
+                </div>
+
+                <p>והעתק את ה-HTML של הטופס למקום הרצוי:</p>
+                <div class="code-block">
+&lt;div class="crm-lead-form"&gt;
+    &lt;!-- הורד את הקובץ lead-form.html וצפה בקוד המלא --&gt;
+&lt;/div&gt;
+
+&lt;script src="https://crm-system-alpha-eight.vercel.app/lead-form.js"&gt;&lt;/script&gt;
+                </div>
+
+                <div class="note">
+                    <strong>יתרונות:</strong> שליטה מלאה על העיצוב, אפשרות להתאמה אישית
+                </div>
+            </div>
+
+            <!-- Method 3: React Component -->
+            <div class="method-section">
+                <h3>שיטה 3: React Component</h3>
+                <p>אם האתר שלך בנוי ב-React/Next.js, תוכל להשתמש ברכיב המוכן:</p>
+                <div class="code-block">
+import LeadCaptureForm from '@/components/public/LeadCaptureForm'
+
+export default function LandingPage() {
+    return (
+        &lt;LeadCaptureForm
+            apiUrl="https://crm-system-alpha-eight.vercel.app/api/public/leads"
+            onSuccess={() =&gt; console.log('Lead submitted!')}
+        /&gt;
+    )
+}
+                </div>
+                <div class="note">
+                    <strong>יתרונות:</strong> אינטגרציה מלאה עם React, TypeScript support
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="method-section">
+                <h3>⚙️ הגדרות נוספות</h3>
+                <p>כדי לשנות את כתובת השליחה (אם אתה מריץ CRM משלך), ערוך את המשתנה:</p>
+                <div class="code-block">
+const CRM_API_URL = 'https://your-crm-domain.com/api/public/leads';
+                </div>
+
+                <div class="success-note">
+                    <strong>✅ הטופס כולל:</strong>
+                    <ul style="margin-top: 8px; padding-right: 20px;">
+                        <li>ולידציה מובנית לכל השדות</li>
+                        <li>תמיכה מלאה בעברית ו-RTL</li>
+                        <li>הודעות הצלחה/שגיאה</li>
+                        <li>CORS support לשליחה מכל דומיין</li>
+                        <li>עיצוב רספונסיבי למובייל</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Test Section -->
+            <div class="method-section">
+                <h3>🧪 בדיקת הטופס</h3>
+                <p>הטופס החי מוטמע למטה - נסה אותו עכשיו:</p>
+            </div>
+        </div>
+
+        <!-- Live Form Demo -->
+        <div style="display: flex; justify-content: center;">
+            <iframe
+                src="lead-form.html"
+                width="100%"
+                height="850"
+                frameborder="0"
+                style="max-width: 500px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);"
+            ></iframe>
+        </div>
+    </div>
+</body>
+</html>
