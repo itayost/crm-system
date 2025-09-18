@@ -1,14 +1,13 @@
 // app/api/public/leads/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createResponse, errorResponse } from '@/lib/api/api-handler'
 import { LeadsService } from '@/lib/services/leads.service'
 import { LeadSource } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/db/prisma'
 
 const publicLeadSchema = z.object({
   name: z.string().min(1, 'שם חובה'),
-  email: z.string().email('אימייל לא תקין').optional().or(z.literal('')),
+  email: z.string().email('אימייל לא תקין').optional().nullable(),
   phone: z.string().min(9, 'טלפון חובה'),
   company: z.string().optional(),
   projectType: z.string().optional(),
@@ -41,11 +40,20 @@ export async function POST(req: NextRequest) {
     })
 
     if (!owner) {
-      return errorResponse('לא נמצא משתמש במערכת', 500, headers)
+      return NextResponse.json(
+        { error: 'לא נמצא משתמש במערכת' },
+        { status: 500, headers }
+      )
     }
 
     const lead = await LeadsService.create(owner.id, {
-      ...validatedData,
+      name: validatedData.name,
+      phone: validatedData.phone,
+      email: validatedData.email || undefined,
+      company: validatedData.company,
+      projectType: validatedData.projectType,
+      estimatedBudget: validatedData.estimatedBudget,
+      notes: validatedData.notes,
       source: validatedData.source as LeadSource
     })
 
@@ -61,24 +69,28 @@ export async function POST(req: NextRequest) {
       { status: 201, headers }
     )
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-      return errorResponse('נתונים לא תקינים: ' + error.errors[0].message, 400, headers)
-    }
-    return errorResponse('שגיאה ביצירת הליד. נסה שוב מאוחר יותר.', 500, {
+    const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
-    })
+    }
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'נתונים לא תקינים: ' + error.issues[0].message },
+        { status: 400, headers }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'שגיאה ביצירת הליד. נסה שוב מאוחר יותר.' },
+      { status: 500, headers }
+    )
   }
 }
 
 // Handle OPTIONS for CORS
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
