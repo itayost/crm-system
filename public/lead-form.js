@@ -30,8 +30,10 @@
 
     // Validate phone number
     function validatePhone(phone) {
+        // Remove spaces, dashes, and parentheses
+        const cleanPhone = phone.replace(/[-\s()]/g, '');
         const phoneRegex = /^[0-9]{9,10}$/;
-        return phoneRegex.test(phone.replace(/[-\s]/g, ''));
+        return phoneRegex.test(cleanPhone);
     }
 
     // Handle form submission
@@ -45,7 +47,7 @@
         const formData = new FormData(form);
         const data = {
             name: formData.get('name')?.trim(),
-            phone: formData.get('phone')?.trim().replace(/[-\s]/g, ''),
+            phone: formData.get('phone')?.trim().replace(/[-\s()]/g, ''),
             email: formData.get('email')?.trim() || undefined,
             company: formData.get('company')?.trim() || undefined,
             projectType: formData.get('projectType') || undefined,

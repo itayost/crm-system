@@ -8,7 +8,10 @@ import { prisma } from '@/lib/db/prisma'
 const publicLeadSchema = z.object({
   name: z.string().min(1, 'שם חובה'),
   email: z.string().email('אימייל לא תקין').optional().nullable(),
-  phone: z.string().min(9, 'טלפון חובה'),
+  phone: z.string().min(1, 'טלפון חובה').transform(val => val.replace(/[-\s]/g, '')).refine(
+    val => /^[0-9]{9,10}$/.test(val),
+    'מספר טלפון חייב להיות 9-10 ספרות'
+  ),
   company: z.string().optional(),
   projectType: z.string().optional(),
   estimatedBudget: z.number().optional(),
