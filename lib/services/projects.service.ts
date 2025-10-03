@@ -105,7 +105,7 @@ export class ProjectsService extends BaseService {
         const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
         const taskProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
-        const totalPayments = project.payments.reduce((sum, p) => 
+        const totalPayments = project.payments.reduce((sum, p) =>
           sum + (typeof p.amount === 'number' ? p.amount : Number(p.amount)), 0
         )
         const paidPayments = project.payments
@@ -117,6 +117,7 @@ export class ProjectsService extends BaseService {
 
         return {
           ...project,
+          budget: project.budget ? Number(project.budget) : null, // Convert Decimal to number
           progress, // Add calculated progress
           taskProgress,
           totalPayments,

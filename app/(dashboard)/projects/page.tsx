@@ -241,7 +241,7 @@ export default function ProjectsPage() {
     total: projects.length,
     inProgress: projects.filter(p => p.stage === 'DEVELOPMENT').length,
     urgent: projects.filter(p => p.priority === 'URGENT').length,
-    totalValue: projects.reduce((sum, p) => sum + (p.budget || 0), 0),
+    totalValue: projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
     totalHours: projects.reduce((sum, p) => sum + (p.actualHours || 0), 0),
   }
   
