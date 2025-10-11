@@ -76,7 +76,7 @@ export interface DashboardData {
 
 export class DashboardService extends BaseService {
   static async getSidebarBadges(userId: string): Promise<SidebarBadges> {
-    const [hotLeads, newLeads, activeProjects, overduePayments, pendingPayments] = await Promise.all([
+    const [hotLeads, newLeads, activeProjects, urgentTasks, overdueTasks, overduePayments, pendingPayments] = await Promise.all([
       // Hot leads (recent activity in last 7 days)
       prisma.lead.count({
         where: {
@@ -86,7 +86,7 @@ export class DashboardService extends BaseService {
           }
         }
       }),
-      
+
       // New leads (last 24 hours)
       prisma.lead.count({
         where: {
@@ -96,7 +96,7 @@ export class DashboardService extends BaseService {
           }
         }
       }),
-      
+
       // Active projects
       prisma.project.count({
         where: {
@@ -104,7 +104,31 @@ export class DashboardService extends BaseService {
           status: 'IN_PROGRESS'
         }
       }),
-      
+
+      // Urgent tasks
+      prisma.task.count({
+        where: {
+          userId,
+          priority: 'URGENT',
+          status: {
+            not: 'COMPLETED'
+          }
+        }
+      }),
+
+      // Overdue tasks
+      prisma.task.count({
+        where: {
+          userId,
+          dueDate: {
+            lt: new Date()
+          },
+          status: {
+            not: 'COMPLETED'
+          }
+        }
+      }),
+
       // Overdue payments
       prisma.payment.count({
         where: {
@@ -115,7 +139,7 @@ export class DashboardService extends BaseService {
           }
         }
       }),
-      
+
       // Pending payments (due within 7 days)
       prisma.payment.count({
         where: {
@@ -136,6 +160,10 @@ export class DashboardService extends BaseService {
       },
       projects: {
         active: activeProjects
+      },
+      tasks: {
+        urgent: urgentTasks,
+        overdue: overdueTasks
       },
       payments: {
         overdue: overduePayments,
