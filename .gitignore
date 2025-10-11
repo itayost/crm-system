@@ -45,3 +45,7 @@ next-env.d.ts
 .github/instructions/codacy.instructions.md
 
 /lib/generated/prisma
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

@@ -16,7 +16,7 @@ import {
   Loader2
 } from 'lucide-react'
 import api from '@/lib/api/client'
-import { DashboardData } from '@/lib/services/dashboard.service'
+import { DashboardData, DashboardRecommendation } from '@/lib/services/dashboard.service'
 import { toast } from 'react-hot-toast'
 
 export default function DashboardPage() {
@@ -43,7 +43,8 @@ export default function DashboardPage() {
           },
           recentProjects: [],
           todayTasks: [],
-          upcomingPayments: []
+          upcomingPayments: [],
+          smartRecommendations: []
         })
       } finally {
         setLoading(false)
@@ -87,56 +88,60 @@ export default function DashboardPage() {
         <p className="text-gray-600 mt-1">סקירה כללית של העסק שלך</p>
       </div>
 
-      {/* AI Recommendation Card */}
+      {/* Smart Recommendations Card */}
       <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            המלצת המערכת להיום
+            🎯 המשימות החשובות ביותר להיום
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-              <p className="text-sm opacity-90 mb-1">התחל עם:</p>
-              <p className="font-bold">
-                {data.todayTasks.length > 0 
-                  ? data.todayTasks[0].title 
-                  : 'אין משימות דחופות'}
-              </p>
-              <p className="text-xs mt-1 opacity-75">
-                {data.todayTasks.length > 0 
-                  ? data.todayTasks[0].deadline || 'עדיפות גבוהה'
-                  : 'מעולה! 🎉'}
-              </p>
+          {data.smartRecommendations.length > 0 ? (
+            <div className="space-y-3">
+              {data.smartRecommendations.slice(0, 3).map((rec, index) => (
+                <div key={rec.id} className="flex items-center justify-between p-3 bg-white/20 backdrop-blur rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge 
+                        className={`text-xs ${
+                          rec.urgencyLevel === 'critical' ? 'bg-red-500' :
+                          rec.urgencyLevel === 'high' ? 'bg-orange-500' :
+                          rec.urgencyLevel === 'medium' ? 'bg-yellow-500' :
+                          'bg-gray-500'
+                        }`}
+                      >
+                        {rec.priorityScore}/100
+                      </Badge>
+                      <span className="text-xs opacity-75">
+                        {rec.type === 'task' ? 'משימה' : 'פרויקט'}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-sm mb-1">{rec.title}</h4>
+                    <p className="text-xs opacity-75">{rec.reason}</p>
+                    {rec.deadline && (
+                      <p className="text-xs opacity-60 mt-1">דדליין: {rec.deadline}</p>
+                    )}
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    onClick={() => {
+                      const href = rec.type === 'task' ? `/tasks?id=${rec.id}` : `/projects?id=${rec.id}`
+                      window.location.href = href
+                    }}
+                  >
+                    {index === 0 ? 'התחל עכשיו' : 'צפה'}
+                  </Button>
+                </div>
+              ))}
             </div>
-            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-              <p className="text-sm opacity-90 mb-1">אחר כך:</p>
-              <p className="font-bold">
-                {data.recentProjects.length > 0 
-                  ? data.recentProjects[0].name
-                  : 'אין פרויקטים פעילים'}
-              </p>
-              <p className="text-xs mt-1 opacity-75">
-                {data.recentProjects.length > 0 
-                  ? `${data.recentProjects[0].progress}% הושלם`
-                  : 'זמן להתחיל פרויקט חדש!'}
-              </p>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-lg font-semibold mb-2">🎉 אין משימות דחופות!</p>
+              <p className="text-sm opacity-75">כל המשימות שלך מעודכנות. זמן מצוין להתחיל פרויקט חדש!</p>
             </div>
-            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-              <p className="text-sm opacity-90 mb-1">אם נשאר זמן:</p>
-              <p className="font-bold">
-                {data.stats.newLeads > 0 
-                  ? `${data.stats.newLeads} לידים חדשים`
-                  : 'בדוק הזדמנויות חדשות'}
-              </p>
-              <p className="text-xs mt-1 opacity-75">
-                {data.stats.newLeads > 0 
-                  ? 'ממתינים לתגובה'
-                  : 'שיווק ופיתוח עסקי'}
-              </p>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

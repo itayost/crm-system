@@ -1,6 +1,7 @@
 import { BaseService } from './base.service'
 import { prisma } from '@/lib/db/prisma'
 import { ProjectsService } from './projects.service'
+import { PriorityScoringService, PriorityItem } from './priority-scoring.service'
 
 export interface SidebarBadges {
   leads: {
@@ -67,11 +68,24 @@ export interface UpcomingPayment {
   status: string
 }
 
+export interface DashboardRecommendation {
+  type: 'task' | 'project'
+  id: string
+  title: string
+  priorityScore: number
+  reason: string
+  urgencyLevel: 'critical' | 'high' | 'medium' | 'low'
+  deadline?: string
+  clientName?: string
+  budget?: number
+}
+
 export interface DashboardData {
   stats: DashboardStats
   recentProjects: RecentProject[]
   todayTasks: TodayTask[]
   upcomingPayments: UpcomingPayment[]
+  smartRecommendations: DashboardRecommendation[]
 }
 
 export class DashboardService extends BaseService {
@@ -478,7 +492,7 @@ export class DashboardService extends BaseService {
         take: 3
       }),
 
-      // Today's tasks
+      // Today's tasks (ordered by priority score)
       prisma.task.findMany({
         where: {
           userId,
@@ -507,6 +521,7 @@ export class DashboardService extends BaseService {
           }
         },
         orderBy: [
+          { priorityScore: 'desc' },
           { priority: 'desc' },
           { dueDate: 'asc' }
         ],
@@ -592,6 +607,9 @@ export class DashboardService extends BaseService {
       }
     })
 
+    // Get smart recommendations
+    const smartRecommendations = await this.getSmartRecommendations(userId)
+
     return {
       stats: {
         activeProjects,
@@ -603,7 +621,32 @@ export class DashboardService extends BaseService {
       },
       recentProjects: projectsWithProgress,
       todayTasks: formattedTasks,
-      upcomingPayments: formattedPayments
+      upcomingPayments: formattedPayments,
+      smartRecommendations
+    }
+  }
+
+  /**
+   * Get smart recommendations based on priority scores
+   */
+  static async getSmartRecommendations(userId: string): Promise<DashboardRecommendation[]> {
+    try {
+      const topItems = await PriorityScoringService.getRecommendedTasksForToday(userId)
+      
+      return topItems.map(item => ({
+        type: item.type,
+        id: item.id,
+        title: item.title,
+        priorityScore: item.priorityScore,
+        reason: item.reason,
+        urgencyLevel: item.urgencyLevel,
+        deadline: item.deadline?.toLocaleDateString('he-IL'),
+        clientName: item.clientName,
+        budget: item.budget
+      }))
+    } catch (error) {
+      console.error('Error getting smart recommendations:', error)
+      return []
     }
   }
 }

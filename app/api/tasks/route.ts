@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { TasksService } from '@/lib/services/tasks.service'
+import { PriorityScoringService } from '@/lib/services/priority-scoring.service'
 import { TaskStatus, Priority } from '@prisma/client'
 
 const createTaskSchema = z.object({
@@ -54,6 +55,14 @@ export const POST = withAuth(async (req, { userId }) => {
       ...validatedData,
       priority: validatedData.priority as Priority | undefined
     })
+    
+    // Calculate and update priority score
+    try {
+      await PriorityScoringService.updateTaskScore(task.id)
+    } catch (error) {
+      console.error('Error calculating priority score for new task:', error)
+      // Don't fail the request if priority calculation fails
+    }
     
     return createResponse(task, 201)
   } catch (error) {

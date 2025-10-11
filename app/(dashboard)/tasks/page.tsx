@@ -21,6 +21,7 @@ interface Task {
   description?: string
   status: 'TODO' | 'IN_PROGRESS' | 'WAITING_APPROVAL' | 'COMPLETED' | 'CANCELLED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  priorityScore?: number
   dueDate?: string
   completedAt?: string
   totalMinutes: number
@@ -81,6 +82,7 @@ export default function TasksPage() {
     dueToday: false,
     dueThisWeek: false
   })
+  const [sortBy, setSortBy] = useState<'priority' | 'deadline' | 'created' | 'score'>('score')
 
   const fetchData = async () => {
     try {
@@ -150,6 +152,33 @@ export default function TasksPage() {
     return `${hours}:${mins.toString().padStart(2, '0')}`
   }
 
+  const getPriorityScoreColor = (score?: number) => {
+    if (!score) return 'bg-gray-100 text-gray-800'
+    if (score >= 70) return 'bg-red-100 text-red-800'
+    if (score >= 40) return 'bg-orange-100 text-orange-800'
+    if (score >= 20) return 'bg-yellow-100 text-yellow-800'
+    return 'bg-gray-100 text-gray-800'
+  }
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    switch (sortBy) {
+      case 'score':
+        return (b.priorityScore || 0) - (a.priorityScore || 0)
+      case 'priority':
+        const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+        return priorityOrder[b.priority] - priorityOrder[a.priority]
+      case 'deadline':
+        if (!a.dueDate && !b.dueDate) return 0
+        if (!a.dueDate) return 1
+        if (!b.dueDate) return -1
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      case 'created':
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      default:
+        return 0
+    }
+  })
+
   const formatDueDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -190,6 +219,17 @@ export default function TasksPage() {
         </div>
         
         <div className="flex items-center gap-3">
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+          >
+            <option value="score">מיין לפי עדיפות</option>
+            <option value="priority">מיין לפי חשיבות</option>
+            <option value="deadline">מיין לפי דדליין</option>
+            <option value="created">מיין לפי תאריך יצירה</option>
+          </select>
+          
           <Button 
             variant="outline"
             onClick={() => setFilter({...filter, overdue: !filter.overdue})}
@@ -317,7 +357,7 @@ export default function TasksPage() {
 
       {/* Tasks Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tasks.map((task) => (
+        {sortedTasks.map((task) => (
           <Card key={task.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-3">
@@ -363,6 +403,11 @@ export default function TasksPage() {
                 <Badge className={priorityColors[task.priority]}>
                   {priorityLabels[task.priority]}
                 </Badge>
+                {task.priorityScore && (
+                  <Badge className={getPriorityScoreColor(task.priorityScore)}>
+                    {task.priorityScore}/100
+                  </Badge>
+                )}
               </div>
 
               {task.project && (

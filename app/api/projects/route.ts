@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ProjectsService } from '@/lib/services/projects.service'
+import { PriorityScoringService } from '@/lib/services/priority-scoring.service'
 import { ProjectStage, Priority, ProjectType } from '@prisma/client'
 
 const createProjectSchema = z.object({
@@ -52,6 +53,14 @@ export const POST = withAuth(async (req, { userId }) => {
       type: validatedData.type as ProjectType,
       priority: validatedData.priority as Priority | undefined
     })
+    
+    // Calculate and update priority score
+    try {
+      await PriorityScoringService.updateProjectScore(project.id)
+    } catch (error) {
+      console.error('Error calculating priority score for new project:', error)
+      // Don't fail the request if priority calculation fails
+    }
     
     return createResponse(project, 201)
   } catch (error) {
