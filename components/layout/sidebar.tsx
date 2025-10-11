@@ -14,6 +14,7 @@ import {
   Settings,
   Plus,
   Bell,
+  CheckSquare,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -42,17 +43,23 @@ const getNavigation = (badges: SidebarBadges | null) => [
     icon: Users,
     badge: null 
   },
-  { 
-    name: 'פרויקטים', 
-    href: '/projects', 
+  {
+    name: 'פרויקטים',
+    href: '/projects',
     icon: Briefcase,
     badge: badges?.projects?.active && badges.projects.active > 0 ? { count: badges.projects.active, variant: 'default' as const } : null
   },
-  { 
-    name: 'זמנים', 
-    href: '/time', 
+  {
+    name: 'משימות',
+    href: '/tasks',
+    icon: CheckSquare,
+    badge: badges?.tasks?.urgent && badges.tasks.urgent > 0 ? { count: badges.tasks.urgent, variant: 'destructive' as const } : null
+  },
+  {
+    name: 'זמנים',
+    href: '/time',
     icon: Clock,
-    badge: null 
+    badge: null
   },
   { 
     name: 'תשלומים', 
