@@ -1,5 +1,6 @@
 import { BaseService } from './base.service'
 import { prisma } from '@/lib/db/prisma'
+import { ProjectsService } from './projects.service'
 
 export interface SidebarBadges {
   leads: {
@@ -505,11 +506,10 @@ export class DashboardService extends BaseService {
       })
     ])
 
-    // Calculate project progress based on completed tasks
+    // Calculate project progress based on stage (consistent with projects page)
     const projectsWithProgress = recentProjects.map(project => {
-      const totalTasks = project.tasks.length
-      const completedTasks = project.tasks.filter(task => task.status === 'COMPLETED').length
-      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+      // Use stage-based progress for consistency with projects page
+      const progress = ProjectsService.calculateProgress(project.stage)
 
       return {
         id: project.id,

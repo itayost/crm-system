@@ -77,9 +77,10 @@ export const useAppStore = create<AppState>()(
       }),
       {
         name: 'crm-storage',
-        partialize: (state) => ({ 
+        partialize: (state) => ({
           notifications: state.notifications,
-          sidebarOpen: state.sidebarOpen 
+          sidebarOpen: state.sidebarOpen,
+          activeTimer: state.activeTimer
         }),
       }
     )

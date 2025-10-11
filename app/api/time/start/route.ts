@@ -5,7 +5,7 @@ import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { TimeService } from '@/lib/services/time.service'
 
 const startTimerSchema = z.object({
-  taskId: z.string(),
+  taskId: z.string().optional(),
   projectId: z.string()
 })
 

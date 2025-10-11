@@ -14,20 +14,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  Play, 
-  Pause, 
-  Square, 
-   
-  
+import {
+  Play,
+  Pause,
+  Square,
   Plus,
   Edit,
   Trash2,
-  
+  Clock,
+  Calendar
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { toast } from 'react-hot-toast'
-// import api from '@/lib/api/client'
+import api from '@/lib/api/client'
 
 export default function TimePage() {
   const { activeTimer, startTimer, stopTimer } = useAppStore()
@@ -36,12 +35,15 @@ export default function TimePage() {
     projectId?: string
     project?: { name?: string }
     taskId?: string
-    task?: { name?: string }
+    task?: { title?: string }
     startTime: string
     endTime?: string
     duration: number
     description?: string
   }>>([])
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
+  const [tasks, setTasks] = useState<Array<{ id: string; title: string }>>([])
+  const [loading, setLoading] = useState(true)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [selectedProject, setSelectedProject] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
@@ -52,109 +54,151 @@ export default function TimePage() {
     endTime: '',
     description: '',
   })
-  
-  // Mock data
-  const projects = [
-    { id: '1', name: 'אפליקציה - סטארטאפ Y' },
-    { id: '2', name: 'אתר תדמית - חברת Z' },
-    { id: '3', name: 'דף נחיתה - חברת X' },
-  ]
-  
-  const tasks = [
-    { id: '1', name: 'עיצוב' },
-    { id: '2', name: 'פיתוח Frontend' },
-    { id: '3', name: 'פיתוח Backend' },
-    { id: '4', name: 'תיקוני באגים' },
-    { id: '5', name: 'פגישה עם לקוח' },
-  ]
+  const [stats, setStats] = useState({
+    todayMinutes: 0,
+    weekMinutes: 0,
+    projectBreakdown: [] as Array<{ projectId: string; projectName: string; minutes: number; percentage: number }>,
+    weeklyBreakdown: [] as Array<{ day: number; minutes: number; percentage: number }>
+  })
   
   useEffect(() => {
-    fetchTimeEntries()
+    fetchData()
+    fetchActiveTimer()
   }, [])
-  
-  const fetchTimeEntries = async () => {
-    // Mock time entries
-    const mockEntries = [
-      {
-        id: '1',
-        project: { name: 'דף נחיתה - חברת X' },
-        task: { name: 'עיצוב' },
-        startTime: '2024-12-15T10:35:00',
-        endTime: undefined,
-        duration: 0,
-        description: 'עיצוב וקידוד הדף הראשי',
-      },
-      {
-        id: '2',
-        project: { name: 'אפליקציה - סטארטאפ Y' },
-        task: { name: 'פיתוח Backend' },
-        startTime: '2024-12-15T08:00:00',
-        endTime: '2024-12-15T10:30:00',
-        duration: 150,
-        description: 'פיתוח API לתשלומים',
-      },
-      {
-        id: '3',
-        project: { name: 'ייעוץ CRM' },
-        task: { name: 'פגישה' },
-        startTime: '2024-12-14T14:00:00',
-        endTime: '2024-12-14T14:45:00',
-        duration: 45,
-        description: 'שיחת ייעוץ טלפונית',
-      },
-    ]
 
-    setTimeEntries(mockEntries)
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      await Promise.all([
+        fetchTimeEntries(),
+        fetchProjects(),
+        fetchTasks(),
+        fetchStats()
+      ])
+    } catch (error) {
+      toast.error('שגיאה בטעינת נתונים')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchTimeEntries = async () => {
+    try {
+      const response = await api.get('/time')
+      setTimeEntries(response.data)
+    } catch (error) {
+      console.error('Error fetching time entries:', error)
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const response = await api.get('/projects')
+      setProjects(response.data)
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    }
+  }
+
+  const fetchTasks = async () => {
+    try {
+      const response = await api.get('/tasks')
+      setTasks(response.data)
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/time/stats?period=week')
+      setStats(response.data)
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+
+  const fetchActiveTimer = async () => {
+    try {
+      const response = await api.get('/time/active')
+      if (response.data) {
+        // Sync with Zustand store
+        startTimer(response.data.projectId, response.data.taskId)
+      }
+    } catch (error) {
+      // No active timer or error - that's okay
+      console.log('No active timer found')
+    }
   }
   
-  const handleStartTimer = () => {
+  const handleStartTimer = async () => {
     if (!selectedProject) {
       toast.error('בחר פרויקט')
       return
     }
-    
-    const project = projects.find(p => p.id === selectedProject)
-    if (project) {
+
+    try {
+      const response = await api.post('/time/start', {
+        projectId: selectedProject,
+        taskId: selectedTask || undefined
+      })
+
+      const project = projects.find(p => p.id === selectedProject)
       startTimer(selectedProject, selectedTask)
-      toast.success(`טיימר הופעל עבור ${project.name}`)
+      toast.success(`טיימר הופעל עבור ${project?.name || 'הפרויקט'}`)
+      fetchTimeEntries()
+    } catch (error) {
+      toast.error('שגיאה בהפעלת טיימר')
+    }
+  }
+
+  const handleStopTimer = async () => {
+    try {
+      await api.post('/time/stop')
+      stopTimer()
+      toast.success('טיימר נעצר והזמן נשמר')
+      await Promise.all([fetchTimeEntries(), fetchStats()])
+    } catch (error) {
+      toast.error('שגיאה בעצירת טיימר')
     }
   }
   
-  const handleStopTimer = () => {
-    stopTimer()
-    toast.success('טיימר נעצר והזמן נשמר')
-    fetchTimeEntries()
-  }
-  
-  const handleManualEntry = (e: React.FormEvent) => {
+  const handleManualEntry = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Calculate duration
-    const start = new Date(`${manualEntry.date}T${manualEntry.startTime}`)
-    const end = new Date(`${manualEntry.date}T${manualEntry.endTime}`)
-    const duration = Math.floor((end.getTime() - start.getTime()) / 60000)
-    
-    const newEntry = {
-      id: Date.now().toString(),
-      project: projects.find(p => p.id === manualEntry.projectId),
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      duration,
-      description: manualEntry.description,
+
+    if (!manualEntry.projectId || !manualEntry.startTime || !manualEntry.endTime) {
+      toast.error('נא למלא את כל השדות הנדרשים')
+      return
     }
-    
-    setTimeEntries([newEntry, ...timeEntries])
-    setShowManualEntry(false)
-    toast.success('רישום זמן נוסף בהצלחה')
-    
-    // Reset form
-    setManualEntry({
-      projectId: '',
-      date: new Date().toISOString().split('T')[0],
-      startTime: '',
-      endTime: '',
-      description: '',
-    })
+
+    try {
+      const startTime = new Date(`${manualEntry.date}T${manualEntry.startTime}`)
+      const endTime = new Date(`${manualEntry.date}T${manualEntry.endTime}`)
+
+      await api.post('/time', {
+        projectId: manualEntry.projectId,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        description: manualEntry.description
+      })
+
+      setShowManualEntry(false)
+      toast.success('רישום זמן נוסף בהצלחה')
+
+      // Reset form
+      setManualEntry({
+        projectId: '',
+        date: new Date().toISOString().split('T')[0],
+        startTime: '',
+        endTime: '',
+        description: '',
+      })
+
+      // Refresh data
+      await Promise.all([fetchTimeEntries(), fetchStats()])
+    } catch (error) {
+      toast.error('שגיאה בהוספת רישום זמן')
+    }
   }
   
   const formatDuration = (minutes: number) => {
@@ -163,31 +207,39 @@ export default function TimePage() {
     return `${hours}:${mins.toString().padStart(2, '0')}`
   }
   
-  // Calculate stats
+  // Calculate stats from timeEntries for display
   const todayEntries = timeEntries.filter(e => {
     const entryDate = new Date(e.startTime).toDateString()
     return entryDate === new Date().toDateString()
   })
-  
-  const todayMinutes = todayEntries.reduce((sum, e) => sum + (e.duration || 0), 0)
-  const weekMinutes = timeEntries.reduce((sum, e) => sum + (e.duration || 0), 0)
+
+  const todayMinutes = stats.todayMinutes || todayEntries.reduce((sum, e) => sum + (e.duration || 0), 0)
+  const weekMinutes = stats.weekMinutes || timeEntries.reduce((sum, e) => sum + (e.duration || 0), 0)
   
   // Get active timer duration if exists
   const getActiveTimerDuration = () => {
     if (!activeTimer) return '00:00:00'
-    
+
     const start = new Date(activeTimer.startTime).getTime()
     const now = Date.now()
     const seconds = Math.floor((now - start) / 1000)
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
-    
+
     return `${hours.toString().padStart(2, '0')}:${minutes
       .toString()
       .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
-  
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">טוען...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -209,13 +261,19 @@ export default function TimePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90 mb-2">טיימר פעיל</p>
-                <h2 className="text-2xl font-bold mb-1">פרויקט דמו</h2>
-                <p className="text-sm opacity-75">משימה: פיתוח</p>
+                <h2 className="text-2xl font-bold mb-1">
+                  {projects.find(p => p.id === activeTimer.projectId)?.name || 'פרויקט'}
+                </h2>
+                {activeTimer.taskId && (
+                  <p className="text-sm opacity-75">
+                    משימה: {tasks.find(t => t.id === activeTimer.taskId)?.title || 'ללא משימה'}
+                  </p>
+                )}
               </div>
               <div className="text-center">
                 <p className="text-5xl font-bold font-mono">{getActiveTimerDuration()}</p>
                 <div className="flex gap-3 mt-4">
-                  <Button 
+                  <Button
                     variant="secondary"
                     onClick={handleStopTimer}
                     className="bg-white text-blue-600 hover:bg-gray-100"
@@ -223,9 +281,10 @@ export default function TimePage() {
                     <Square className="w-4 h-4 ml-2" />
                     עצור וסיים
                   </Button>
-                  <Button 
+                  <Button
                     variant="secondary"
                     className="bg-white/20 text-white hover:bg-white/30"
+                    disabled
                   >
                     <Pause className="w-4 h-4" />
                   </Button>
@@ -261,7 +320,7 @@ export default function TimePage() {
                 <SelectContent>
                   {tasks.map(task => (
                     <SelectItem key={task.id} value={task.id}>
-                      {task.name}
+                      {task.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -413,17 +472,26 @@ export default function TimePage() {
               </div>
               
               <div className="space-y-2">
-                {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'].map((day) => (
-                  <div key={day} className="flex items-center gap-2">
-                    <span className="text-xs w-12">{day}</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-4">
-                      <div 
-                        className="bg-purple-500 h-4 rounded-full"
-                        style={{ width: `${Math.random() * 100}%` }}
-                      />
+                {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map((dayName, index) => {
+                  const dayData = stats.weeklyBreakdown?.[index] || { minutes: 0, percentage: 0 }
+                  const maxMinutes = Math.max(...(stats.weeklyBreakdown?.map(d => d.minutes) || [1]))
+                  const widthPercent = maxMinutes > 0 ? (dayData.minutes / maxMinutes) * 100 : 0
+
+                  return (
+                    <div key={dayName} className="flex items-center gap-2">
+                      <span className="text-xs w-12">{dayName}</span>
+                      <div className="flex-1 bg-gray-200 rounded-full h-4">
+                        <div
+                          className="bg-purple-500 h-4 rounded-full transition-all duration-500"
+                          style={{ width: `${widthPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-600 w-12 text-left">
+                        {dayData.minutes > 0 ? formatDuration(dayData.minutes) : '-'}
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </CardContent>
@@ -435,27 +503,31 @@ export default function TimePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {projects.map((project, index) => {
-                const percentage = [45, 30, 25][index]
-                const hours = [12.5, 8.3, 6.9][index]
-                const color = ['bg-blue-500', 'bg-green-500', 'bg-orange-500'][index]
-                
-                return (
-                  <div key={project.id}>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">{project.name}</span>
-                      <span className="text-sm font-bold">{percentage}%</span>
+              {stats.projectBreakdown && stats.projectBreakdown.length > 0 ? (
+                stats.projectBreakdown.map((item, index) => {
+                  const colors = ['bg-blue-500', 'bg-green-500', 'bg-orange-500', 'bg-purple-500', 'bg-pink-500']
+                  const color = colors[index % colors.length]
+                  const hours = (item.minutes / 60).toFixed(1)
+
+                  return (
+                    <div key={item.projectId}>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">{item.projectName}</span>
+                        <span className="text-sm font-bold">{Math.round(item.percentage)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className={`${color} h-3 rounded-full transition-all duration-500`}
+                          style={{ width: `${item.percentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">{hours} שעות</p>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div 
-                        className={`${color} h-3 rounded-full`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-1">{hours} שעות</p>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">אין נתונים להצגה</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -490,7 +562,7 @@ export default function TimePage() {
                     <td className="py-3 text-sm">
                       <Badge variant="outline">{entry.project?.name || '-'}</Badge>
                     </td>
-                    <td className="py-3 text-sm">{entry.task?.name || '-'}</td>
+                    <td className="py-3 text-sm">{entry.task?.title || '-'}</td>
                     <td className="py-3 text-sm">{entry.description || '-'}</td>
                     <td className="py-3 text-sm">
                       {new Date(entry.startTime).toLocaleTimeString('he-IL', {

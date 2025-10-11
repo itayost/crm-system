@@ -30,7 +30,7 @@ export class TimeService extends BaseService {
   /**
    * Start a timer for a task
    */
-  static async startTimer(userId: string, taskId: string, projectId: string) {
+  static async startTimer(userId: string, taskId: string | undefined, projectId: string) {
     try {
       // Check if there's already an active timer
       const activeTimer = await prisma.timeEntry.findFirst({
@@ -44,21 +44,38 @@ export class TimeService extends BaseService {
         throw new Error('יש כבר טיימר פעיל. עצור אותו קודם')
       }
 
-      // Verify task belongs to user
-      const task = await prisma.task.findFirst({
-        where: { id: taskId, userId }
-      })
+      // If taskId is provided, verify it belongs to user
+      let task = null
+      if (taskId) {
+        task = await prisma.task.findFirst({
+          where: { id: taskId, userId }
+        })
 
-      if (!task) {
-        throw new Error('משימה לא נמצאה')
+        if (!task) {
+          throw new Error('משימה לא נמצאה')
+        }
       }
 
-      // Create new time entry
+      // Verify project belongs to user
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, userId }
+      })
+
+      if (!project) {
+        throw new Error('פרויקט לא נמצא')
+      }
+
+      // Create new time entry - projectId is required
+      const finalProjectId = projectId || task?.projectId
+      if (!finalProjectId) {
+        throw new Error('פרויקט נדרש להתחלת טיימר')
+      }
+
       const timeEntry = await prisma.timeEntry.create({
         data: {
           userId,
-          taskId,
-          projectId: projectId || task.projectId,
+          taskId: taskId || undefined,
+          projectId: finalProjectId,
           startTime: new Date()
         },
         include: {
@@ -67,8 +84,8 @@ export class TimeService extends BaseService {
         }
       })
 
-      // Update task status to IN_PROGRESS if it was TODO
-      if (task.status === 'TODO') {
+      // Update task status to IN_PROGRESS if it was TODO and taskId was provided
+      if (task && task.status === 'TODO') {
         await prisma.task.update({
           where: { id: taskId },
           data: { status: 'IN_PROGRESS' }
@@ -411,8 +428,32 @@ export class TimeService extends BaseService {
         }
       })
 
+      // Get today's time entries
+      const todayEntries = await prisma.timeEntry.findMany({
+        where: {
+          userId,
+          startTime: {
+            gte: startOfDay(now),
+            lte: endOfDay(now)
+          }
+        }
+      })
+
+      // Get week's time entries (if not already fetched)
+      const weekEntries = period === 'week' ? timeEntries : await prisma.timeEntry.findMany({
+        where: {
+          userId,
+          startTime: {
+            gte: startOfWeek(now, { weekStartsOn: 0 }),
+            lte: endOfWeek(now, { weekStartsOn: 0 })
+          }
+        }
+      })
+
       // Calculate statistics
       const totalMinutes = timeEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0)
+      const todayMinutes = todayEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0)
+      const weekMinutes = weekEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0)
       const totalHours = totalMinutes / 60
 
       // Group by project
@@ -422,7 +463,7 @@ export class TimeService extends BaseService {
         tasks: Set<string>
       }>, entry) => {
         if (!entry.projectId) return acc
-        
+
         if (!acc[entry.projectId]) {
           acc[entry.projectId] = {
             project: entry.project,
@@ -430,30 +471,64 @@ export class TimeService extends BaseService {
             tasks: new Set()
           }
         }
-        
+
         acc[entry.projectId].minutes += entry.duration || 0
         if (entry.taskId) {
           acc[entry.projectId].tasks.add(entry.taskId)
         }
-        
+
         return acc
       }, {})
 
-      // Convert to array and calculate hours
+      // Convert to array with correct field names for frontend
+      const projectBreakdown = Object.entries(byProject).map(([projectId, stat]) => ({
+        projectId,
+        projectName: stat.project?.name || 'ללא פרויקט',
+        minutes: stat.minutes,
+        percentage: totalMinutes > 0 ? (stat.minutes / totalMinutes) * 100 : 0
+      }))
+
+      // Also keep projectStats for backward compatibility
       const projectStats = Object.values(byProject).map((stat) => ({
         project: stat.project,
         hours: stat.minutes / 60,
         taskCount: stat.tasks.size
       }))
 
-      // Sort by hours
+      // Sort both arrays by time
+      projectBreakdown.sort((a, b) => b.minutes - a.minutes)
       projectStats.sort((a, b) => b.hours - a.hours)
+
+      // Calculate weekly breakdown by day
+      const weeklyBreakdown = Array.from({ length: 7 }, (_, i) => {
+        const dayStart = new Date(startOfWeek(now, { weekStartsOn: 0 }))
+        dayStart.setDate(dayStart.getDate() + i)
+        const dayEnd = new Date(dayStart)
+        dayEnd.setHours(23, 59, 59, 999)
+
+        const dayMinutes = weekEntries
+          .filter(entry => {
+            const entryDate = new Date(entry.startTime)
+            return entryDate >= dayStart && entryDate <= dayEnd
+          })
+          .reduce((sum, entry) => sum + (entry.duration || 0), 0)
+
+        return {
+          day: i,
+          minutes: dayMinutes,
+          percentage: weekMinutes > 0 ? (dayMinutes / weekMinutes) * 100 : 0
+        }
+      })
 
       return {
         totalHours,
         totalMinutes,
+        todayMinutes,
+        weekMinutes,
         entriesCount: timeEntries.length,
-        projectStats,
+        projectBreakdown,
+        projectStats, // Keep for backward compatibility
+        weeklyBreakdown,
         averagePerDay: totalHours / (period === 'day' ? 1 : period === 'week' ? 7 : 30)
       }
     } catch (error) {
