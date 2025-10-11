@@ -24,6 +24,7 @@ interface Task {
   priorityScore?: number
   dueDate?: string
   completedAt?: string
+  createdAt?: string
   totalMinutes: number
   project?: {
     id: string
@@ -221,7 +222,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-3">
           <select 
             value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => setSortBy(e.target.value as 'priority' | 'deadline' | 'created' | 'score')}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm"
           >
             <option value="score">מיין לפי עדיפות</option>

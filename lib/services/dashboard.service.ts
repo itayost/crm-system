@@ -1,7 +1,7 @@
 import { BaseService } from './base.service'
 import { prisma } from '@/lib/db/prisma'
 import { ProjectsService } from './projects.service'
-import { PriorityScoringService, PriorityItem } from './priority-scoring.service'
+import { PriorityScoringService } from './priority-scoring.service'
 
 export interface SidebarBadges {
   leads: {

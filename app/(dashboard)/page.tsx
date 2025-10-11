@@ -16,7 +16,7 @@ import {
   Loader2
 } from 'lucide-react'
 import api from '@/lib/api/client'
-import { DashboardData, DashboardRecommendation } from '@/lib/services/dashboard.service'
+import { DashboardData } from '@/lib/services/dashboard.service'
 import { toast } from 'react-hot-toast'
 
 export default function DashboardPage() {

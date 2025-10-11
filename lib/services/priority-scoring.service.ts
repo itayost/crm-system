@@ -387,7 +387,7 @@ export class PriorityScoringService extends BaseService {
   /**
    * Generate reason for task priority
    */
-  private static generateTaskReason(task: any): string {
+  private static generateTaskReason(task: { dueDate?: Date; project?: { client?: { type?: string }; budget?: number }; status?: string }): string {
     const reasons: string[] = []
     
     if (task.dueDate) {
@@ -421,7 +421,7 @@ export class PriorityScoringService extends BaseService {
   /**
    * Generate reason for project priority
    */
-  private static generateProjectReason(project: any): string {
+  private static generateProjectReason(project: { deadline?: Date; client?: { type?: string }; budget?: number; stage?: string }): string {
     const reasons: string[] = []
     
     if (project.deadline) {
