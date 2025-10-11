@@ -10,6 +10,10 @@ export interface SidebarBadges {
   projects: {
     active: number
   }
+  tasks: {
+    urgent: number
+    overdue: number
+  }
   payments: {
     overdue: number
     pending: number
