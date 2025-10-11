@@ -1,5 +1,6 @@
 import { BaseService } from './base.service'
 import { prisma } from '@/lib/db/prisma'
+import { Decimal } from '@prisma/client/runtime/library'
 
 export interface PriorityScoreBreakdown {
   deadlineScore: number
@@ -387,7 +388,7 @@ export class PriorityScoringService extends BaseService {
   /**
    * Generate reason for task priority
    */
-  private static generateTaskReason(task: { dueDate?: Date; project?: { client?: { type?: string }; budget?: number }; status?: string }): string {
+  private static generateTaskReason(task: { dueDate?: Date | null; project?: { client?: { type?: string }; budget?: Decimal | null }; status?: string }): string {
     const reasons: string[] = []
     
     if (task.dueDate) {
@@ -421,7 +422,7 @@ export class PriorityScoringService extends BaseService {
   /**
    * Generate reason for project priority
    */
-  private static generateProjectReason(project: { deadline?: Date; client?: { type?: string }; budget?: number; stage?: string }): string {
+  private static generateProjectReason(project: { deadline?: Date | null; client?: { type?: string }; budget?: Decimal | null; stage?: string }): string {
     const reasons: string[] = []
     
     if (project.deadline) {
@@ -445,7 +446,7 @@ export class PriorityScoringService extends BaseService {
       reasons.push('תקציב גבוה')
     }
     
-    if (['REVIEW', 'DELIVERY'].includes(project.stage)) {
+    if (project.stage && ['REVIEW', 'DELIVERY'].includes(project.stage)) {
       reasons.push('שלב מתקדם')
     }
     
