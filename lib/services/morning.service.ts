@@ -288,7 +288,7 @@ export class MorningService extends BaseService {
       throw new Error('Morning integration is not enabled')
     }
 
-    return this.apiRequest<MorningClient>('/clients', 'POST', client as Record<string, unknown>)
+    return this.apiRequest<MorningClient>('/clients', 'POST', client as unknown as Record<string, unknown>)
   }
 
   /**

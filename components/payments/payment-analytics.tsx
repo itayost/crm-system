@@ -13,10 +13,9 @@ interface Payment {
 
 interface PaymentAnalyticsProps {
   payments: Payment[]
-  recurringPayments: unknown
 }
 
-export function PaymentAnalytics({ payments, recurringPayments: _recurringPayments }: PaymentAnalyticsProps) {
+export function PaymentAnalytics({ payments }: PaymentAnalyticsProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',

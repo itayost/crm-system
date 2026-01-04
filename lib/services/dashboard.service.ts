@@ -187,8 +187,6 @@ export class DashboardService extends BaseService {
   }
 
   static async searchAll(userId: string, query: string, limit: number = 10): Promise<SearchResult[]> {
-    const _searchTerm = `%${query}%`
-    
     const [leads, clients, projects, payments] = await Promise.all([
       // Search leads
       prisma.lead.findMany({

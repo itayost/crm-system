@@ -77,8 +77,6 @@ export function TaskForm({
     }
   })
 
-  const _selectedProjectId = watch('projectId')
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {/* Title */}
