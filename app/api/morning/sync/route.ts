@@ -50,7 +50,7 @@ export const POST = withAuth(async (req, { userId }) => {
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResponse(error.errors[0].message, 400)
+      return errorResponse(error.issues[0].message, 400)
     }
     return errorResponse((error as Error).message || 'Failed to sync client')
   }

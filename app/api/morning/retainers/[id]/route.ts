@@ -72,7 +72,7 @@ export const PUT = withAuth(async (
     return createResponse(retainer)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return errorResponse(error.errors[0].message, 400)
+      return errorResponse(error.issues[0].message, 400)
     }
     return errorResponse((error as Error).message || 'Failed to update retainer')
   }
