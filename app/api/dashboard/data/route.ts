@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { DashboardService } from '@/lib/services/dashboard.service'
 

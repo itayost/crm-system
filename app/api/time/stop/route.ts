@@ -1,5 +1,4 @@
 // app/api/time/stop/route.ts
-import { NextRequest } from 'next/server'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { TimeService } from '@/lib/services/time.service'
 

@@ -1,7 +1,7 @@
 // app/(dashboard)/time/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,9 +20,7 @@ import {
   Square,
   Plus,
   Edit,
-  Trash2,
-  Clock,
-  Calendar
+  Trash2
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { toast } from 'react-hot-toast'
@@ -61,12 +59,43 @@ export default function TimePage() {
     weeklyBreakdown: [] as Array<{ day: number; minutes: number; percentage: number }>
   })
   
-  useEffect(() => {
-    fetchData()
-    fetchActiveTimer()
+  const fetchTimeEntries = useCallback(async () => {
+    try {
+      const response = await api.get('/time')
+      setTimeEntries(response.data)
+    } catch {
+      console.error('Error fetching time entries')
+    }
   }, [])
 
-  const fetchData = async () => {
+  const fetchProjects = useCallback(async () => {
+    try {
+      const response = await api.get('/projects')
+      setProjects(response.data)
+    } catch {
+      console.error('Error fetching projects')
+    }
+  }, [])
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const response = await api.get('/tasks')
+      setTasks(response.data)
+    } catch {
+      console.error('Error fetching tasks')
+    }
+  }, [])
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await api.get('/time/stats?period=week')
+      setStats(response.data)
+    } catch {
+      console.error('Error fetching stats')
+    }
+  }, [])
+
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       await Promise.all([
@@ -75,61 +104,30 @@ export default function TimePage() {
         fetchTasks(),
         fetchStats()
       ])
-    } catch (error) {
+    } catch {
       toast.error('שגיאה בטעינת נתונים')
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchTimeEntries, fetchProjects, fetchTasks, fetchStats])
 
-  const fetchTimeEntries = async () => {
-    try {
-      const response = await api.get('/time')
-      setTimeEntries(response.data)
-    } catch (error) {
-      console.error('Error fetching time entries:', error)
-    }
-  }
-
-  const fetchProjects = async () => {
-    try {
-      const response = await api.get('/projects')
-      setProjects(response.data)
-    } catch (error) {
-      console.error('Error fetching projects:', error)
-    }
-  }
-
-  const fetchTasks = async () => {
-    try {
-      const response = await api.get('/tasks')
-      setTasks(response.data)
-    } catch (error) {
-      console.error('Error fetching tasks:', error)
-    }
-  }
-
-  const fetchStats = async () => {
-    try {
-      const response = await api.get('/time/stats?period=week')
-      setStats(response.data)
-    } catch (error) {
-      console.error('Error fetching stats:', error)
-    }
-  }
-
-  const fetchActiveTimer = async () => {
+  const fetchActiveTimer = useCallback(async () => {
     try {
       const response = await api.get('/time/active')
       if (response.data) {
         // Sync with Zustand store
         startTimer(response.data.projectId, response.data.taskId)
       }
-    } catch (error) {
+    } catch {
       // No active timer or error - that's okay
       console.log('No active timer found')
     }
-  }
+  }, [startTimer])
+
+  useEffect(() => {
+    fetchData()
+    fetchActiveTimer()
+  }, [fetchData, fetchActiveTimer])
   
   const handleStartTimer = async () => {
     if (!selectedProject) {
@@ -138,7 +136,7 @@ export default function TimePage() {
     }
 
     try {
-      const response = await api.post('/time/start', {
+      await api.post('/time/start', {
         projectId: selectedProject,
         taskId: selectedTask || undefined
       })
@@ -147,7 +145,7 @@ export default function TimePage() {
       startTimer(selectedProject, selectedTask)
       toast.success(`טיימר הופעל עבור ${project?.name || 'הפרויקט'}`)
       fetchTimeEntries()
-    } catch (error) {
+    } catch {
       toast.error('שגיאה בהפעלת טיימר')
     }
   }
@@ -158,7 +156,7 @@ export default function TimePage() {
       stopTimer()
       toast.success('טיימר נעצר והזמן נשמר')
       await Promise.all([fetchTimeEntries(), fetchStats()])
-    } catch (error) {
+    } catch {
       toast.error('שגיאה בעצירת טיימר')
     }
   }
@@ -196,7 +194,7 @@ export default function TimePage() {
 
       // Refresh data
       await Promise.all([fetchTimeEntries(), fetchStats()])
-    } catch (error) {
+    } catch {
       toast.error('שגיאה בהוספת רישום זמן')
     }
   }

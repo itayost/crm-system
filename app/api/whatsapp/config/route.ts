@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createResponse } from '@/lib/api/api-handler'
 
 // GET /api/whatsapp/config - Check WhatsApp configuration status
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const config = {
     hasToken: !!process.env.WHATSAPP_API_TOKEN,
     tokenLength: process.env.WHATSAPP_API_TOKEN?.length || 0,

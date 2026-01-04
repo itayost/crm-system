@@ -1,5 +1,4 @@
 // app/api/clients/[id]/route.ts
-import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ClientsService } from '@/lib/services/clients.service'

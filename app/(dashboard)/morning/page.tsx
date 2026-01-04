@@ -1,7 +1,7 @@
 // app/(dashboard)/morning/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -118,11 +118,34 @@ export default function MorningPage() {
     frequency: '1'
   })
 
-  useEffect(() => {
-    checkConnection()
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const response = await api.get('/morning/documents')
+      setDocuments(response.data.items || [])
+    } catch {
+      console.error('Failed to fetch documents')
+    }
   }, [])
 
-  const checkConnection = async () => {
+  const fetchRetainers = useCallback(async () => {
+    try {
+      const response = await api.get('/morning/retainers')
+      setRetainers(response.data.items || [])
+    } catch {
+      console.error('Failed to fetch retainers')
+    }
+  }, [])
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const response = await api.get('/clients?status=ACTIVE')
+      setClients(response.data || [])
+    } catch {
+      console.error('Failed to fetch clients')
+    }
+  }, [])
+
+  const checkConnection = useCallback(async () => {
     try {
       setLoading(true)
       const response = await api.get('/morning')
@@ -137,34 +160,11 @@ export default function MorningPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchDocuments, fetchRetainers, fetchClients])
 
-  const fetchDocuments = async () => {
-    try {
-      const response = await api.get('/morning/documents')
-      setDocuments(response.data.items || [])
-    } catch {
-      console.error('Failed to fetch documents')
-    }
-  }
-
-  const fetchRetainers = async () => {
-    try {
-      const response = await api.get('/morning/retainers')
-      setRetainers(response.data.items || [])
-    } catch {
-      console.error('Failed to fetch retainers')
-    }
-  }
-
-  const fetchClients = async () => {
-    try {
-      const response = await api.get('/clients?status=ACTIVE')
-      setClients(response.data || [])
-    } catch {
-      console.error('Failed to fetch clients')
-    }
-  }
+  useEffect(() => {
+    checkConnection()
+  }, [checkConnection])
 
   const handleCreateRetainer = async () => {
     const selectedClient = clients.find(c => c.id === newRetainer.clientId)

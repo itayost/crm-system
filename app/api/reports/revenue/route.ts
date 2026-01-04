@@ -1,5 +1,4 @@
 // app/api/reports/revenue/route.ts
-import { NextRequest } from 'next/server'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ReportsService } from '@/lib/services/reports.service'
 

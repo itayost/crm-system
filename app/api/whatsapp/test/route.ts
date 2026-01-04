@@ -4,7 +4,7 @@ import { WhatsAppService } from '@/lib/services/whatsapp.service'
 import { withAuth } from '@/lib/api/auth-handler'
 
 // POST /api/whatsapp/test - Test WhatsApp integration
-export const POST = withAuth(async (req: NextRequest, userId: string) => {
+export const POST = withAuth(async (req: NextRequest, _userId: string) => {
   try {
     const { phone } = await req.json()
 

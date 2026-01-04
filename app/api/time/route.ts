@@ -1,5 +1,4 @@
 // app/api/time/route.ts
-import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { TimeService } from '@/lib/services/time.service'

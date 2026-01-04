@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth/auth.config'
 import { prisma } from '@/lib/db/prisma'
 
 // GET /api/admin/users - Get all users (admin only)
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     // Check if user is authenticated
     const session = await getServerSession(authOptions)

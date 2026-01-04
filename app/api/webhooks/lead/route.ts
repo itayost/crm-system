@@ -17,8 +17,8 @@ const webhookLeadSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // Verify webhook signature (in production)
-    const signature = req.headers.get('x-webhook-signature')
-    // TODO: Verify signature with WEBHOOK_SECRET
+    const _signature = req.headers.get('x-webhook-signature')
+    // TODO: Verify signature with WEBHOOK_SECRET using _signature
     
     const body = await req.json()
     const validatedData = webhookLeadSchema.parse(body)

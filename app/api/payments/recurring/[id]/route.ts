@@ -1,5 +1,4 @@
 // app/api/payments/recurring/[id]/route.ts
-import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { PaymentsService } from '@/lib/services/payments.service'

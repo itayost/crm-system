@@ -1,5 +1,4 @@
 // app/api/tasks/[id]/route.ts
-import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { TasksService } from '@/lib/services/tasks.service'
