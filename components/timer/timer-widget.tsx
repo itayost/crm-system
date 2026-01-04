@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Play, Square, Clock } from 'lucide-react'
+import { Square, Clock } from 'lucide-react'
 import api from '@/lib/api/client'
 
 interface ActiveTimer {

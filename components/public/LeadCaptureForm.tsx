@@ -68,7 +68,7 @@ export default function LeadCaptureForm({
           text: result.message || 'אירעה שגיאה. נסה שוב מאוחר יותר.'
         })
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: 'error',
         text: 'אירעה שגיאה בשליחת הטופס. נסה שוב מאוחר יותר.'

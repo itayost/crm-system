@@ -77,7 +77,7 @@ export function TaskForm({
     }
   })
 
-  const selectedProjectId = watch('projectId')
+  const _selectedProjectId = watch('projectId')
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

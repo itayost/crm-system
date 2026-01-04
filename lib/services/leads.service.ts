@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { BaseService } from './base.service'
-import { Lead, LeadStatus, LeadSource, Prisma } from '@prisma/client'
+import { LeadStatus, LeadSource, Prisma } from '@prisma/client'
 import { WhatsAppService } from './whatsapp.service'
 
 interface CreateLeadInput {

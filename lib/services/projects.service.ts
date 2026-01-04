@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { BaseService } from './base.service'
-import { ProjectType, ProjectStage, Priority, Prisma, NotificationType } from '@prisma/client'
+import { ProjectType, ProjectStage, Priority, Prisma } from '@prisma/client'
 
 interface CreateProjectInput {
   name: string

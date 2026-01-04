@@ -2,9 +2,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, CreditCard, DollarSign } from 'lucide-react'
-import { format } from 'date-fns'
-import { he } from 'date-fns/locale'
+import { TrendingUp, CreditCard } from 'lucide-react'
 
 interface Payment {
   id: string
@@ -18,7 +16,7 @@ interface PaymentAnalyticsProps {
   recurringPayments: unknown
 }
 
-export function PaymentAnalytics({ payments, recurringPayments }: PaymentAnalyticsProps) {
+export function PaymentAnalytics({ payments, recurringPayments: _recurringPayments }: PaymentAnalyticsProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',

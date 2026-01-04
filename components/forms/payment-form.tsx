@@ -60,7 +60,7 @@ export function PaymentForm({
     },
   })
 
-  const selectedType = watch('type')
+  const _selectedType = watch('type')
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

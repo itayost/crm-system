@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bell, User, Search, Moon, Sun, LogOut, Settings, HelpCircle } from 'lucide-react'
+import { Bell, User, Search, Sun, LogOut, Settings, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -52,7 +52,7 @@ export function Header() {
         try {
           const response = await api.get('/dashboard/search')
           setSearchResults(response.data.results || [])
-        } catch (error) {
+        } catch {
           setSearchResults([])
         }
         return
@@ -62,7 +62,7 @@ export function Header() {
       try {
         const response = await api.get(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`)
         setSearchResults(response.data.results || [])
-      } catch (error) {
+      } catch {
         setSearchResults([])
       } finally {
         setSearchLoading(false)

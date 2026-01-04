@@ -55,7 +55,7 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
       if (response.data.length === 1) {
         setFormData(prev => ({ ...prev, clientId: response.data[0].id }))
       }
-    } catch (error) {
+    } catch {
       toast.error('שגיאה בטעינת לקוחות')
     } finally {
       setLoadingClients(false)

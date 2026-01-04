@@ -169,7 +169,7 @@ export class TasksService extends BaseService {
       }
 
       // Remove fields that don't exist in Task model
-      const { clientId, assignedToId, tags, ...taskData } = data
+      const { clientId: _clientId, assignedToId: _assignedToId, tags: _tags, ...taskData } = data
 
       const task = await prisma.task.create({
         data: {
@@ -236,7 +236,7 @@ export class TasksService extends BaseService {
       }
 
       // Remove fields that don't exist in Task model
-      const { clientId, assignedToId, tags, ...taskData } = data
+      const { clientId: _clientId, assignedToId: _assignedToId, tags: _tags, ...taskData } = data
 
       // If marking as completed, set completedAt
       if (taskData.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
