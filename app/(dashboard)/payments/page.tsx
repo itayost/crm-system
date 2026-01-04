@@ -16,7 +16,9 @@ import {
   FileText,
   MoreVertical,
   Edit,
-  Trash
+  Trash,
+  Receipt,
+  ExternalLink
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -184,13 +186,39 @@ export default function PaymentsPage() {
 
   const handleDeletePayment = async (paymentId: string) => {
     if (!confirm('האם אתה בטוח שברצונך למחוק תשלום זה?')) return
-    
+
     try {
       await api.delete(`/payments/${paymentId}`)
       setPayments(payments.filter(p => p.id !== paymentId))
       toast.success('תשלום נמחק בהצלחה')
     } catch (error) {
       const message = (error as {response?: {data?: {error?: string}}})?.response?.data?.error || 'שגיאה במחיקת תשלום'
+      toast.error(message)
+    }
+  }
+
+  const handleGenerateInvoice = async (paymentId: string, markAsPaid: boolean = false) => {
+    try {
+      const response = await api.post('/morning/invoice', {
+        paymentId,
+        markAsPaid,
+        paymentType: 4 // העברה בנקאית
+      })
+
+      // Update payment with invoice number
+      setPayments(payments.map(p =>
+        p.id === paymentId
+          ? {
+              ...p,
+              invoiceNumber: response.data.document.number.toString(),
+              ...(markAsPaid ? { status: 'PAID', paidAt: new Date().toISOString() } : {})
+            }
+          : p
+      ))
+
+      toast.success(markAsPaid ? 'חשבונית מס קבלה הופקה בהצלחה!' : 'חשבונית מס הופקה בהצלחה!')
+    } catch (error) {
+      const message = (error as {response?: {data?: {error?: string}}})?.response?.data?.error || 'שגיאה בהפקת חשבונית'
       toast.error(message)
     }
   }
@@ -473,7 +501,27 @@ export default function PaymentsPage() {
                                 סמן כשולם
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem 
+                            <DropdownMenuSeparator />
+                            {!payment.invoiceNumber && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleGenerateInvoice(payment.id, false)}>
+                                  <Receipt className="w-4 h-4 ml-2" />
+                                  הפק חשבונית מס
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleGenerateInvoice(payment.id, true)}>
+                                  <FileText className="w-4 h-4 ml-2" />
+                                  הפק חשבונית + קבלה
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {payment.invoiceNumber && (
+                              <DropdownMenuItem onClick={() => window.open(`https://app.greeninvoice.co.il`, '_blank')}>
+                                <ExternalLink className="w-4 h-4 ml-2" />
+                                פתח ב-Morning
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => handleDeletePayment(payment.id)}
                             >

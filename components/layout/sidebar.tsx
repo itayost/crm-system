@@ -15,6 +15,7 @@ import {
   Plus,
   Bell,
   CheckSquare,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -77,11 +78,17 @@ const getNavigation = (badges: SidebarBadges | null) => [
 ]
 
 const bottomNavigation = [
-  { 
-    name: 'הגדרות', 
-    href: '/settings', 
+  {
+    name: 'Morning',
+    href: '/morning',
+    icon: FileText,
+    badge: null
+  },
+  {
+    name: 'הגדרות',
+    href: '/settings',
     icon: Settings,
-    badge: null 
+    badge: null
   },
 ]
 
