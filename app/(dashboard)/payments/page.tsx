@@ -177,12 +177,39 @@ export default function PaymentsPage() {
 
   const handleMarkAsPaid = async (paymentId: string) => {
     try {
-      const response = await api.put(`/payments/${paymentId}`, { 
+      const response = await api.put(`/payments/${paymentId}`, {
         status: 'PAID',
         paidAt: new Date().toISOString()
       })
       setPayments(payments.map(p => p.id === paymentId ? response.data : p))
       toast.success('תשלום סומן כשולם!')
+
+      // If this payment is linked to a project in DELIVERY stage, suggest completing it
+      const project = response.data.project
+      if (project && project.stage === 'DELIVERY' && project.status !== 'COMPLETED') {
+        toast(
+          (t) => (
+            <div className="flex items-center gap-3">
+              <span>הפרויקט &quot;{project.name}&quot; שולם. לסיים?</span>
+              <button
+                className="bg-green-600 text-white px-3 py-1 rounded text-sm whitespace-nowrap"
+                onClick={async () => {
+                  try {
+                    await api.post(`/projects/${project.id}/complete`)
+                    toast.dismiss(t.id)
+                    toast.success('הפרויקט סומן כהושלם!')
+                  } catch {
+                    toast.error('שגיאה בסיום הפרויקט')
+                  }
+                }}
+              >
+                סיים פרויקט
+              </button>
+            </div>
+          ),
+          { duration: 10000 }
+        )
+      }
     } catch {
       toast.error('שגיאה בסימון תשלום')
     }

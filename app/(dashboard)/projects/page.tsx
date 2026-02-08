@@ -7,18 +7,21 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Plus, 
-  Clock, 
-  Calendar, 
-  User, 
+import {
+  Plus,
+  Clock,
+  Calendar,
+  User,
   AlertCircle,
   DollarSign,
   MoreVertical,
   Play,
   Edit,
   Trash,
-  ChevronRight
+  ChevronRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -91,11 +94,13 @@ type Project = {
   clientId?: string
   type: string
   stage: string
+  status?: string
   priority: string
   progress: number
   budget?: number
   deadline?: string
   startDate?: string
+  completedAt?: string
   estimatedHours?: number
   actualHours?: number
 }
@@ -106,6 +111,7 @@ export default function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCompleted, setShowCompleted] = useState(false)
   
   useEffect(() => {
     fetchProjects()
@@ -249,8 +255,22 @@ export default function ProjectsPage() {
     }
   }
   
-  // Group projects by stage
-  const projectsByStage = projects.reduce((acc: Record<string, typeof projects>, project) => {
+  const handleCompleteProject = async (projectId: string) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/complete`)
+      setProjects(projects.map(p => p.id === projectId ? response.data : p))
+      toast.success('הפרויקט סומן כהושלם!')
+    } catch {
+      toast.error('שגיאה בסיום הפרויקט')
+    }
+  }
+
+  // Split projects into active and completed
+  const activeProjects = projects.filter(p => p.status !== 'COMPLETED')
+  const completedProjects = projects.filter(p => p.status === 'COMPLETED')
+
+  // Group active projects by stage
+  const projectsByStage = activeProjects.reduce((acc: Record<string, typeof projects>, project) => {
     if (!acc[project.stage]) acc[project.stage] = []
     acc[project.stage].push(project)
     return acc
@@ -266,11 +286,12 @@ export default function ProjectsPage() {
   
   // Calculate stats
   const stats = {
-    total: projects.length,
-    inProgress: projects.filter(p => p.stage === 'DEVELOPMENT').length,
-    urgent: projects.filter(p => p.priority === 'URGENT').length,
-    totalValue: projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
-    totalHours: projects.reduce((sum, p) => sum + (p.actualHours || 0), 0),
+    total: activeProjects.length,
+    completed: completedProjects.length,
+    inProgress: activeProjects.filter(p => p.stage === 'DEVELOPMENT').length,
+    urgent: activeProjects.filter(p => p.priority === 'URGENT').length,
+    totalValue: activeProjects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
+    totalHours: activeProjects.reduce((sum, p) => sum + (p.actualHours || 0), 0),
   }
   
   return (
@@ -371,10 +392,20 @@ export default function ProjectsPage() {
                               <Edit className="ml-2 h-4 w-4" />
                               ערוך פרויקט
                             </DropdownMenuItem>
-                            
+
+                            {project.stage === 'DELIVERY' && (
+                              <DropdownMenuItem
+                                onClick={() => handleCompleteProject(project.id)}
+                                className="text-green-600"
+                              >
+                                <CheckCircle2 className="ml-2 h-4 w-4" />
+                                סיים פרויקט
+                              </DropdownMenuItem>
+                            )}
+
                             <DropdownMenuSeparator />
-                            
-                            <DropdownMenuItem 
+
+                            <DropdownMenuItem
                               onClick={() => handleDeleteProject(project.id)}
                               className="text-red-600"
                             >
@@ -466,6 +497,57 @@ export default function ProjectsPage() {
           </div>
         ))}
       </div>
+
+      {/* Completed Projects Section */}
+      {completedProjects.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            {showCompleted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <span>פרויקטים שהושלמו ({completedProjects.length})</span>
+          </button>
+
+          {showCompleted && (
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {completedProjects.map((project) => (
+                <Card key={project.id} className="opacity-75 hover:opacity-100 transition-opacity border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold text-sm">{project.name}</h4>
+                        <p className="text-xs text-gray-500 mt-1">{project.client?.name || 'ללא לקוח'}</p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-800 text-xs">הושלם</Badge>
+                    </div>
+                    <div className="flex gap-3 mt-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Badge variant="outline" className={`text-xs ${projectTypeColors[project.type as keyof typeof projectTypeColors]}`}>
+                          {projectTypeLabels[project.type as keyof typeof projectTypeLabels]}
+                        </Badge>
+                      </span>
+                      {project.budget && (
+                        <span className="flex items-center gap-1">
+                          <DollarSign className="w-3 h-3" />
+                          ₪{Number(project.budget).toLocaleString()}
+                        </span>
+                      )}
+                      {project.completedAt && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(project.completedAt).toLocaleDateString('he-IL')}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Create Project Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>

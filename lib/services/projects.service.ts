@@ -417,6 +417,72 @@ export class ProjectsService extends BaseService {
   }
 
   /**
+   * Complete a project (mark as delivered and paid)
+   */
+  static async complete(projectId: string, userId: string) {
+    try {
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, userId },
+        include: { client: true }
+      })
+
+      if (!project) {
+        throw new Error('פרויקט לא נמצא')
+      }
+
+      if (project.status === 'COMPLETED') {
+        throw new Error('פרויקט זה כבר הושלם')
+      }
+
+      if (project.stage !== 'DELIVERY') {
+        throw new Error('ניתן לסיים רק פרויקטים בשלב מסירה')
+      }
+
+      const updated = await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          stage: 'DELIVERY'
+        },
+        include: {
+          client: true,
+          _count: {
+            select: {
+              tasks: true,
+              payments: true
+            }
+          }
+        }
+      })
+
+      await this.logActivity({
+        userId,
+        action: 'PROJECT_COMPLETED',
+        entityType: 'Project',
+        entityId: projectId,
+        metadata: {
+          projectName: project.name,
+          clientName: project.client?.name
+        }
+      })
+
+      await this.createNotification({
+        userId,
+        type: 'PROJECT_UPDATE',
+        title: 'פרויקט הושלם',
+        message: `הפרויקט "${project.name}" סומן כהושלם`,
+        entityType: 'Project',
+        entityId: projectId
+      })
+
+      return updated
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  /**
    * Calculate project progress based on stage
    */
   static calculateProgress(stage: ProjectStage): number {
@@ -458,8 +524,8 @@ export class ProjectsService extends BaseService {
         }),
         
         // Completed projects
-        prisma.project.count({ 
-          where: { userId, stage: 'DELIVERY' }
+        prisma.project.count({
+          where: { userId, status: 'COMPLETED' }
         }),
         
         // Overdue projects
@@ -467,7 +533,8 @@ export class ProjectsService extends BaseService {
           where: {
             userId,
             deadline: { lt: new Date() },
-            stage: { not: 'DELIVERY' }
+            stage: { not: 'DELIVERY' },
+            status: { not: 'COMPLETED' }
           }
         }),
         
