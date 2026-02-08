@@ -14,21 +14,38 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+interface LeadFormData {
+  name: string
+  email: string
+  phone: string
+  company: string
+  source: string
+  projectType: string
+  estimatedBudget: string
+  notes: string
+}
+
 interface LeadFormProps {
   onSubmit: (data: unknown) => void
   onCancel: () => void
+  initialData?: Partial<LeadFormData>
 }
 
-export function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    source: 'WEBSITE',
-    projectType: '',
-    estimatedBudget: '',
-    notes: '',
+const defaults: LeadFormData = {
+  name: '',
+  email: '',
+  phone: '',
+  company: '',
+  source: 'WEBSITE',
+  projectType: '',
+  estimatedBudget: '',
+  notes: '',
+}
+
+export function LeadForm({ onSubmit, onCancel, initialData }: LeadFormProps) {
+  const [formData, setFormData] = useState<LeadFormData>({
+    ...defaults,
+    ...initialData,
   })
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -150,7 +167,7 @@ export function LeadForm({ onSubmit, onCancel }: LeadFormProps) {
           ביטול
         </Button>
         <Button type="submit">
-          שמור ליד
+          {initialData ? 'עדכן ליד' : 'שמור ליד'}
         </Button>
       </div>
     </form>

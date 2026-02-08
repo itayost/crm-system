@@ -145,7 +145,17 @@ export class ProjectsService extends BaseService {
         include: {
           client: true,
           tasks: {
-            orderBy: { createdAt: 'desc' }
+            where: { parentTaskId: null },
+            include: {
+              subTasks: {
+                orderBy: { createdAt: 'asc' }
+              }
+            },
+            orderBy: [
+              { status: 'asc' },
+              { priority: 'desc' },
+              { createdAt: 'desc' }
+            ]
           },
           payments: {
             orderBy: { dueDate: 'asc' }

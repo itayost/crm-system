@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -19,7 +19,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useAppStore } from '@/store/app-store'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import api from '@/lib/api/client'
@@ -94,17 +93,21 @@ const bottomNavigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
-  const { notifications } = useAppStore()
-  const unreadCount = notifications.filter(n => !n.read).length
   const [badges, setBadges] = useState<SidebarBadges | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
-  // Fetch badge counts
+  // Fetch badge counts and notification count
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        const response = await api.get('/dashboard/badges')
-        setBadges(response.data)
+        const [badgesRes, notifRes] = await Promise.all([
+          api.get('/dashboard/badges'),
+          api.get('/notifications?countOnly=true'),
+        ])
+        setBadges(badgesRes.data)
+        setUnreadCount(notifRes.data.unreadCount ?? 0)
       } catch (error) {
         console.error('Failed to fetch sidebar badges:', error)
         setBadges(null)
@@ -113,7 +116,6 @@ export function Sidebar() {
 
     if (session) {
       fetchBadges()
-      // Refresh badges every 30 seconds
       const interval = setInterval(fetchBadges, 30000)
       return () => clearInterval(interval)
     }
@@ -138,7 +140,7 @@ export function Sidebar() {
 
       {/* Quick Actions */}
       <div className="p-4 border-b">
-        <Button className="w-full" size="lg">
+        <Button className="w-full" size="lg" onClick={() => router.push('/projects?new=true')}>
           <Plus className="w-4 h-4 ml-2" />
           פרויקט חדש
         </Button>
@@ -222,7 +224,7 @@ export function Sidebar() {
       {unreadCount > 0 && (
         <div className="p-4 border-t bg-yellow-50">
           <Link 
-            href="/dashboard/notifications"
+            href="/"
             className="flex items-center justify-between text-sm hover:text-blue-600 transition-colors"
           >
             <div className="flex items-center gap-2">

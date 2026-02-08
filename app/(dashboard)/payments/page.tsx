@@ -85,6 +85,8 @@ export default function PaymentsPage() {
     dueDate: string
     status: string
     type: string
+    clientId?: string
+    projectId?: string
     client?: { name?: string; email?: string }
     project?: { name?: string }
     invoiceNumber?: string
@@ -97,6 +99,8 @@ export default function PaymentsPage() {
     dueDate: string
     status: string
     type: string
+    clientId?: string
+    projectId?: string
     client?: { name?: string; email?: string }
     project?: { name?: string }
     invoiceNumber?: string
@@ -607,17 +611,29 @@ export default function PaymentsPage() {
                       )}
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={() => toast('עריכת תשלום חוזר - בקרוב', { icon: 'ℹ️' })}>
                         <Edit className="w-4 h-4 ml-1" />
                         ערוך
                       </Button>
                       {recurring.isActive ? (
-                        <Button size="sm" variant="outline" className="text-orange-600">
+                        <Button size="sm" variant="outline" className="text-orange-600" onClick={async () => {
+                          try {
+                            await api.put(`/payments/recurring/${recurring.id}`, { isActive: false })
+                            setRecurringPayments(prev => prev.map(r => r.id === recurring.id ? { ...r, isActive: false } : r))
+                            toast.success('תשלום חוזר הושעה')
+                          } catch { toast.error('שגיאה בעדכון') }
+                        }}>
                           <XCircle className="w-4 h-4 ml-1" />
                           השעה
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" className="text-green-600">
+                        <Button size="sm" variant="outline" className="text-green-600" onClick={async () => {
+                          try {
+                            await api.put(`/payments/recurring/${recurring.id}`, { isActive: true })
+                            setRecurringPayments(prev => prev.map(r => r.id === recurring.id ? { ...r, isActive: true } : r))
+                            toast.success('תשלום חוזר הופעל')
+                          } catch { toast.error('שגיאה בעדכון') }
+                        }}>
                           <CheckCircle className="w-4 h-4 ml-1" />
                           הפעל
                         </Button>
@@ -659,11 +675,11 @@ export default function PaymentsPage() {
             clients={clients}
             projects={projects}
             defaultValues={editingPayment ? {
-              clientId: editingPayment.client?.name || '',
+              clientId: editingPayment.clientId || '',
               amount: editingPayment.amount,
               type: editingPayment.type as 'PROJECT' | 'MAINTENANCE' | 'CONSULTATION' | 'OTHER',
               dueDate: editingPayment.dueDate,
-              projectId: editingPayment.project?.name,
+              projectId: editingPayment.projectId,
               invoiceNumber: editingPayment.invoiceNumber,
               notes: editingPayment.notes
             } : undefined}

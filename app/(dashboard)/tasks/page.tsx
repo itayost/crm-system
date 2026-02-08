@@ -8,12 +8,18 @@ import { TaskForm } from '@/components/forms/task-form'
 import { TimerWidget } from '@/components/timer/timer-widget'
 import api from '@/lib/api/client'
 import { Play, MoreHorizontal, Plus, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react'
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Task {
   id: string
@@ -325,36 +331,34 @@ export default function TasksPage() {
         </Card>
       </div>
 
-      {/* Task Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {selectedTask ? 'עריכת משימה' : 'משימה חדשה'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TaskForm
-              task={selectedTask ? {
-                id: selectedTask.id,
-                name: selectedTask.title,
-                description: selectedTask.description,
-                priority: selectedTask.priority,
-                status: selectedTask.status,
-                projectId: selectedTask.project?.id,
-                dueDate: selectedTask.dueDate
-              } : undefined}
-              projects={projects}
-              clients={clients}
-              onSubmit={handleSubmit}
-              onCancel={() => {
-                setShowForm(false)
-                setSelectedTask(null)
-              }}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Task Form Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) { setShowForm(false); setSelectedTask(null) }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedTask ? 'עריכת משימה' : 'משימה חדשה'}</DialogTitle>
+          </DialogHeader>
+          <TaskForm
+            task={selectedTask ? {
+              id: selectedTask.id,
+              name: selectedTask.title,
+              description: selectedTask.description,
+              priority: selectedTask.priority,
+              status: selectedTask.status,
+              projectId: selectedTask.project?.id,
+              dueDate: selectedTask.dueDate
+            } : undefined}
+            projects={projects}
+            clients={clients}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              setShowForm(false)
+              setSelectedTask(null)
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Tasks Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -23,36 +23,55 @@ interface Client {
   type: string
 }
 
+interface ProjectFormData {
+  name: string
+  description: string
+  type: string
+  clientId: string
+  budget: string
+  estimatedHours: string
+  deadline: string
+  priority: string
+  startDate: string
+}
+
 interface ProjectFormProps {
   onSubmit: (data: unknown) => void
   onCancel: () => void
+  initialData?: Partial<ProjectFormData>
 }
 
-export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
+const defaults: ProjectFormData = {
+  name: '',
+  description: '',
+  type: 'WEBSITE',
+  clientId: '',
+  budget: '',
+  estimatedHours: '',
+  deadline: '',
+  priority: 'MEDIUM',
+  startDate: new Date().toISOString().split('T')[0],
+}
+
+export function ProjectForm({ onSubmit, onCancel, initialData }: ProjectFormProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [loadingClients, setLoadingClients] = useState(true)
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: 'WEBSITE',
-    clientId: '',
-    budget: '',
-    estimatedHours: '',
-    deadline: '',
-    priority: 'MEDIUM',
-    startDate: new Date().toISOString().split('T')[0], // Today's date
+  const [formData, setFormData] = useState<ProjectFormData>({
+    ...defaults,
+    ...initialData,
   })
   
   useEffect(() => {
     fetchClients()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  
+
   const fetchClients = async () => {
     try {
       const response = await api.get('/clients?status=ACTIVE')
       setClients(response.data)
-      // If only one client, auto-select it
-      if (response.data.length === 1) {
+      // If only one client and not editing, auto-select it
+      if (response.data.length === 1 && !initialData?.clientId) {
         setFormData(prev => ({ ...prev, clientId: response.data[0].id }))
       }
     } catch {
@@ -229,7 +248,7 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
           type="submit" 
           disabled={clients.length === 0 || loadingClients}
         >
-          {loadingClients ? 'טוען...' : 'צור פרויקט'}
+          {loadingClients ? 'טוען...' : initialData ? 'עדכן פרויקט' : 'צור פרויקט'}
         </Button>
       </div>
     </form>

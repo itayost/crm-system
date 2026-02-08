@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,12 @@ import {
   SelectTrigger,
   SelectValue 
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ClientForm } from '@/components/forms/client-form'
 import api from '@/lib/api/client'
 import { toast } from 'react-hot-toast'
@@ -74,12 +81,14 @@ interface Client {
 }
 
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
-  const [showForm, setShowForm] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
 
   const fetchClients = useCallback(async () => {
     try {
@@ -103,10 +112,25 @@ export default function ClientsPage() {
     try {
       const response = await api.post('/clients', data)
       setClients([response.data, ...clients])
-      setShowForm(false)
+      setShowCreateForm(false)
+      if (response.data._warning) {
+        toast(response.data._warning, { icon: '⚠️', duration: 5000 })
+      }
       toast.success('לקוח נוסף בהצלחה!')
     } catch {
       toast.error('שגיאה ביצירת לקוח')
+    }
+  }
+
+  const handleUpdateClient = async (data: unknown) => {
+    if (!editingClient) return
+    try {
+      const response = await api.put(`/clients/${editingClient.id}`, data)
+      setClients(clients.map(c => c.id === editingClient.id ? response.data : c))
+      setEditingClient(null)
+      toast.success('לקוח עודכן בהצלחה')
+    } catch {
+      toast.error('שגיאה בעדכון לקוח')
     }
   }
 
@@ -159,27 +183,11 @@ export default function ClientsPage() {
             {stats.total} לקוחות סה&quot;כ • {stats.active} פעילים • {stats.vip} VIP
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowCreateForm(true)}>
           <Plus className="w-4 h-4 ml-2" />
           לקוח חדש
         </Button>
       </div>
-
-      {/* Client Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>הוספת לקוח חדש</CardTitle>
-            <CardDescription>הזן את פרטי הלקוח החדש</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ClientForm 
-              onSubmit={handleCreateClient}
-              onCancel={() => setShowForm(false)}
-            />
-          </CardContent>
-        </Card>
-      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -271,7 +279,7 @@ export default function ClientsPage() {
       {/* Clients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredClients.map((client) => (
-          <Card key={client.id} className="hover:shadow-lg transition-shadow">
+          <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/clients/${client.id}`)}>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -297,17 +305,17 @@ export default function ClientsPage() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>פעולות</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingClient(client) }}>
                       <Edit className="ml-2 h-4 w-4" />
                       ערוך פרטים
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toast('הפקת חשבוניות - בקרוב', { icon: '🧾' }) }}>
                       <FileText className="ml-2 h-4 w-4" />
                       צור חשבונית
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => handleDeleteClient(client.id)}
+                    <DropdownMenuItem
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id) }}
                       className="text-red-600"
                     >
                       <Trash className="ml-2 h-4 w-4" />
@@ -363,23 +371,23 @@ export default function ClientsPage() {
                     size="sm" 
                     variant="ghost" 
                     className="h-8 w-8 p-0"
-                    onClick={() => window.location.href = `tel:${client.phone}`}
+                    onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${client.phone}` }}
                   >
                     <Phone className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className="h-8 w-8 p-0"
-                    onClick={() => window.location.href = `mailto:${client.email}`}
+                    onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${client.email}` }}
                   >
                     <Mail className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className="h-8 w-8 p-0"
-                    onClick={() => window.open(`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`, '_blank')}
+                    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`, '_blank') }}
                   >
                     <MessageSquare className="h-4 w-4" />
                   </Button>
@@ -416,7 +424,7 @@ export default function ClientsPage() {
               {searchTerm ? 'לא נמצאו לקוחות התואמים את החיפוש' : 'עדיין אין לקוחות במערכת'}
             </p>
             {!searchTerm && (
-              <Button onClick={() => setShowForm(true)}>
+              <Button onClick={() => setShowCreateForm(true)}>
                 <Plus className="w-4 h-4 ml-2" />
                 הוסף לקוח ראשון
               </Button>
@@ -424,6 +432,44 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Create Client Dialog */}
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>לקוח חדש</DialogTitle>
+          </DialogHeader>
+          <ClientForm
+            onSubmit={handleCreateClient}
+            onCancel={() => setShowCreateForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>עריכת לקוח</DialogTitle>
+          </DialogHeader>
+          {editingClient && (
+            <ClientForm
+              onSubmit={handleUpdateClient}
+              onCancel={() => setEditingClient(null)}
+              initialData={{
+                name: editingClient.name,
+                email: editingClient.email,
+                phone: editingClient.phone,
+                company: editingClient.company || '',
+                address: editingClient.address || '',
+                taxId: editingClient.taxId || '',
+                type: editingClient.type,
+                notes: editingClient.notes || '',
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

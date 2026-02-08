@@ -101,7 +101,7 @@ export class TimeService extends BaseService {
   /**
    * Stop the active timer
    */
-  static async stopTimer(userId: string) {
+  static async stopTimer(userId: string, description?: string) {
     try {
       // Find active timer
       const activeTimer = await prisma.timeEntry.findFirst({
@@ -123,7 +123,8 @@ export class TimeService extends BaseService {
         where: { id: activeTimer.id },
         data: {
           endTime,
-          duration
+          duration,
+          ...(description && { description })
         },
         include: {
           task: true,

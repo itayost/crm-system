@@ -14,6 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Play,
   Pause,
@@ -45,6 +52,7 @@ export default function TimePage() {
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [selectedProject, setSelectedProject] = useState('')
   const [selectedTask, setSelectedTask] = useState('')
+  const [timerDescription, setTimerDescription] = useState('')
   const [manualEntry, setManualEntry] = useState({
     projectId: '',
     date: new Date().toISOString().split('T')[0],
@@ -52,6 +60,14 @@ export default function TimePage() {
     endTime: '',
     description: '',
   })
+  const [showStopDialog, setShowStopDialog] = useState(false)
+  const [stopDescription, setStopDescription] = useState('')
+  const [editingEntry, setEditingEntry] = useState<{
+    id: string
+    description: string
+    projectId: string
+  } | null>(null)
+  const [editDescription, setEditDescription] = useState('')
   const [stats, setStats] = useState({
     todayMinutes: 0,
     weekMinutes: 0,
@@ -138,7 +154,8 @@ export default function TimePage() {
     try {
       await api.post('/time/start', {
         projectId: selectedProject,
-        taskId: selectedTask || undefined
+        taskId: selectedTask || undefined,
+        description: timerDescription || undefined
       })
 
       const project = projects.find(p => p.id === selectedProject)
@@ -150,14 +167,40 @@ export default function TimePage() {
     }
   }
 
-  const handleStopTimer = async () => {
+  const handleStopTimer = async (description?: string) => {
     try {
-      await api.post('/time/stop')
+      await api.post('/time/stop', { description })
       stopTimer()
+      setShowStopDialog(false)
+      setStopDescription('')
       toast.success('טיימר נעצר והזמן נשמר')
       await Promise.all([fetchTimeEntries(), fetchStats()])
     } catch {
       toast.error('שגיאה בעצירת טיימר')
+    }
+  }
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק רישום זמן זה?')) return
+    try {
+      await api.delete(`/time/${entryId}`)
+      setTimeEntries(prev => prev.filter(e => e.id !== entryId))
+      toast.success('רישום זמן נמחק')
+      fetchStats()
+    } catch {
+      toast.error('שגיאה במחיקת רישום זמן')
+    }
+  }
+
+  const handleUpdateEntry = async () => {
+    if (!editingEntry) return
+    try {
+      await api.put(`/time/${editingEntry.id}`, { description: editDescription })
+      setTimeEntries(prev => prev.map(e => e.id === editingEntry.id ? { ...e, description: editDescription } : e))
+      setEditingEntry(null)
+      toast.success('רישום זמן עודכן')
+    } catch {
+      toast.error('שגיאה בעדכון רישום זמן')
     }
   }
   
@@ -172,6 +215,11 @@ export default function TimePage() {
     try {
       const startTime = new Date(`${manualEntry.date}T${manualEntry.startTime}`)
       const endTime = new Date(`${manualEntry.date}T${manualEntry.endTime}`)
+
+      if (endTime <= startTime) {
+        toast.error('שעת סיום חייבת להיות אחרי שעת התחלה')
+        return
+      }
 
       await api.post('/time', {
         projectId: manualEntry.projectId,
@@ -273,7 +321,7 @@ export default function TimePage() {
                 <div className="flex gap-3 mt-4">
                   <Button
                     variant="secondary"
-                    onClick={handleStopTimer}
+                    onClick={() => setShowStopDialog(true)}
                     className="bg-white text-blue-600 hover:bg-gray-100"
                   >
                     <Square className="w-4 h-4 ml-2" />
@@ -324,7 +372,11 @@ export default function TimePage() {
                 </SelectContent>
               </Select>
               
-              <Input placeholder="תיאור (אופציונלי)" />
+              <Input
+                placeholder="תיאור (אופציונלי)"
+                value={timerDescription}
+                onChange={(e) => setTimerDescription(e.target.value)}
+              />
               
               <Button onClick={handleStartTimer} className="w-full">
                 <Play className="w-4 h-4 ml-2" />
@@ -424,17 +476,6 @@ export default function TimePage() {
                   {formatDuration(todayMinutes)}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">שעות עבודה</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">משימות שהושלמו</span>
-                  <span className="font-bold">3</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">פרויקטים פעילים</span>
-                  <span className="font-bold">2</span>
-                </div>
               </div>
               
               <div className="pt-3 border-t">
@@ -581,10 +622,13 @@ export default function TimePage() {
                     </td>
                     <td className="py-3 text-sm">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="ghost">
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          setEditingEntry({ id: entry.id, description: entry.description || '', projectId: entry.projectId || '' })
+                          setEditDescription(entry.description || '')
+                        }}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="ghost">
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteEntry(entry.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -596,6 +640,62 @@ export default function TimePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Stop Timer Dialog */}
+      <Dialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>עצירת טיימר</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>תיאור העבודה</Label>
+              <Textarea
+                value={stopDescription}
+                onChange={(e) => setStopDescription(e.target.value)}
+                placeholder="מה עשית? (אופציונלי)"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => handleStopTimer()}>
+                עצור בלי תיאור
+              </Button>
+              <Button onClick={() => handleStopTimer(stopDescription)}>
+                עצור ושמור
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Entry Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>עריכת רישום זמן</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>תיאור</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="תיאור העבודה..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setEditingEntry(null)}>
+                ביטול
+              </Button>
+              <Button onClick={handleUpdateEntry}>
+                שמור
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

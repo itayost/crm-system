@@ -3,11 +3,14 @@ import { z } from 'zod'
 import { withAuth, createResponse, errorResponse } from '@/lib/api/api-handler'
 import { ClientsService } from '@/lib/services/clients.service'
 import { ClientStatus, ClientType } from '@prisma/client'
+import { prisma } from '@/lib/db/prisma'
+
+const israeliPhoneRegex = /^0(5[0-9]|[2-4]|7[0-9]|8|9)-?\d{7}$/
 
 const createClientSchema = z.object({
   name: z.string().min(1, 'שם חובה'),
   email: z.string().email('אימייל לא תקין'),
-  phone: z.string().min(9, 'טלפון חובה'),
+  phone: z.string().min(9, 'טלפון חובה').regex(israeliPhoneRegex, 'מספר טלפון ישראלי לא תקין'),
   company: z.string().optional(),
   address: z.string().optional(),
   taxId: z.string().optional(),
@@ -40,13 +43,25 @@ export const POST = withAuth(async (req, { userId }) => {
   try {
     const body = await req.json()
     const validatedData = createClientSchema.parse(body)
-    
+
+    // Check for duplicate email
+    const existingClient = await prisma.client.findFirst({
+      where: {
+        userId,
+        email: validatedData.email,
+        status: 'ACTIVE'
+      }
+    })
+
     const client = await ClientsService.create(userId, {
       ...validatedData,
       type: validatedData.type as ClientType | undefined
     })
-    
-    return createResponse(client, 201)
+
+    return createResponse({
+      ...client,
+      ...(existingClient && { _warning: `לקוח עם אימייל זהה כבר קיים: ${existingClient.name}` })
+    }, 201)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return errorResponse('נתונים לא תקינים', 400)

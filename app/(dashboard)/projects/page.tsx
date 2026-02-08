@@ -2,7 +2,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useRouter } from 'next/navigation'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -30,6 +31,12 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ProjectForm } from '@/components/forms/project-form'
 import api from '@/lib/api/client'
 import { toast } from 'react-hot-toast'
@@ -76,21 +83,28 @@ const projectTypeLabels = {
   CONSULTATION: 'ייעוץ',
 }
 
+type Project = {
+  id: string
+  name: string
+  description?: string
+  client?: { name?: string }
+  clientId?: string
+  type: string
+  stage: string
+  priority: string
+  progress: number
+  budget?: number
+  deadline?: string
+  startDate?: string
+  estimatedHours?: number
+  actualHours?: number
+}
+
 export default function ProjectsPage() {
-  const [showForm, setShowForm] = useState(false)
-  const [projects, setProjects] = useState<Array<{
-    id: string
-    name: string
-    client?: { name?: string }
-    type: string
-    stage: string
-    priority: string
-    progress: number
-    budget?: number
-    deadline?: string
-    estimatedHours?: number
-    actualHours?: number
-  }>>([])
+  const router = useRouter()
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {
@@ -182,10 +196,22 @@ export default function ProjectsPage() {
     try {
       const response = await api.post('/projects', data)
       setProjects([response.data, ...projects])
-      setShowForm(false)
+      setShowCreateForm(false)
       toast.success('פרויקט נוצר בהצלחה!')
     } catch {
       toast.error('שגיאה ביצירת פרויקט')
+    }
+  }
+
+  const handleUpdateProject = async (data: unknown) => {
+    if (!editingProject) return
+    try {
+      const response = await api.put(`/projects/${editingProject.id}`, data)
+      setProjects(projects.map(p => p.id === editingProject.id ? response.data : p))
+      setEditingProject(null)
+      toast.success('פרויקט עודכן בהצלחה')
+    } catch {
+      toast.error('שגיאה בעדכון פרויקט')
     }
   }
   
@@ -213,11 +239,13 @@ export default function ProjectsPage() {
     }
   }
   
-  const handleStartTimer = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
-    if (project) {
-      toast.success(`טיימר הופעל עבור ${project.name}`)
-      // This will connect to the timer widget through the store
+  const handleStartTimer = async (projectId: string) => {
+    try {
+      await api.post('/time/start', { projectId })
+      const project = projects.find(p => p.id === projectId)
+      toast.success(`טיימר הופעל עבור ${project?.name || 'פרויקט'}`)
+    } catch {
+      toast.error('שגיאה בהפעלת טיימר')
     }
   }
   
@@ -269,26 +297,11 @@ export default function ProjectsPage() {
             </span>
           </div>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowCreateForm(true)}>
           <Plus className="w-4 h-4 ml-2" />
           פרויקט חדש
         </Button>
       </div>
-      
-      {/* Project Form */}
-      {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>יצירת פרויקט חדש</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProjectForm 
-              onSubmit={handleCreateProject}
-              onCancel={() => setShowForm(false)}
-            />
-          </CardContent>
-        </Card>
-      )}
       
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4">
@@ -354,7 +367,7 @@ export default function ProjectsPage() {
                               הפעל טיימר
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditingProject(project)}>
                               <Edit className="ml-2 h-4 w-4" />
                               ערוך פרויקט
                             </DropdownMenuItem>
@@ -412,7 +425,7 @@ export default function ProjectsPage() {
                         </div>
                         <div className="flex items-center gap-1 text-gray-600">
                           <User className="w-3 h-3" />
-                          <span>משה</span>
+                          <span>{project.client?.name || '-'}</span>
                         </div>
                       </div>
                       
@@ -435,7 +448,7 @@ export default function ProjectsPage() {
                           <Play className="w-3 h-3 ml-1" />
                           טיימר
                         </Button>
-                        <Button size="sm" variant="outline" className="flex-1">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => router.push(`/projects/${project.id}`)}>
                           צפה
                         </Button>
                       </div>
@@ -453,6 +466,45 @@ export default function ProjectsPage() {
           </div>
         ))}
       </div>
+
+      {/* Create Project Dialog */}
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>פרויקט חדש</DialogTitle>
+          </DialogHeader>
+          <ProjectForm
+            onSubmit={handleCreateProject}
+            onCancel={() => setShowCreateForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>עריכת פרויקט</DialogTitle>
+          </DialogHeader>
+          {editingProject && (
+            <ProjectForm
+              onSubmit={handleUpdateProject}
+              onCancel={() => setEditingProject(null)}
+              initialData={{
+                name: editingProject.name,
+                description: editingProject.description || '',
+                type: editingProject.type,
+                clientId: editingProject.clientId || '',
+                budget: editingProject.budget?.toString() || '',
+                estimatedHours: editingProject.estimatedHours?.toString() || '',
+                deadline: editingProject.deadline ? new Date(editingProject.deadline).toISOString().split('T')[0] : '',
+                priority: editingProject.priority,
+                startDate: editingProject.startDate ? new Date(editingProject.startDate).toISOString().split('T')[0] : '',
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

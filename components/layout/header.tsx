@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bell, User, Search, Sun, LogOut, Settings, HelpCircle } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { User, Search, Sun, LogOut, Settings, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,27 +15,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { signOut, useSession } from 'next-auth/react'
-import { useAppStore } from '@/store/app-store'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
-import { cn } from '@/lib/utils'
 import api from '@/lib/api/client'
 import { SearchResult } from '@/lib/services/dashboard.service'
 
 export function Header() {
+  const router = useRouter()
   const [searchOpen, setSearchOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const { data: session } = useSession()
-  const { notifications, markAsRead } = useAppStore()
-  const unreadNotifications = notifications.filter(n => !n.read)
 
   // Update clock every minute
   useEffect(() => {
@@ -159,7 +160,7 @@ export function Header() {
                         </p>
                       ) : (
                         searchResults.map((result) => (
-                          <a
+                          <Link
                             key={result.id}
                             href={result.href}
                             className="flex items-center gap-3 w-full text-right px-2 py-2 hover:bg-gray-50 rounded text-sm transition-colors"
@@ -172,7 +173,7 @@ export function Header() {
                                 <p className="text-xs text-gray-500 truncate">{result.subtitle}</p>
                               )}
                             </div>
-                          </a>
+                          </Link>
                         ))
                       )}
                     </div>
@@ -186,72 +187,17 @@ export function Header() {
         {/* Right Section - Actions */}
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                {unreadNotifications.length > 0 && (
-                  <Badge 
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0"
-                    variant="destructive"
-                  >
-                    {unreadNotifications.length}
-                  </Badge>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between pb-2 border-b">
-                  <h3 className="font-semibold">התראות</h3>
-                  {unreadNotifications.length > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => unreadNotifications.forEach(n => markAsRead(n.id))}
-                    >
-                      סמן הכל כנקרא
-                    </Button>
-                  )}
-                </div>
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    אין התראות חדשות
-                  </p>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {notifications.slice(0, 5).map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={cn(
-                          "p-2 rounded-lg text-sm cursor-pointer hover:bg-gray-50",
-                          !notification.read && "bg-blue-50"
-                        )}
-                        onClick={() => markAsRead(notification.id)}
-                      >
-                        <p className={cn(
-                          "font-medium",
-                          notification.type === 'error' && "text-red-600",
-                          notification.type === 'warning' && "text-yellow-600",
-                          notification.type === 'success' && "text-green-600"
-                        )}>
-                          {notification.message}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <NotificationBell />
 
           {/* Help */}
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => setShowHelp(true)}>
             <HelpCircle className="w-5 h-5" />
           </Button>
 
           {/* Theme Toggle */}
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => {
+            import('react-hot-toast').then(({ toast }) => toast('מצב כהה - בקרוב', { icon: '🌙' }))
+          }}>
             <Sun className="w-5 h-5" />
           </Button>
 
@@ -273,11 +219,11 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <User className="ml-2 h-4 w-4" />
                 פרופיל
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="ml-2 h-4 w-4" />
                 הגדרות
               </DropdownMenuItem>
@@ -293,6 +239,41 @@ export function Header() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Help Dialog */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>קיצורי מקלדת</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center py-1 border-b">
+              <span>חיפוש מהיר</span>
+              <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Ctrl+K</kbd>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b">
+              <span>סגור חלון</span>
+              <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Escape</kbd>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b">
+              <span>דשבורד</span>
+              <span className="text-gray-500">עמוד הבית</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b">
+              <span>לידים</span>
+              <span className="text-gray-500">/leads</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b">
+              <span>לקוחות</span>
+              <span className="text-gray-500">/clients</span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span>פרויקטים</span>
+              <span className="text-gray-500">/projects</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }
