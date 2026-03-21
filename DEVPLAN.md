@@ -24,9 +24,7 @@
 - [x] Wire 4 quick action buttons:
   - "הוסף ליד" → open Lead form Dialog
   - "פרויקט חדש" → open Project form Dialog
-  - "התחל טיימר" → navigate to `/time`
   - "הוסף תשלום" → navigate to `/payments` (PaymentForm requires clients/projects props)
-- [x] Wire "התחל" task buttons to call `POST /api/time/start`
 - [x] Replace `window.location.href` in smart recommendations with `router.push()`
 - [x] Replace `window.location.reload()` in error retry with `fetchDashboardData()`
 
@@ -44,7 +42,6 @@
 - [x] Add `editingProject` state + Dialog with pre-populated `ProjectForm`
 - [x] Wire "ערוך פרויקט" dropdown to open edit dialog
 - [x] Wire "צפה" button → toast placeholder until Phase 2
-- [x] Wire timer button to actually call `POST /api/time/start` with `projectId`
 
 ### 1F. Payments (`app/(dashboard)/payments/page.tsx`)
 - [x] **FIX BUG**: Edit form now passes `editingPayment.clientId` (was `client?.name`)
@@ -52,30 +49,24 @@
 - [x] Wire recurring payment edit button → toast placeholder
 - [x] Wire recurring payment suspend/activate → `PUT /api/payments/recurring/[id]`
 
-### 1G. Time Tracking (`app/(dashboard)/time/page.tsx`)
-- [x] Wire edit button → Dialog with description editing
-- [x] Wire delete button → `DELETE /api/time/[id]` with confirmation
-- [x] Add description prompt when stopping timer via Dialog
-- [x] Update `TimeService.stopTimer()` to accept and save description
-
-### 1H. Sidebar (`components/layout/sidebar.tsx`)
+### 1G. Sidebar (`components/layout/sidebar.tsx`)
 - [x] Wire "פרויקט חדש" button → `router.push('/projects?new=true')`
 - [x] Fix notifications link → changed to `href="/"`
 
-### 1I. Header (`components/layout/header.tsx`)
+### 1H. Header (`components/layout/header.tsx`)
 - [x] Wire Profile dropdown item → `router.push('/settings')`
 - [x] Wire Settings dropdown item → `router.push('/settings')`
 - [x] Wire Help button → Dialog with keyboard shortcuts reference
 - [x] Wire Theme toggle → toast placeholder (full `next-themes` deferred to Phase 5)
 - [x] Replace search result `<a href>` tags with Next.js `Link`
 
-### 1J. Data Quality
+### 1I. Data Quality
 - [x] Add duplicate detection in lead creation — warns if lead with same phone exists (non-blocking)
 - [x] Add duplicate detection in client creation — warns if client with same email exists (non-blocking)
 - [x] Add Israeli phone format validation to Zod schemas
 - [x] Apply phone validation to lead and client API routes
 
-### 1K. Standardize All Forms to Dialog Modals
+### 1J. Standardize All Forms to Dialog Modals
 - [x] Leads page: inline form → Dialog
 - [x] Clients page: inline form → Dialog
 - [x] Projects page: inline form → Dialog
@@ -105,16 +96,16 @@
 ### 2C. Client Detail Page (`app/(dashboard)/clients/[id]/page.tsx`)
 - [x] Breadcrumb: דשבורד > לקוחות > {client name}
 - [x] Header: client name, type badge (VIP/Regular), contact quick actions
-- [x] Stats row: 4 cards — total projects, total revenue, total hours, client since date
-- [x] Tabbed content (shadcn Tabs): פרויקטים, תשלומים, זמנים, פעילות, מידע (editable)
+- [x] Stats row: 3 cards — total projects, total revenue, client since date
+- [x] Tabbed content (shadcn Tabs): פרויקטים, תשלומים, פעילות, מידע (editable)
 - [x] Stats computed client-side from eager-loaded data (no separate stats API needed)
 - [x] Update Phase 1 toast placeholders to navigate here
 
 ### 2D. Project Detail Page (`app/(dashboard)/projects/[id]/page.tsx`)
 - [x] Breadcrumb: דשבורד > פרויקטים > {project name}
-- [x] Header: project name, type/stage badges, link to client detail page, actions (start timer, edit)
-- [x] Progress overview card: progress bar, budget (spent vs total), hours (actual/estimated), deadline, days remaining
-- [x] Main grid (2-col): tasks list with sub-tasks + inline "add task" (left 2/3) + project info, recent time entries, payments (right 1/3)
+- [x] Header: project name, type/stage badges, link to client detail page, actions (edit)
+- [x] Progress overview card: progress bar, budget (spent vs total), deadline, days remaining
+- [x] Main grid (2-col): tasks list with sub-tasks + inline "add task" (left 2/3) + project info, payments (right 1/3)
 - [x] Activity timeline / stage change history at bottom
 - [x] Uses existing service `getById()` with enhanced includes (no separate stats/tasks API needed)
 - [x] Update Phase 1 toast placeholders to navigate here
@@ -130,14 +121,11 @@
 ## Bug Fix Pass ✅
 
 **Goal**: Fix bugs and issues found during codebase review after Phase 2.
-**Status**: COMPLETE — all 7 bugs fixed, build passes clean.
+**Status**: COMPLETE — all bugs fixed, build passes clean.
 
 - [x] **CRITICAL**: Add `MAINTENANCE` to stage enum in `app/api/projects/[id]/route.ts` — was rejecting updates to projects in MAINTENANCE stage
-- [x] **HIGH**: Bind timer description input to state in `app/(dashboard)/time/page.tsx` — input was silently discarded
 - [x] **HIGH**: Add `group` class to sub-task row in `app/(dashboard)/projects/[id]/page.tsx` — pencil edit button was permanently invisible
-- [x] **HIGH**: Remove hardcoded stats ("3 tasks", "2 projects") from time page summary card
 - [x] **HIGH**: Replace hardcoded "משה" with `project.client?.name` in `app/(dashboard)/projects/page.tsx`
-- [x] **MEDIUM**: Add `endTime <= startTime` validation for manual time entry
 - [x] **MEDIUM**: Add explicit parentheses for operator precedence in sub-task expansion logic
 
 ---

@@ -24,7 +24,7 @@ npm run db:studio   # Open Prisma Studio for database management
 
 ## Project Overview
 
-This is a **Next.js 15 CRM system** designed for freelancers to manage their business operations in Hebrew (RTL). The system includes comprehensive lead management, project tracking, time monitoring, and payment management capabilities.
+This is a **Next.js 15 CRM system** designed for freelancers to manage their business operations in Hebrew (RTL). The system includes comprehensive lead management, project tracking, and payment management capabilities.
 
 ## Business Context
 
@@ -60,7 +60,6 @@ app/
 │   ├── clients/      # Client management with project history
 │   ├── projects/     # Project tracking with stages (PLANNING → DEVELOPMENT → TESTING → REVIEW → DELIVERY → MAINTENANCE)
 │   ├── payments/     # Payment tracking and recurring payment management
-│   ├── time/         # Time tracking with timer functionality
 │   ├── reports/      # Business analytics and insights
 │   └── settings/     # User preferences and system configuration
 └── api/              # API routes for all CRUD operations
@@ -98,7 +97,7 @@ The system manages interconnected entities:
    - Types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
    - Multi-stage tracking: PLANNING → DEVELOPMENT → TESTING → REVIEW → DELIVERY → MAINTENANCE
    - Priority levels: LOW, MEDIUM, HIGH, URGENT
-   - Time and budget tracking
+   - Budget tracking
 
 3. **Payment System**
    - One-time and recurring payments
@@ -106,12 +105,7 @@ The system manages interconnected entities:
    - Payment status tracking: PENDING, PAID, OVERDUE, CANCELLED
    - Service types for maintenance contracts
 
-4. **Time Tracking**
-   - Project and task-level time entries
-   - Timer functionality for real-time tracking
-   - Duration calculations and reporting
-
-5. **Activity & Notifications**
+4. **Activity & Notifications**
    - Activity logging for audit trails
    - Notification system for deadlines, payments, and tasks
    - Metadata storage for flexible tracking
@@ -236,29 +230,23 @@ These files contain comprehensive project requirements, business context, and te
 - **UI**: Task management with priorities, due dates, project assignment
 - **Business Logic**: Priority scoring, deadline tracking
 
-### 6. **Time Tracking** (100%)
-- **Complete Service Layer**: TimeService with timer logic
-- **Full API**: Start/stop timer, manual entries, statistics
-- **Rich UI**: Timer widget, time entries list, project time tracking
-- **Features**: Active timer persistence, duration calculations, reporting
-
-### 7. **Payments System** (100%)
+### 6. **Payments System** (100%)
 - **Complete Service Layer**: PaymentsService with recurring payments
 - **Full API**: One-time and recurring payments, overdue tracking
 - **Comprehensive UI**: Payment lists, forms, status management
 - **Features**: Automatic reminders, payment history, maintenance contracts
 
-### 8. **Reports & Analytics** (100%)
+### 7. **Reports & Analytics** (100%)
 - **Complete Service Layer**: ReportsService with complex analytics
-- **Full API**: Dashboard metrics, revenue, time, project analytics
+- **Full API**: Dashboard metrics, revenue, project analytics
 - **Rich UI**: Recharts integration with multiple chart types
-- **Features**: KPIs, revenue trends, time analysis, project profitability
+- **Features**: KPIs, revenue trends, project profitability
 
-### 9. **Dashboard System** (100%)
+### 8. **Dashboard System** (100%)
 - **Real-time Data**: All dashboard data comes from actual database
 - **Smart Recommendations**: AI-powered daily task suggestions
 - **Live Updates**: Sidebar badges, search functionality with real data
-- **Comprehensive KPIs**: Revenue, projects, time, leads, payments tracking
+- **Comprehensive KPIs**: Revenue, projects, leads, payments tracking
 
 ## 🚧 **REMAINING WORK (15%)**
 
@@ -288,14 +276,14 @@ These files contain comprehensive project requirements, business context, and te
 ## 🏗️ **Technical Architecture Status**
 
 ### ✅ **Backend (Excellent - 95% Complete)**
-- **35+ API Endpoints**: Comprehensive coverage of all business logic
-- **9 Service Layers**: Proper business logic separation with BaseService pattern
+- **30+ API Endpoints**: Comprehensive coverage of all business logic
+- **8 Service Layers**: Proper business logic separation with BaseService pattern
 - **Complete Database Schema**: All models, relationships, and indexes implemented
 - **Robust Authentication**: Session management and route protection
 - **Error Handling**: Comprehensive error boundaries throughout
 
 ### ✅ **Frontend (Very Good - 90% Complete)**
-- **9 Dashboard Pages**: All major modules with full functionality
+- **8 Dashboard Pages**: All major modules with full functionality
 - **Real Data Integration**: No mock data - everything uses actual APIs
 - **Responsive Design**: Full Hebrew RTL support with proper styling
 - **Modern UI/UX**: shadcn/ui components with consistent patterns
@@ -304,9 +292,9 @@ These files contain comprehensive project requirements, business context, and te
 ### 📁 **Codebase Structure**
 ```
 Total Files: 100+ TypeScript files
-API Endpoints: 35 routes
-Service Classes: 9 complete services
-UI Pages: 9 dashboard pages
+API Endpoints: 30+ routes
+Service Classes: 8 complete services
+UI Pages: 8 dashboard pages
 Database Models: 12 interconnected models
 ```
 
@@ -315,7 +303,7 @@ Database Models: 12 interconnected models
 **The CRM system is production-ready** with all core business functionality:
 - Complete lead management and conversion pipeline
 - Full client relationship management
-- Project and task tracking with time monitoring  
+- Project and task tracking
 - Comprehensive payment management (one-time + recurring)
 - Real-time dashboard with business analytics
 - Professional reports with charts and KPIs
