@@ -9,13 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import {
   Plus,
-  Clock,
   Calendar,
   User,
   AlertCircle,
   DollarSign,
   MoreVertical,
-  Play,
   Edit,
   Trash,
   ChevronRight,
@@ -101,8 +99,6 @@ type Project = {
   deadline?: string
   startDate?: string
   completedAt?: string
-  estimatedHours?: number
-  actualHours?: number
 }
 
 export default function ProjectsPage() {
@@ -245,16 +241,6 @@ export default function ProjectsPage() {
     }
   }
   
-  const handleStartTimer = async (projectId: string) => {
-    try {
-      await api.post('/time/start', { projectId })
-      const project = projects.find(p => p.id === projectId)
-      toast.success(`טיימר הופעל עבור ${project?.name || 'פרויקט'}`)
-    } catch {
-      toast.error('שגיאה בהפעלת טיימר')
-    }
-  }
-  
   const handleCompleteProject = async (projectId: string) => {
     try {
       const response = await api.post(`/projects/${projectId}/complete`)
@@ -291,7 +277,6 @@ export default function ProjectsPage() {
     inProgress: activeProjects.filter(p => p.stage === 'DEVELOPMENT').length,
     urgent: activeProjects.filter(p => p.priority === 'URGENT').length,
     totalValue: activeProjects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0),
-    totalHours: activeProjects.reduce((sum, p) => sum + (p.actualHours || 0), 0),
   }
   
   return (
@@ -312,9 +297,6 @@ export default function ProjectsPage() {
             </span>
             <span className="text-sm text-gray-600">
               <span className="font-bold text-green-600">₪{stats.totalValue.toLocaleString()}</span> ערך כולל
-            </span>
-            <span className="text-sm text-gray-600">
-              <span className="font-bold text-purple-600">{stats.totalHours.toFixed(1)}</span> שעות
             </span>
           </div>
         </div>
@@ -383,11 +365,6 @@ export default function ProjectsPage() {
                               </DropdownMenuSubContent>
                             </DropdownMenuSub>
                             
-                            <DropdownMenuItem onClick={() => handleStartTimer(project.id)}>
-                              <Play className="ml-2 h-4 w-4" />
-                              הפעל טיימר
-                            </DropdownMenuItem>
-                            
                             <DropdownMenuItem onClick={() => setEditingProject(project)}>
                               <Edit className="ml-2 h-4 w-4" />
                               ערוך פרויקט
@@ -451,10 +428,6 @@ export default function ProjectsPage() {
                           <span>₪{(project.budget || 0).toLocaleString()}</span>
                         </div>
                         <div className="flex items-center gap-1 text-gray-600">
-                          <Clock className="w-3 h-3" />
-                          <span>{project.actualHours || 0}/{project.estimatedHours}h</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-600">
                           <User className="w-3 h-3" />
                           <span>{project.client?.name || '-'}</span>
                         </div>
@@ -470,15 +443,6 @@ export default function ProjectsPage() {
                       
                       {/* Actions */}
                       <div className="flex gap-2 pt-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="flex-1"
-                          onClick={() => handleStartTimer(project.id)}
-                        >
-                          <Play className="w-3 h-3 ml-1" />
-                          טיימר
-                        </Button>
                         <Button size="sm" variant="outline" className="flex-1" onClick={() => router.push(`/projects/${project.id}`)}>
                           צפה
                         </Button>
@@ -578,7 +542,6 @@ export default function ProjectsPage() {
                 type: editingProject.type,
                 clientId: editingProject.clientId || '',
                 budget: editingProject.budget?.toString() || '',
-                estimatedHours: editingProject.estimatedHours?.toString() || '',
                 deadline: editingProject.deadline ? new Date(editingProject.deadline).toISOString().split('T')[0] : '',
                 priority: editingProject.priority,
                 startDate: editingProject.startDate ? new Date(editingProject.startDate).toISOString().split('T')[0] : '',

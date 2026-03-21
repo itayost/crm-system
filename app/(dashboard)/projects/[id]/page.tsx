@@ -20,9 +20,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { TaskForm } from '@/components/forms/task-form'
 import { ProjectForm } from '@/components/forms/project-form'
 import {
-  Play,
   Edit,
-  Clock,
   CheckCircle2,
   Circle,
   Plus,
@@ -111,19 +109,8 @@ interface Task {
   priority: string
   dueDate: string | null
   completedAt: string | null
-  estimatedHours: number | null
-  actualHours: number | null
   subTasks: SubTask[]
   createdAt: string
-}
-
-interface TimeEntry {
-  id: string
-  startTime: string
-  endTime: string | null
-  duration: number | null
-  description: string | null
-  user: { id: string; name: string; email: string }
 }
 
 interface Payment {
@@ -146,14 +133,11 @@ interface ProjectData {
   startDate: string | null
   deadline: string | null
   completedAt: string | null
-  estimatedHours: number | null
-  actualHours: number | null
   budget: number | null
   client: { id: string; name: string; company: string | null; type: string }
   tasks: Task[]
-  timeEntries: TimeEntry[]
   payments: Payment[]
-  _count: { tasks: number; payments: number; timeEntries: number; milestones: number }
+  _count: { tasks: number; payments: number; milestones: number }
   createdAt: string
 }
 
@@ -270,15 +254,6 @@ export default function ProjectDetailPage() {
     }
   }
 
-  const handleStartTimer = async () => {
-    try {
-      await api.post('/time/start', { projectId })
-      toast.success('טיימר הופעל')
-    } catch {
-      toast.error('שגיאה בהפעלת טיימר')
-    }
-  }
-
   const toggleExpand = (taskId: string) => {
     setExpandedTasks(prev => {
       const next = new Set(prev)
@@ -309,7 +284,6 @@ export default function ProjectDetailPage() {
     allSubTasks.filter(t => t.status === 'COMPLETED').length
   const taskProgress = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0
 
-  const totalHours = project.timeEntries.reduce((sum, t) => sum + (t.duration || 0), 0) / 60
   const budget = project.budget ? Number(project.budget) : 0
   const paidAmount = project.payments
     .filter(p => p.status === 'PAID')
@@ -354,10 +328,6 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleStartTimer}>
-            <Play className="h-4 w-4 ml-1" />
-            טיימר
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowEditForm(true)}>
             <Edit className="h-4 w-4 ml-1" />
             ערוך
@@ -366,7 +336,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Progress Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-600 mb-2">התקדמות משימות</p>
@@ -382,13 +352,6 @@ export default function ProjectDetailPage() {
             <p className="text-sm text-gray-600 mb-1">תקציב</p>
             <p className="text-xl font-bold">₪{budget.toLocaleString()}</p>
             <p className="text-xs text-gray-500">₪{paidAmount.toLocaleString()} שולם</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-600 mb-1">שעות</p>
-            <p className="text-xl font-bold">{totalHours.toFixed(1)}h</p>
-            <p className="text-xs text-gray-500">מתוך {project.estimatedHours || '?'}h מוערך</p>
           </CardContent>
         </Card>
         <Card>
@@ -619,40 +582,6 @@ export default function ProjectDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Time Entries */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                זמנים אחרונים
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {project.timeEntries.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">אין רשומות זמן</p>
-              ) : (
-                <div className="space-y-3">
-                  {project.timeEntries.slice(0, 5).map((entry) => (
-                    <div key={entry.id} className="flex justify-between text-sm">
-                      <div>
-                        <p className="text-gray-800">{entry.description || 'ללא תיאור'}</p>
-                        <p className="text-xs text-gray-500">{new Date(entry.startTime).toLocaleDateString('he-IL')}</p>
-                      </div>
-                      <span className="font-medium shrink-0">
-                        {entry.duration ? `${(entry.duration / 60).toFixed(1)}h` : 'פעיל'}
-                      </span>
-                    </div>
-                  ))}
-                  {project.timeEntries.length > 5 && (
-                    <Link href="/time" className="text-sm text-blue-600 hover:underline block text-center">
-                      צפה בהכל ({project.timeEntries.length})
-                    </Link>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Payments */}
           <Card>
             <CardHeader>
@@ -708,7 +637,6 @@ export default function ProjectDetailPage() {
               type: project.type,
               clientId: project.client.id,
               budget: project.budget?.toString() || '',
-              estimatedHours: project.estimatedHours?.toString() || '',
               deadline: project.deadline ? new Date(project.deadline).toISOString().split('T')[0] : '',
               priority: project.priority,
               startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',

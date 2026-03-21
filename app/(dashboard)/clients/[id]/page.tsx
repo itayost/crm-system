@@ -26,7 +26,6 @@ import {
   Edit,
   FolderOpen,
   CreditCard,
-  Clock,
   Calendar,
   DollarSign,
   FileText,
@@ -77,14 +76,6 @@ interface Project {
   budget: number | null
   deadline: string | null
   createdAt: string
-  timeEntries?: Array<{
-    id: string
-    startTime: string
-    endTime: string | null
-    duration: number | null
-    description: string | null
-    projectId: string
-  }>
   _count?: { tasks: number }
 }
 
@@ -187,8 +178,6 @@ export default function ClientDetailPage() {
   if (!client) return null
 
   // Calculate stats
-  const allTimeEntries = client.projects.flatMap(p => p.timeEntries || [])
-  const totalHours = allTimeEntries.reduce((sum, t) => sum + (t.duration || 0), 0) / 60
   const paidRevenue = client.payments
     .filter(p => p.status === 'PAID')
     .reduce((sum, p) => sum + Number(p.amount), 0)
@@ -248,7 +237,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -275,17 +264,6 @@ export default function ClientDetailPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">שעות עבודה</p>
-                <p className="text-2xl font-bold">{totalHours.toFixed(1)}</p>
-              </div>
-              <Clock className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
                 <p className="text-sm text-gray-600">לקוח מאז</p>
                 <p className="text-2xl font-bold">{new Date(client.createdAt).toLocaleDateString('he-IL')}</p>
               </div>
@@ -303,9 +281,6 @@ export default function ClientDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="payments">
             תשלומים ({client.payments.length})
-          </TabsTrigger>
-          <TabsTrigger value="time">
-            זמנים ({allTimeEntries.length})
           </TabsTrigger>
           <TabsTrigger value="activity">
             פעילות ({activities.length})
@@ -389,43 +364,6 @@ export default function ClientDetailPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Time Tab */}
-        <TabsContent value="time">
-          <Card>
-            <CardContent className="p-0">
-              {allTimeEntries.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState icon={Clock} title="אין רשומות זמן" description="לא נמצאו רשומות זמן עבור לקוח זה" />
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {allTimeEntries.map((entry) => {
-                    const project = client.projects.find(p => p.id === entry.projectId)
-                    return (
-                      <div key={entry.id} className="p-4 flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="font-medium text-gray-800">{project?.name || '—'}</p>
-                          {entry.description && (
-                            <p className="text-xs text-gray-500">{entry.description}</p>
-                          )}
-                        </div>
-                        <div className="text-left space-y-1">
-                          <p className="text-sm font-medium">
-                            {entry.duration ? `${(entry.duration / 60).toFixed(1)} שעות` : 'פעיל'}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(entry.startTime).toLocaleDateString('he-IL')}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
                 </div>
               )}
             </CardContent>
