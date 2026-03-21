@@ -9,7 +9,6 @@ interface CreateProjectInput {
   type: ProjectType
   priority?: Priority
   budget?: number
-  estimatedHours?: number
   startDate?: Date | string
   deadline?: Date | string
 }
@@ -22,8 +21,6 @@ interface UpdateProjectInput {
   stage?: ProjectStage
   priority?: Priority
   budget?: number
-  estimatedHours?: number
-  actualHours?: number
   startDate?: Date | string
   deadline?: Date | string
   completedAt?: Date | string
@@ -87,8 +84,7 @@ export class ProjectsService extends BaseService {
           _count: {
             select: {
               tasks: true,
-              payments: true,
-              timeEntries: true
+              payments: true
             }
           }
         },
@@ -160,18 +156,6 @@ export class ProjectsService extends BaseService {
           payments: {
             orderBy: { dueDate: 'asc' }
           },
-          timeEntries: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              }
-            },
-            orderBy: { startTime: 'desc' }
-          },
           milestones: {
             orderBy: { dueDate: 'asc' }
           },
@@ -179,7 +163,6 @@ export class ProjectsService extends BaseService {
             select: {
               tasks: true,
               payments: true,
-              timeEntries: true,
               milestones: true
             }
           }
@@ -223,9 +206,7 @@ export class ProjectsService extends BaseService {
           stage: 'PLANNING',
           status: 'IN_PROGRESS',
           priority: data.priority || 'MEDIUM',
-          actualHours: 0,
           budget: data.budget ? new Prisma.Decimal(data.budget) : undefined,
-          estimatedHours: data.estimatedHours,
           startDate: data.startDate ? new Date(data.startDate) : new Date(),
           deadline: data.deadline ? new Date(data.deadline) : undefined
         },
@@ -373,8 +354,7 @@ export class ProjectsService extends BaseService {
           _count: {
             select: {
               tasks: true,
-              payments: true,
-              timeEntries: true
+              payments: true
             }
           }
         }
@@ -509,25 +489,24 @@ export class ProjectsService extends BaseService {
         overdueProjects,
         projectsByStage,
         projectsByType,
-        totalBudget,
-        totalHours
+        totalBudget
       ] = await Promise.all([
         // Total projects
         prisma.project.count({ where: { userId } }),
-        
+
         // Active projects
-        prisma.project.count({ 
-          where: { 
-            userId, 
+        prisma.project.count({
+          where: {
+            userId,
             stage: { in: ['PLANNING', 'DEVELOPMENT', 'TESTING', 'REVIEW'] }
           }
         }),
-        
+
         // Completed projects
         prisma.project.count({
           where: { userId, status: 'COMPLETED' }
         }),
-        
+
         // Overdue projects
         prisma.project.count({
           where: {
@@ -537,34 +516,25 @@ export class ProjectsService extends BaseService {
             status: { not: 'COMPLETED' }
           }
         }),
-        
+
         // Projects by stage
         prisma.project.groupBy({
           by: ['stage'],
           where: { userId },
           _count: { stage: true }
         }),
-        
+
         // Projects by type
         prisma.project.groupBy({
           by: ['type'],
           where: { userId },
           _count: { type: true }
         }),
-        
+
         // Total budget
         prisma.project.aggregate({
           where: { userId },
           _sum: { budget: true }
-        }),
-        
-        // Total hours
-        prisma.project.aggregate({
-          where: { userId },
-          _sum: { 
-            estimatedHours: true,
-            actualHours: true
-          }
         })
       ])
 
@@ -575,9 +545,7 @@ export class ProjectsService extends BaseService {
         overdueProjects,
         projectsByStage,
         projectsByType,
-        totalBudget: totalBudget._sum.budget || new Prisma.Decimal(0),
-        totalEstimatedHours: totalHours._sum.estimatedHours || 0,
-        totalActualHours: totalHours._sum.actualHours || 0
+        totalBudget: totalBudget._sum.budget || new Prisma.Decimal(0)
       }
     } catch (error) {
       this.handleError(error)

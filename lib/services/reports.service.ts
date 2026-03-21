@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { BaseService } from './base.service'
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format } from 'date-fns'
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns'
 interface DashboardMetrics {
   totalClients: number
   activeProjects: number
@@ -11,8 +11,6 @@ interface DashboardMetrics {
   totalTasks: number
   completedTasks: number
   activeTasks: number
-  totalHours: number
-  weeklyHours: number
   leadConversionRate: number
   totalLeads: number
   convertedLeads: number
@@ -24,19 +22,11 @@ interface RevenueData {
   payments: number
 }
 
-interface TimeData {
-  date: string
-  hours: number
-  projects: number
-}
-
 interface ProjectAnalytics {
   id: string
   name: string
   type: string
   client: string
-  estimatedHours: number
-  actualHours: number
   budget: number
   revenue: number
   profitability: number
@@ -64,8 +54,6 @@ export class ReportsService extends BaseService {
       const now = new Date()
       const monthStart = startOfMonth(now)
       const monthEnd = endOfMonth(now)
-      const weekStart = startOfWeek(now, { weekStartsOn: 0 })
-      const weekEnd = endOfWeek(now, { weekStartsOn: 0 })
 
       const [
         totalClients,
@@ -77,23 +65,21 @@ export class ReportsService extends BaseService {
         totalTasks,
         completedTasks,
         activeTasks,
-        totalTimeMinutes,
-        weeklyTimeMinutes,
         totalLeads,
         convertedLeads
       ] = await Promise.all([
         // Clients
         prisma.client.count({ where: { userId, status: 'ACTIVE' } }),
-        
+
         // Projects
         prisma.project.count({ where: { userId, status: 'IN_PROGRESS' } }),
-        
+
         // Revenue - total from payments
         prisma.payment.aggregate({
           where: { userId, status: 'PAID' },
           _sum: { amount: true }
         }),
-        
+
         // Monthly revenue
         prisma.payment.aggregate({
           where: {
@@ -103,12 +89,12 @@ export class ReportsService extends BaseService {
           },
           _sum: { amount: true }
         }),
-        
+
         // Pending payments count
         prisma.payment.count({
           where: { userId, status: 'PENDING' }
         }),
-        
+
         // Overdue payments count
         prisma.payment.count({
           where: {
@@ -117,35 +103,17 @@ export class ReportsService extends BaseService {
             dueDate: { lt: now }
           }
         }),
-        
+
         // Tasks
         prisma.task.count({ where: { userId } }),
         prisma.task.count({ where: { userId, status: 'COMPLETED' } }),
         prisma.task.count({ where: { userId, status: 'IN_PROGRESS' } }),
-        
-        // Time entries - total minutes
-        prisma.timeEntry.aggregate({
-          where: { userId, duration: { not: null } },
-          _sum: { duration: true }
-        }),
-        
-        // Weekly time entries
-        prisma.timeEntry.aggregate({
-          where: {
-            userId,
-            duration: { not: null },
-            startTime: { gte: weekStart, lte: weekEnd }
-          },
-          _sum: { duration: true }
-        }),
-        
+
         // Leads
         prisma.lead.count({ where: { userId } }),
         prisma.lead.count({ where: { userId, status: 'CONVERTED' } })
       ])
 
-      const totalHours = (totalTimeMinutes._sum.duration || 0) / 60
-      const weeklyHours = (weeklyTimeMinutes._sum.duration || 0) / 60
       const leadConversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0
 
       return {
@@ -158,8 +126,6 @@ export class ReportsService extends BaseService {
         totalTasks,
         completedTasks,
         activeTasks,
-        totalHours,
-        weeklyHours,
         leadConversionRate,
         totalLeads,
         convertedLeads
@@ -225,64 +191,6 @@ export class ReportsService extends BaseService {
   }
 
   /**
-   * Get time tracking analytics
-   */
-  static async getTimeAnalytics(userId: string, days: number = 30): Promise<TimeData[]> {
-    try {
-      const now = new Date()
-      const startDate = new Date()
-      startDate.setDate(now.getDate() - days)
-
-      const timeEntries = await prisma.timeEntry.findMany({
-        where: {
-          userId,
-          duration: { not: null },
-          startTime: { gte: startDate, lte: now }
-        },
-        select: {
-          duration: true,
-          startTime: true,
-          projectId: true
-        },
-        orderBy: { startTime: 'asc' }
-      })
-
-      // Group by day
-      const dailyData: Record<string, { hours: number; projects: Set<string> }> = {}
-      
-      timeEntries.forEach(entry => {
-        const dayKey = format(entry.startTime, 'yyyy-MM-dd')
-        if (!dailyData[dayKey]) {
-          dailyData[dayKey] = { hours: 0, projects: new Set() }
-        }
-        dailyData[dayKey].hours += (entry.duration || 0) / 60
-        if (entry.projectId) {
-          dailyData[dayKey].projects.add(entry.projectId)
-        }
-      })
-
-      // Convert to array
-      const result: TimeData[] = []
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(now.getDate() - i)
-        const dayKey = format(date, 'yyyy-MM-dd')
-        const dayName = format(date, 'MM/dd')
-        
-        result.push({
-          date: dayName,
-          hours: Math.round((dailyData[dayKey]?.hours || 0) * 10) / 10,
-          projects: dailyData[dayKey]?.projects.size || 0
-        })
-      }
-
-      return result
-    } catch (error) {
-      this.handleError(error)
-    }
-  }
-
-  /**
    * Get project analytics
    */
   static async getProjectAnalytics(userId: string): Promise<ProjectAnalytics[]> {
@@ -299,9 +207,6 @@ export class ReportsService extends BaseService {
           payments: {
             where: { status: 'PAID' },
             select: { amount: true }
-          },
-          timeEntries: {
-            select: { duration: true }
           }
         },
         orderBy: { createdAt: 'desc' }
@@ -311,20 +216,17 @@ export class ReportsService extends BaseService {
         const totalTasks = project.tasks.length
         const completedTasks = project.tasks.filter(t => t.status === 'COMPLETED').length
         const completion = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-        
+
         const revenue = project.payments.reduce((sum, p) => sum + Number(p.amount), 0)
-        const estimatedHours = project.estimatedHours || 0
-        const actualHours = project.timeEntries.reduce((sum, t) => sum + (t.duration || 0), 0) / 60
-        const profitability = estimatedHours > 0 ? ((revenue - (actualHours * 100)) / revenue) * 100 : 0
+        const budget = Number(project.budget || 0)
+        const profitability = budget > 0 ? ((revenue / budget) * 100) : 0
 
         return {
           id: project.id,
           name: project.name,
           type: project.type,
           client: project.client.company || project.client.name,
-          estimatedHours,
-          actualHours: Math.round(actualHours * 10) / 10,
-          budget: Number(project.budget || 0),
+          budget,
           revenue,
           profitability: Math.round(profitability * 10) / 10,
           completion: Math.round(completion),

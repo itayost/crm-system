@@ -114,18 +114,6 @@ export class ClientsService extends BaseService {
           projects: {
             orderBy: { createdAt: 'desc' },
             include: {
-              timeEntries: {
-                select: {
-                  id: true,
-                  startTime: true,
-                  endTime: true,
-                  duration: true,
-                  description: true,
-                  projectId: true,
-                },
-                orderBy: { startTime: 'desc' },
-                take: 20,
-              },
               _count: {
                 select: { tasks: true }
               }

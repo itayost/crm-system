@@ -91,12 +91,6 @@ export class TasksService extends BaseService {
                 }
               }
             }
-          },
-          timeEntries: {
-            select: {
-              id: true,
-              duration: true
-            }
           }
         },
         orderBy: [
@@ -106,13 +100,7 @@ export class TasksService extends BaseService {
         ]
       })
 
-      // Calculate total time for each task
-      const tasksWithTime = tasks.map(task => ({
-        ...task,
-        totalMinutes: task.timeEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0)
-      }))
-
-      return tasksWithTime
+      return tasks
     } catch (error) {
       this.handleError(error)
     }
@@ -133,9 +121,6 @@ export class TasksService extends BaseService {
             include: {
               client: true
             }
-          },
-          timeEntries: {
-            orderBy: { startTime: 'desc' }
           }
         }
       })

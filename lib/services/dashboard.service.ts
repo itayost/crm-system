@@ -33,7 +33,6 @@ export interface DashboardStats {
   activeProjects: number
   totalClients: number
   pendingPayments: number
-  weeklyHours?: number
   newLeads: number
   monthlyRevenue: number
 }
@@ -393,7 +392,6 @@ export class DashboardService extends BaseService {
       activeProjects,
       totalClients,
       pendingPayments,
-      weeklyHours,
       newLeads,
       monthlyRevenue,
       recentProjects,
@@ -421,22 +419,6 @@ export class DashboardService extends BaseService {
         where: {
           userId,
           status: 'PENDING'
-        }
-      }),
-
-      // Weekly hours from time entries
-      prisma.timeEntry.aggregate({
-        where: {
-          userId,
-          startTime: {
-            gte: startOfWeek
-          },
-          endTime: {
-            not: null
-          }
-        },
-        _sum: {
-          duration: true
         }
       }),
 
@@ -579,8 +561,6 @@ export class DashboardService extends BaseService {
         } else {
           timeInfo = task.dueDate.toLocaleDateString('he-IL')
         }
-      } else if (task.estimatedHours) {
-        timeInfo = `${task.estimatedHours} שעות משוערות`
       }
 
       return {
@@ -613,7 +593,6 @@ export class DashboardService extends BaseService {
         activeProjects,
         totalClients,
         pendingPayments,
-        weeklyHours: Math.round((weeklyHours._sum.duration || 0) / 60 * 10) / 10, // Convert minutes to hours
         newLeads,
         monthlyRevenue: Number(monthlyRevenue._sum.amount || 0)
       },
