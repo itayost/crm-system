@@ -75,8 +75,6 @@ export const mockDb = {
       priority: 'HIGH',
       stage: 'DEVELOPMENT',
       budget: 45000,
-      estimatedHours: 120,
-      actualHours: 78,
       clientId: '1',
       userId: 'user_123',
       startDate: new Date('2024-11-01'),
@@ -85,7 +83,7 @@ export const mockDb = {
       updatedAt: new Date('2024-12-15'),
     },
   ],
-  
+
   tasks: [] as Array<{
     id: string
     title: string
@@ -94,16 +92,6 @@ export const mockDb = {
     priority: string
     dueDate?: Date
     projectId?: string
-    userId: string
-  }>,
-  timeEntries: [] as Array<{
-    id: string
-    projectId: string
-    taskId?: string
-    startTime: Date
-    endTime?: Date
-    duration?: number
-    description?: string
     userId: string
   }>,
   payments: [] as Array<{

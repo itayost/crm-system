@@ -148,18 +148,7 @@
     border-right: 4px solid #3b82f6; 
   }
 
-  .priority-low { 
-    border-right: 4px solid #10b981; 
-  }
-
-  /* Timer animation */
-  .timer-active {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
-  }
-
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
+  .priority-low {
+    border-right: 4px solid #10b981;
   }
 }

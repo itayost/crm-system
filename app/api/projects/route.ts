@@ -11,7 +11,6 @@ const createProjectSchema = z.object({
   type: z.enum(['LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP', 'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION']),
   clientId: z.string().min(1, 'לקוח חובה'),
   budget: z.number().optional(),
-  estimatedHours: z.number().optional(),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),

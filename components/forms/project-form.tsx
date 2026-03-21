@@ -29,7 +29,6 @@ interface ProjectFormData {
   type: string
   clientId: string
   budget: string
-  estimatedHours: string
   deadline: string
   priority: string
   startDate: string
@@ -47,7 +46,6 @@ const defaults: ProjectFormData = {
   type: 'WEBSITE',
   clientId: '',
   budget: '',
-  estimatedHours: '',
   deadline: '',
   priority: 'MEDIUM',
   startDate: new Date().toISOString().split('T')[0],
@@ -97,7 +95,6 @@ export function ProjectForm({ onSubmit, onCancel, initialData }: ProjectFormProp
     onSubmit({
       ...formData,
       budget: formData.budget ? Number(formData.budget) : undefined,
-      estimatedHours: formData.estimatedHours ? Number(formData.estimatedHours) : undefined,
     })
   }
   
@@ -180,18 +177,7 @@ export function ProjectForm({ onSubmit, onCancel, initialData }: ProjectFormProp
             placeholder="₪"
           />
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="estimatedHours">שעות משוערות</Label>
-          <Input
-            id="estimatedHours"
-            type="number"
-            value={formData.estimatedHours}
-            onChange={(e) => handleChange('estimatedHours', e.target.value)}
-            placeholder="40"
-          />
-        </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="startDate">תאריך התחלה</Label>
           <Input

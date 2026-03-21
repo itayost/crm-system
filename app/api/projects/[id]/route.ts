@@ -14,8 +14,6 @@ const updateProjectSchema = z.object({
   status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   budget: z.number().optional(),
-  estimatedHours: z.number().optional(),
-  actualHours: z.number().optional(),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
   completedAt: z.string().optional(),
