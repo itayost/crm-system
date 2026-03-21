@@ -1,6 +1,5 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
-import { TimerWidget } from '@/components/timer/timer-widget'
 import { Toaster } from 'react-hot-toast'
 
 export default function DashboardLayout({
@@ -25,9 +24,6 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
-      
-      {/* Timer Widget - Floating */}
-      <TimerWidget />
       
       {/* Toast Notifications */}
       <Toaster 

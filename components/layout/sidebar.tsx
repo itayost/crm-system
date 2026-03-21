@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Users,
   Briefcase,
-  Clock,
   DollarSign,
   BarChart,
   Target,
@@ -56,12 +55,6 @@ const getNavigation = (badges: SidebarBadges | null) => [
     badge: badges?.tasks?.urgent && badges.tasks.urgent > 0 ? { count: badges.tasks.urgent, variant: 'destructive' as const } : null
   },
   {
-    name: 'זמנים',
-    href: '/time',
-    icon: Clock,
-    badge: null
-  },
-  { 
     name: 'תשלומים', 
     href: '/payments', 
     icon: DollarSign,
