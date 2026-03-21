@@ -24,7 +24,6 @@ model User {
   tasks           Task[]
   payments        Payment[]
   notifications   Notification[]
-  timeEntries     TimeEntry[]
   activities      Activity[]
 }
 
@@ -101,8 +100,6 @@ model Project {
   deadline        DateTime?
   completedAt     DateTime?
   
-  estimatedHours  Int?
-  actualHours     Float?
   budget          Decimal?  @db.Decimal(10, 2)
   
   priorityScore   Float?    @default(0)  // 0-100 score
@@ -115,7 +112,6 @@ model Project {
   
   tasks           Task[]
   payments        Payment[]
-  timeEntries     TimeEntry[]
   milestones      Milestone[]
   documents       Document[]
   
@@ -138,22 +134,17 @@ model Task {
   dueDate         DateTime?
   completedAt     DateTime?
   
-  estimatedHours  Float?
-  actualHours     Float?
-  
   priorityScore   Float?    @default(0)  // 0-100 score
   priorityCalculatedAt DateTime?     // Track when score was calculated
-  
+
   projectId       String
   project         Project   @relation(fields: [projectId], references: [id])
   userId          String
   user            User      @relation(fields: [userId], references: [id])
-  
+
   parentTaskId    String?
   parentTask      Task?     @relation("SubTasks", fields: [parentTaskId], references: [id])
   subTasks        Task[]    @relation("SubTasks")
-  
-  timeEntries     TimeEntry[]
   
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -161,28 +152,6 @@ model Task {
   @@index([projectId])
   @@index([status])
   @@index([priorityScore])
-}
-
-// TimeEntry model
-model TimeEntry {
-  id              String    @id @default(cuid())
-  startTime       DateTime
-  endTime         DateTime?
-  duration        Int?      // in minutes
-  description     String?   @db.Text
-  
-  taskId          String?
-  task            Task?     @relation(fields: [taskId], references: [id])
-  projectId       String
-  project         Project   @relation(fields: [projectId], references: [id])
-  userId          String
-  user            User      @relation(fields: [userId], references: [id])
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  @@index([projectId])
-  @@index([startTime])
 }
 
 // Payment model

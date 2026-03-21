@@ -45,7 +45,6 @@ async function main() {
       clientId: client.id,
       userId: user.id,
       budget: 15000,
-      estimatedHours: 40,
     },
   })
   
