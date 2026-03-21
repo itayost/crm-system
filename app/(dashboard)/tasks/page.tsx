@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TaskForm } from '@/components/forms/task-form'
-import { TimerWidget } from '@/components/timer/timer-widget'
 import api from '@/lib/api/client'
-import { Play, MoreHorizontal, Plus, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react'
+import { MoreHorizontal, Plus, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +30,6 @@ interface Task {
   dueDate?: string
   completedAt?: string
   createdAt?: string
-  totalMinutes: number
   project?: {
     id: string
     name: string
@@ -139,24 +137,6 @@ export default function TasksPage() {
     } catch (error) {
       console.error('Error updating task status:', error)
     }
-  }
-
-  const handleStartTimer = async (task: Task) => {
-    try {
-      await api.post('/time/start', {
-        taskId: task.id,
-        projectId: task.project?.id
-      })
-      fetchData()
-    } catch (error) {
-      console.error('Error starting timer:', error)
-    }
-  }
-
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return `${hours}:${mins.toString().padStart(2, '0')}`
   }
 
   const getPriorityScoreColor = (score?: number) => {
@@ -388,10 +368,7 @@ export default function TasksPage() {
                     }}>
                       ערוך
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStartTimer(task)}>
-                      התחל טיימר
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => handleStatusChange(task.id, 'COMPLETED')}
                       className="text-green-600"
                     >
@@ -428,36 +405,16 @@ export default function TasksPage() {
                 </p>
               )}
 
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span>{formatTime(task.totalMinutes)}</span>
-                </div>
-                
-                {task.dueDate && (
-                  <div className={`text-sm ${
-                    new Date(task.dueDate) < new Date() 
-                      ? 'text-red-600 font-medium' 
-                      : 'text-gray-600'
-                  }`}>
-                    {formatDueDate(task.dueDate)}
-                  </div>
-                )}
-              </div>
-
-              {task.status !== 'COMPLETED' && (
-                <div className="mt-3 pt-3 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => handleStartTimer(task)}
-                  >
-                    <Play className="w-4 h-4 ml-2" />
-                    התחל עבודה
-                  </Button>
+              {task.dueDate && (
+                <div className={`text-sm ${
+                  new Date(task.dueDate) < new Date()
+                    ? 'text-red-600 font-medium'
+                    : 'text-gray-600'
+                }`}>
+                  {formatDueDate(task.dueDate)}
                 </div>
               )}
+
             </CardContent>
           </Card>
         ))}
@@ -482,8 +439,6 @@ export default function TasksPage() {
           </CardContent>
         </Card>
       )}
-
-      <TimerWidget />
     </div>
   )
 }

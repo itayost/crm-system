@@ -33,7 +33,7 @@ export interface DashboardStats {
   activeProjects: number
   totalClients: number
   pendingPayments: number
-  weeklyHours: number
+  weeklyHours?: number
   newLeads: number
   monthlyRevenue: number
 }
