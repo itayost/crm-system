@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Loader2,
   Activity,
+  CheckSquare,
 } from 'lucide-react'
 import api from '@/lib/api/client'
 import { DashboardData } from '@/lib/services/dashboard.service'
@@ -60,7 +61,6 @@ export default function DashboardPage() {
           activeProjects: 0,
           totalClients: 0,
           pendingPayments: 0,
-          weeklyHours: 0,
           newLeads: 0,
           monthlyRevenue: 0,
         },
@@ -97,15 +97,6 @@ export default function DashboardPage() {
       fetchDashboardData()
     } catch {
       toast.error('שגיאה ביצירת פרויקט')
-    }
-  }
-
-  const handleStartTaskTimer = async (task: { id: string; projectId?: string }) => {
-    try {
-      await api.post('/time/start', { projectId: task.projectId, taskId: task.id })
-      toast.success('טיימר הופעל')
-    } catch {
-      toast.error('שגיאה בהפעלת טיימר')
     }
   }
 
@@ -201,7 +192,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -235,16 +226,6 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold">{data.stats.newLeads}</p>
             <p className="text-sm text-gray-600">לידים חדשים</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-2">
-              <Clock className="w-8 h-8 text-purple-600" />
-            </div>
-            <p className="text-2xl font-bold">{data.stats.weeklyHours}h</p>
-            <p className="text-sm text-gray-600">שעות השבוע</p>
           </CardContent>
         </Card>
         
@@ -306,8 +287,8 @@ export default function DashboardPage() {
                         {task.deadline || task.time || task.estimated}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleStartTaskTimer(task)}>
-                      התחל
+                    <Button size="sm" variant="outline" onClick={() => router.push('/tasks?id=' + task.id)}>
+                      צפה
                     </Button>
                   </div>
                 </div>
@@ -407,9 +388,9 @@ export default function DashboardPage() {
                 <Briefcase className="w-4 h-4 ml-2" />
                 פרויקט חדש
               </Button>
-              <Button variant="outline" className="justify-start" onClick={() => router.push('/time')}>
-                <Clock className="w-4 h-4 ml-2" />
-                התחל טיימר
+              <Button variant="outline" className="justify-start" onClick={() => router.push('/tasks')}>
+                <CheckSquare className="w-4 h-4 ml-2" />
+                משימות
               </Button>
               <Button variant="outline" className="justify-start" onClick={() => router.push('/payments')}>
                 <DollarSign className="w-4 h-4 ml-2" />
