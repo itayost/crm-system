@@ -57,14 +57,7 @@ const contactFormSchema = z.object({
     .transform((v) => (v === '' ? undefined : v)),
   company: z.string().optional(),
   source: z.enum(['WEBSITE', 'PHONE', 'WHATSAPP', 'REFERRAL', 'OTHER']),
-  estimatedBudget: z
-    .string()
-    .optional()
-    .transform((v) => {
-      if (!v || v === '') return undefined
-      const num = Number(v)
-      return isNaN(num) ? undefined : num
-    }),
+  estimatedBudget: z.string().optional(),
   projectType: z.string().optional(),
   notes: z.string().optional(),
   isVip: z.boolean().optional(),
@@ -129,10 +122,12 @@ export function ContactForm({
   const handleSubmit = async (values: ContactFormValues) => {
     setIsSubmitting(true)
     try {
+      const budgetNum = values.estimatedBudget ? Number(values.estimatedBudget) : undefined
       const payload = {
         ...values,
         email: values.email || undefined,
         company: values.company || undefined,
+        estimatedBudget: budgetNum && !isNaN(budgetNum) ? budgetNum : undefined,
         projectType: values.projectType || undefined,
         notes: values.notes || undefined,
         address: values.address || undefined,

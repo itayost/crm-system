@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { Plus, Search } from 'lucide-react'
@@ -94,7 +94,7 @@ interface Project {
   }
 }
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [projects, setProjects] = useState<Project[]>([])
@@ -285,5 +285,13 @@ export default function ProjectsPage() {
         onSuccess={fetchProjects}
       />
     </div>
+  )
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><Skeleton className="h-96 w-full" /></div>}>
+      <ProjectsPageContent />
+    </Suspense>
   )
 }

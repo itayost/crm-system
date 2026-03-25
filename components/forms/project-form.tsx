@@ -64,22 +64,8 @@ const projectFormSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
-  price: z
-    .string()
-    .optional()
-    .transform((v) => {
-      if (!v || v === '') return undefined
-      const num = Number(v)
-      return isNaN(num) ? undefined : num
-    }),
-  retention: z
-    .string()
-    .optional()
-    .transform((v) => {
-      if (!v || v === '') return undefined
-      const num = Number(v)
-      return isNaN(num) ? undefined : num
-    }),
+  price: z.string().optional(),
+  retention: z.string().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
   contactId: z.string().min(1, 'לקוח חובה'),
 })
@@ -176,9 +162,13 @@ export function ProjectForm({
   const handleSubmit = async (values: ProjectFormValues) => {
     setIsSubmitting(true)
     try {
+      const priceNum = values.price ? Number(values.price) : undefined
+      const retentionNum = values.retention ? Number(values.retention) : undefined
       const payload = {
         ...values,
         description: values.description || undefined,
+        price: priceNum && !isNaN(priceNum) ? priceNum : undefined,
+        retention: retentionNum && !isNaN(retentionNum) ? retentionNum : undefined,
         startDate: values.startDate
           ? new Date(values.startDate).toISOString()
           : undefined,
@@ -191,7 +181,8 @@ export function ProjectForm({
       }
 
       if (isEditing) {
-        const { contactId: _contactId, ...updatePayload } = payload
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { contactId: _, ...updatePayload } = payload
         await api.put(`/projects/${project.id}`, updatePayload)
         toast.success('פרויקט עודכן בהצלחה')
       } else {
