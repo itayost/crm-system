@@ -30,7 +30,15 @@ export function withAuth(handler: Handler) {
           { status: 400 }
         )
       }
-      
+
+      if (error instanceof Error) {
+        console.error('API Error:', error.message)
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 }
+        )
+      }
+
       console.error('API Error:', error)
       return NextResponse.json(
         { error: 'Internal server error' },
