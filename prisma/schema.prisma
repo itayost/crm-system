@@ -38,9 +38,10 @@ model Contact {
   notes           String?       @db.Text
   convertedAt     DateTime?
 
-  userId   String
-  user     User      @relation(fields: [userId], references: [id])
-  projects Project[]
+  userId           String
+  user             User               @relation(fields: [userId], references: [id])
+  projects         Project[]
+  whatsappMessages WhatsAppMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,4 +165,33 @@ enum TaskCategory {
 enum RetentionFrequency {
   MONTHLY
   YEARLY
+}
+
+enum MessageDirection {
+  INCOMING
+  OUTGOING
+}
+
+model WhatsAppMessage {
+  id          String           @id @default(cuid())
+  phoneNumber String
+  direction   MessageDirection
+  content     String           @db.Text
+  contactId   String?
+  contact     Contact?         @relation(fields: [contactId], references: [id])
+  sessionName String
+  timestamp   DateTime
+  createdAt   DateTime         @default(now())
+
+  @@index([phoneNumber])
+  @@index([contactId])
+  @@index([timestamp])
+}
+
+model BotConversation {
+  id           String   @id @default(cuid())
+  messages     Json
+  lastActiveAt DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
