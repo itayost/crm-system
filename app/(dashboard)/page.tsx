@@ -58,11 +58,26 @@ const PROJECT_STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-800',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  CLIENT_WORK: 'עבודת לקוח',
+  MARKETING: 'שיווק',
+  LEAD_FOLLOWUP: 'מעקב לידים',
+  ADMIN: 'מנהלה',
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  CLIENT_WORK: 'bg-blue-100 text-blue-700',
+  MARKETING: 'bg-purple-100 text-purple-700',
+  LEAD_FOLLOWUP: 'bg-orange-100 text-orange-700',
+  ADMIN: 'bg-gray-100 text-gray-700',
+}
+
 interface PendingTask {
   id: string
   title: string
   status: string
   priority: string
+  category?: string
   dueDate: string | null
   project: { id: string; name: string } | null
 }
@@ -292,14 +307,25 @@ export default function DashboardPage() {
                     >
                       <div>
                         <p className="text-sm font-medium">{task.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {task.project?.name ?? 'ללא פרויקט'}
-                          {task.dueDate && (
-                            <span className={isOverdue ? ' text-red-500 font-medium' : ''}>
-                              {' '}| {formatDate(task.dueDate)}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-500">
+                            {task.project?.name ?? 'ללא פרויקט'}
+                          </span>
+                          {task.category && (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                CATEGORY_COLORS[task.category] ?? ''
+                              }`}
+                            >
+                              {CATEGORY_LABELS[task.category] ?? task.category}
                             </span>
                           )}
-                        </p>
+                          {task.dueDate && (
+                            <span className={`text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                              | {formatDate(task.dueDate)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <Badge
                         className={

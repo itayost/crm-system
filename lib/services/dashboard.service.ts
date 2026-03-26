@@ -71,7 +71,13 @@ export class DashboardService {
           { createdAt: 'desc' },
         ],
         take: 5,
-        include: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          category: true,
+          dueDate: true,
           project: { select: { id: true, name: true } },
         },
       }),
