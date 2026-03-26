@@ -58,12 +58,13 @@ const PROJECT_STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-800',
 }
 
-interface RecentContact {
+interface PendingTask {
   id: string
-  name: string
+  title: string
   status: string
-  source: string
-  createdAt: string
+  priority: string
+  dueDate: string | null
+  project: { id: string; name: string } | null
 }
 
 interface ActiveProject {
@@ -95,8 +96,9 @@ interface DashboardData {
     pending: number
     overdue: number
   }
-  recentContacts: RecentContact[]
+  recentContacts: unknown[]
   activeProjects: ActiveProject[]
+  pendingTasks: PendingTask[]
 }
 
 export default function DashboardPage() {
@@ -253,60 +255,68 @@ export default function DashboardPage() {
 
       {/* Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Contacts */}
+        {/* Pending Tasks */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">אנשי קשר אחרונים</CardTitle>
+            <CardTitle className="text-lg">משימות ממתינות</CardTitle>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/contacts')}
+              onClick={() => router.push('/tasks')}
             >
               הצג הכל
               <ArrowLeft className="w-4 h-4 mr-1" />
             </Button>
           </CardHeader>
           <CardContent>
-            {data.recentContacts.length === 0 ? (
+            {data.pendingTasks.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">
-                אין אנשי קשר עדיין
+                אין משימות ממתינות
               </p>
             ) : (
               <div className="space-y-3">
-                {data.recentContacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/contacts/${contact.id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        router.push(`/contacts/${contact.id}`)
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-gray-600">
-                          {contact.name.substring(0, 2)}
-                        </span>
-                      </div>
+                {data.pendingTasks.map((task) => {
+                  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date()
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => router.push('/tasks')}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          router.push('/tasks')
+                        }
+                      }}
+                    >
                       <div>
-                        <p className="text-sm font-medium">{contact.name}</p>
+                        <p className="text-sm font-medium">{task.title}</p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(contact.createdAt)}
+                          {task.project?.name ?? 'ללא פרויקט'}
+                          {task.dueDate && (
+                            <span className={isOverdue ? ' text-red-500 font-medium' : ''}>
+                              {' '}| {formatDate(task.dueDate)}
+                            </span>
+                          )}
                         </p>
                       </div>
+                      <Badge
+                        className={
+                          task.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
+                          task.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                          task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-600'
+                        }
+                        variant="secondary"
+                      >
+                        {task.priority === 'URGENT' ? 'דחוף' :
+                         task.priority === 'HIGH' ? 'גבוה' :
+                         task.priority === 'MEDIUM' ? 'בינוני' : 'נמוך'}
+                      </Badge>
                     </div>
-                    <Badge
-                      className={STATUS_COLORS[contact.status] ?? ''}
-                      variant="secondary"
-                    >
-                      {STATUS_LABELS[contact.status] ?? contact.status}
-                    </Badge>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

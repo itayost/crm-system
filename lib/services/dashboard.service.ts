@@ -14,6 +14,7 @@ export class DashboardService {
       overdueTaskCount,
       recentContacts,
       activeProjects,
+      pendingTasks,
     ] = await Promise.all([
       prisma.project.aggregate({
         where: { userId, status: 'COMPLETED', price: { not: null } },
@@ -62,6 +63,18 @@ export class DashboardService {
           _count: { select: { tasks: true } },
         },
       }),
+      prisma.task.findMany({
+        where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] } },
+        orderBy: [
+          { dueDate: 'asc' },
+          { priority: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        take: 5,
+        include: {
+          project: { select: { id: true, name: true } },
+        },
+      }),
     ])
 
     return {
@@ -80,6 +93,7 @@ export class DashboardService {
       },
       recentContacts,
       activeProjects,
+      pendingTasks,
     }
   }
 }
