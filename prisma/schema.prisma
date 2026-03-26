@@ -77,11 +77,12 @@ model Project {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String       @id @default(cuid())
   title       String
-  description String?    @db.Text
-  status      TaskStatus @default(TODO)
-  priority    Priority   @default(MEDIUM)
+  description String?      @db.Text
+  status      TaskStatus   @default(TODO)
+  priority    Priority     @default(MEDIUM)
+  category    TaskCategory @default(CLIENT_WORK)
   dueDate     DateTime?
   completedAt DateTime?
 
@@ -95,6 +96,7 @@ model Task {
 
   @@index([projectId])
   @@index([status])
+  @@index([category])
 }
 
 enum UserRole {
@@ -150,6 +152,13 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum TaskCategory {
+  CLIENT_WORK
+  MARKETING
+  LEAD_FOLLOWUP
+  ADMIN
 }
 
 enum RetentionFrequency {
