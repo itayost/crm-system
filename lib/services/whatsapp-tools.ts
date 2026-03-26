@@ -13,7 +13,7 @@ export function createCrmTools(userId: string) {
 
     createContact: tool({
       description: 'Create a new contact (lead or client). Use for adding new people to the CRM.',
-      parameters: z.object({
+      inputSchema: z.object({
         name: z.string().describe('Contact name'),
         phone: z.string().describe('Phone number in Israeli format (05XXXXXXXX)'),
         source: z.enum(['WEBSITE', 'PHONE', 'WHATSAPP', 'REFERRAL', 'OTHER']).optional().describe('How the contact was acquired'),
@@ -23,16 +23,21 @@ export function createCrmTools(userId: string) {
         const contact = await ContactsService.create(userId, {
           name,
           phone,
+          email: undefined,
           source: source ?? 'OTHER',
-          status,
         })
+        // If status specified and not NEW, update it
+        if (status && status !== 'NEW') {
+          const updated = await ContactsService.update(userId, contact.id, { email: undefined, status })
+          return { success: true, contact: { id: updated.id, name: updated.name, phone: updated.phone, status: updated.status } }
+        }
         return { success: true, contact: { id: contact.id, name: contact.name, phone: contact.phone, status: contact.status } }
       },
     }),
 
     updateContact: tool({
       description: 'Update an existing contact. Can change status, phone, email, VIP status, etc. Also used to convert a lead to client (set status to CLIENT).',
-      parameters: z.object({
+      inputSchema: z.object({
         nameQuery: z.string().describe('Contact name to search for (fuzzy match)'),
         status: z.enum(['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING', 'CLIENT', 'INACTIVE']).optional(),
         phone: z.string().optional(),
@@ -49,14 +54,14 @@ export function createCrmTools(userId: string) {
         if (!result.match) {
           return { success: false, error: `לא נמצא איש קשר בשם "${nameQuery}"` }
         }
-        const contact = await ContactsService.update(userId, result.match.id, updates)
+        const contact = await ContactsService.update(userId, result.match.id, { email: updates.email, ...updates })
         return { success: true, contact: { id: contact.id, name: contact.name, status: contact.status } }
       },
     }),
 
     listContacts: tool({
       description: 'List contacts. Can filter by phase (lead/client) or search by name.',
-      parameters: z.object({
+      inputSchema: z.object({
         phase: z.enum(['lead', 'client']).optional().describe('Filter by lead phase or client phase'),
         search: z.string().optional().describe('Search by name, phone, email'),
       }),
@@ -76,7 +81,7 @@ export function createCrmTools(userId: string) {
 
     getContact: tool({
       description: 'Get full details of a specific contact including their projects.',
-      parameters: z.object({
+      inputSchema: z.object({
         nameQuery: z.string().describe('Contact name to search for (fuzzy match)'),
       }),
       execute: async ({ nameQuery }) => {
@@ -112,7 +117,7 @@ export function createCrmTools(userId: string) {
 
     createProject: tool({
       description: 'Create a new project for a client. The contact must have CLIENT status.',
-      parameters: z.object({
+      inputSchema: z.object({
         name: z.string().describe('Project name'),
         type: z.enum(['LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP', 'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION']),
         contactName: z.string().describe('Client name (fuzzy match)'),
@@ -138,7 +143,7 @@ export function createCrmTools(userId: string) {
 
     updateProject: tool({
       description: 'Update a project. Can change status, price, deadline, etc.',
-      parameters: z.object({
+      inputSchema: z.object({
         nameQuery: z.string().describe('Project name to search for (fuzzy match)'),
         status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
         price: z.number().optional(),
@@ -160,7 +165,7 @@ export function createCrmTools(userId: string) {
 
     listProjects: tool({
       description: 'List projects. Can filter by status or client name.',
-      parameters: z.object({
+      inputSchema: z.object({
         status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
         contactName: z.string().optional().describe('Filter by client name (fuzzy match)'),
       }),
@@ -189,7 +194,7 @@ export function createCrmTools(userId: string) {
 
     createTask: tool({
       description: 'Create a new task. Can be standalone or linked to a project.',
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().describe('Task title/description'),
         category: z.enum(['CLIENT_WORK', 'MARKETING', 'LEAD_FOLLOWUP', 'ADMIN']).optional().describe('Task category, default CLIENT_WORK'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('Priority level, default MEDIUM'),
@@ -212,7 +217,7 @@ export function createCrmTools(userId: string) {
 
     updateTask: tool({
       description: 'Update a task. Can change status, priority, category, etc.',
-      parameters: z.object({
+      inputSchema: z.object({
         titleQuery: z.string().describe('Task title to search for (fuzzy match)'),
         status: z.enum(['TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
@@ -233,7 +238,7 @@ export function createCrmTools(userId: string) {
 
     listTasks: tool({
       description: 'List tasks. Can filter by category, status, or project.',
-      parameters: z.object({
+      inputSchema: z.object({
         category: z.enum(['CLIENT_WORK', 'MARKETING', 'LEAD_FOLLOWUP', 'ADMIN']).optional(),
         status: z.enum(['TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
         projectName: z.string().optional().describe('Filter by project name (fuzzy match)'),
@@ -262,7 +267,7 @@ export function createCrmTools(userId: string) {
 
     getDashboard: tool({
       description: 'Get dashboard summary with revenue, active projects count, pending tasks, and leads in pipeline.',
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         const data = await DashboardService.getData(userId)
         return {
@@ -279,7 +284,7 @@ export function createCrmTools(userId: string) {
 
     getClientMessages: tool({
       description: 'Get recent WhatsApp messages with a specific client. Useful for context on what the client asked for.',
-      parameters: z.object({
+      inputSchema: z.object({
         contactName: z.string().describe('Client name (fuzzy match)'),
         days: z.number().optional().describe('How many days back to look, default 7'),
       }),
@@ -314,7 +319,7 @@ export function createCrmTools(userId: string) {
 
     searchEverything: tool({
       description: 'Search across all contacts, projects, and tasks by free text.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Search text'),
       }),
       execute: async ({ query }) => {

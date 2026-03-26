@@ -85,7 +85,7 @@ export class WhatsAppAgentService {
 
     if (!conversation) return []
 
-    return (conversation.messages as ConversationMessage[]).slice(-MAX_CONVERSATION_MESSAGES)
+    return (conversation.messages as unknown as ConversationMessage[]).slice(-MAX_CONVERSATION_MESSAGES)
   }
 
   private static async saveConversationHistory(messages: ConversationMessage[]) {
