@@ -141,6 +141,12 @@ async function globalSetup(_config: FullConfig) {
   const page = await browser.newPage()
 
   await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle', timeout: 30000 })
+
+  // Debug: screenshot what the page actually shows
+  await page.screenshot({ path: './e2e/.auth/debug-login.png' })
+  console.log('Login page URL:', page.url())
+  console.log('Login page title:', await page.title())
+
   await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 15000 })
   await page.fill('input[name="email"]', TEST_USER.email)
   await page.fill('input[name="password"]', TEST_USER.password)
