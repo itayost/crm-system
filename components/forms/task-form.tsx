@@ -39,10 +39,18 @@ const PRIORITY_OPTIONS = [
   { value: 'URGENT', label: 'דחוף' },
 ] as const
 
+const CATEGORY_OPTIONS = [
+  { value: 'CLIENT_WORK', label: 'עבודת לקוח' },
+  { value: 'MARKETING', label: 'שיווק' },
+  { value: 'LEAD_FOLLOWUP', label: 'מעקב לידים' },
+  { value: 'ADMIN', label: 'מנהלה' },
+] as const
+
 const taskFormSchema = z.object({
   title: z.string().min(1, 'כותרת משימה חובה'),
   description: z.string().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+  category: z.enum(['CLIENT_WORK', 'MARKETING', 'LEAD_FOLLOWUP', 'ADMIN']),
   dueDate: z.string().optional(),
   projectId: z.string().optional(),
 })
@@ -54,6 +62,7 @@ interface Task {
   title: string
   description?: string | null
   priority: string
+  category?: string
   dueDate?: string | null
   projectId?: string | null
 }
@@ -98,6 +107,7 @@ export function TaskForm({
       title: task?.title ?? '',
       description: task?.description ?? '',
       priority: (task?.priority as TaskFormValues['priority']) ?? 'MEDIUM',
+      category: (task?.category as TaskFormValues['category']) ?? 'CLIENT_WORK',
       dueDate: toDateInputValue(task?.dueDate),
       projectId: task?.projectId ?? defaultProjectId ?? '',
     },
@@ -131,6 +141,7 @@ export function TaskForm({
       const payload = {
         ...values,
         description: values.description || undefined,
+        category: values.category,
         dueDate: values.dueDate
           ? new Date(values.dueDate).toISOString()
           : undefined,
@@ -206,6 +217,35 @@ export function TaskForm({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Category */}
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>קטגוריה</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="בחר קטגוריה" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
