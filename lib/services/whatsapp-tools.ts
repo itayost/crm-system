@@ -323,11 +323,15 @@ export function createCrmTools(userId: string) {
         query: z.string().describe('Search text'),
       }),
       execute: async ({ query }) => {
-        const [contacts, projects, tasks] = await Promise.all([
+        const [contactsResult, projectsResult, tasksResult] = await Promise.allSettled([
           ContactsService.getAll(userId, { search: query }),
           ProjectsService.getAll(userId, { search: query }),
           TasksService.getAll(userId, { search: query }),
         ])
+
+        const contacts = contactsResult.status === 'fulfilled' ? contactsResult.value : []
+        const projects = projectsResult.status === 'fulfilled' ? projectsResult.value : []
+        const tasks = tasksResult.status === 'fulfilled' ? tasksResult.value : []
 
         return {
           contacts: contacts.slice(0, 5).map((c) => ({ name: c.name, status: c.status })),

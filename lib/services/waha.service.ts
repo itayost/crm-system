@@ -40,17 +40,11 @@ export class WahaService {
   }
 
   static formatChatId(phoneNumber: string): string {
-    // WAHA expects format: 972XXXXXXXXX@c.us
     const cleaned = phoneNumber.replace(/[-\s+]/g, '')
-    // Convert Israeli format 05X... to 9725X...
-    if (cleaned.startsWith('0')) {
-      return `972${cleaned.slice(1)}@c.us`
-    }
-    // Already international format
-    if (cleaned.startsWith('972')) {
-      return `${cleaned}@c.us`
-    }
-    return `${cleaned}@c.us`
+    const international = cleaned.startsWith('0')
+      ? `972${cleaned.slice(1)}`
+      : cleaned
+    return `${international}@c.us`
   }
 
   static extractPhoneNumber(chatId: string): string {

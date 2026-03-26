@@ -7,7 +7,6 @@ const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET ?? ''
 const OWNER_PHONE = process.env.WHATSAPP_OWNER_PHONE ?? ''
 
 export async function POST(req: NextRequest) {
-  // Validate webhook secret
   const secret = req.headers.get('x-webhook-secret')
   if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,7 +15,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // Only handle message events
     if (body.event !== 'message') {
       return NextResponse.json({ ok: true })
     }
@@ -26,14 +24,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Security: only process messages from the owner
     const senderPhone = WahaService.extractPhoneNumber(message.from)
     const ownerNormalized = OWNER_PHONE.replace(/[-\s]/g, '')
     if (!senderPhone.endsWith(ownerNormalized.slice(-7))) {
       return NextResponse.json({ ok: true })
     }
 
-    // Get the user ID (single-user system — get the first OWNER user)
     const user = await prisma.user.findFirst({
       where: { role: 'OWNER' },
       select: { id: true },
@@ -44,10 +40,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Process through AI agent
     const reply = await WhatsAppAgentService.processMessage(user.id, message.body)
 
-    // Send reply back via WAHA
     await WahaService.sendMessage({
       chatId: message.from,
       text: reply,

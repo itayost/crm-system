@@ -5,7 +5,6 @@ import { WahaService } from '@/lib/services/waha.service'
 const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET ?? ''
 
 export async function POST(req: NextRequest) {
-  // Validate webhook secret
   const secret = req.headers.get('x-webhook-secret')
   if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -14,7 +13,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
-    // WAHA sends different event types — we only care about messages
     if (body.event !== 'message') {
       return NextResponse.json({ ok: true })
     }
@@ -24,20 +22,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Extract phone number from chat ID
     const phoneNumber = WahaService.extractPhoneNumber(
       message.fromMe ? message.to : message.from
     )
 
-    // Try to match to an existing contact by phone
+    const normalized = phoneNumber.replace(/[-\s]/g, '')
     const contact = await prisma.contact.findFirst({
       where: {
-        phone: { contains: phoneNumber.slice(-7) },
+        OR: [
+          { phone: normalized },
+          { phone: { endsWith: normalized.slice(-7) } },
+        ],
       },
       select: { id: true },
     })
 
-    // Store the message
     await prisma.whatsAppMessage.create({
       data: {
         phoneNumber,
