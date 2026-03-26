@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { Plus, Search, Check } from 'lucide-react'
+import { Plus, Search, Check, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
@@ -56,6 +56,20 @@ const PRIORITY_COLORS: Record<string, string> = {
   URGENT: 'bg-red-100 text-red-700',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  CLIENT_WORK: 'עבודת לקוח',
+  MARKETING: 'שיווק',
+  LEAD_FOLLOWUP: 'מעקב לידים',
+  ADMIN: 'מנהלה',
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  CLIENT_WORK: 'bg-blue-100 text-blue-700',
+  MARKETING: 'bg-purple-100 text-purple-700',
+  LEAD_FOLLOWUP: 'bg-orange-100 text-orange-700',
+  ADMIN: 'bg-gray-100 text-gray-700',
+}
+
 const STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'הכל' },
   { value: 'TODO', label: 'לביצוע' },
@@ -64,12 +78,21 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'CANCELLED', label: 'בוטל' },
 ]
 
+const CATEGORY_FILTER_TABS = [
+  { value: 'ALL', label: 'הכל' },
+  { value: 'CLIENT_WORK', label: 'עבודת לקוח' },
+  { value: 'MARKETING', label: 'שיווק' },
+  { value: 'LEAD_FOLLOWUP', label: 'מעקב לידים' },
+  { value: 'ADMIN', label: 'מנהלה' },
+]
+
 interface Task {
   id: string
   title: string
   description?: string | null
   status: string
   priority: string
+  category?: string
   dueDate?: string | null
   projectId?: string | null
   project?: {
@@ -83,16 +106,21 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [standaloneOnly, setStandaloneOnly] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [quickTitle, setQuickTitle] = useState('')
+  const [quickCategory, setQuickCategory] = useState('CLIENT_WORK')
+  const [quickSubmitting, setQuickSubmitting] = useState(false)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (categoryFilter !== 'ALL') params.set('category', categoryFilter)
       if (standaloneOnly) params.set('standalone', 'true')
       if (search.trim()) params.set('search', search.trim())
 
@@ -103,7 +131,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, standaloneOnly, search])
+  }, [statusFilter, categoryFilter, standaloneOnly, search])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -149,6 +177,27 @@ export default function TasksPage() {
     }
   }
 
+  const handleQuickCapture = async () => {
+    const trimmedTitle = quickTitle.trim()
+    if (!trimmedTitle) return
+
+    setQuickSubmitting(true)
+    try {
+      await api.post('/tasks', {
+        title: trimmedTitle,
+        category: quickCategory,
+        priority: 'MEDIUM',
+      })
+      setQuickTitle('')
+      toast.success('משימה נוצרה בהצלחה')
+      fetchTasks()
+    } catch {
+      toast.error('שגיאה ביצירת משימה')
+    } finally {
+      setQuickSubmitting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -166,6 +215,62 @@ export default function TasksPage() {
           <Plus className="w-4 h-4 ml-2" />
           משימה חדשה
         </Button>
+      </div>
+
+      {/* Quick Capture */}
+      <div className="bg-white rounded-lg border p-3">
+        <div className="flex items-center gap-3">
+          <Input
+            type="text"
+            placeholder="משימה חדשה..."
+            value={quickTitle}
+            onChange={(e) => setQuickTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleQuickCapture()
+              }
+            }}
+            disabled={quickSubmitting}
+            className="flex-1"
+          />
+          <Select value={quickCategory} onValueChange={setQuickCategory}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_FILTER_TABS.filter((t) => t.value !== 'ALL').map((tab) => (
+                <SelectItem key={tab.value} value={tab.value}>
+                  {tab.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            onClick={handleQuickCapture}
+            disabled={quickSubmitting || !quickTitle.trim()}
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="flex items-center gap-1 border-b">
+        {CATEGORY_FILTER_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setCategoryFilter(tab.value)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              categoryFilter === tab.value
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -215,7 +320,7 @@ export default function TasksPage() {
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg font-medium">אין משימות</p>
           <p className="text-sm mt-1">
-            {search || statusFilter !== 'ALL' || standaloneOnly
+            {search || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || standaloneOnly
               ? 'לא נמצאו תוצאות'
               : 'צור משימה חדשה כדי להתחיל'}
           </p>
@@ -230,6 +335,7 @@ export default function TasksPage() {
                 <TableHead className="text-right">סטטוס</TableHead>
                 <TableHead className="text-right">עדיפות</TableHead>
                 <TableHead className="text-right">תאריך יעד</TableHead>
+                <TableHead className="text-right">קטגוריה</TableHead>
                 <TableHead className="text-right">פרויקט</TableHead>
               </TableRow>
             </TableHeader>
@@ -298,6 +404,16 @@ export default function TasksPage() {
                     >
                       {formatDate(task.dueDate)}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {task.category && (
+                      <Badge
+                        className={CATEGORY_COLORS[task.category] ?? ''}
+                        variant="secondary"
+                      >
+                        {CATEGORY_LABELS[task.category] ?? task.category}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-gray-500">
                     {task.project?.name ?? '-'}
