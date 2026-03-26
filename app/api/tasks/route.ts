@@ -8,6 +8,7 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
 
   const tasks = await TasksService.getAll(userId, {
     status: searchParams.get('status') || undefined,
+    category: searchParams.get('category') || undefined,
     projectId: searchParams.get('projectId') || undefined,
     standalone: searchParams.get('standalone') === 'true' || undefined,
     search: searchParams.get('search') || undefined,

@@ -4,6 +4,7 @@ import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validations/task'
 
 interface TaskFilters {
   status?: string
+  category?: string
   projectId?: string
   standalone?: boolean
   search?: string
@@ -19,6 +20,10 @@ export class TasksService {
 
     if (filters?.projectId) {
       where.projectId = filters.projectId
+    }
+
+    if (filters?.category) {
+      where.category = filters.category as Prisma.EnumTaskCategoryFilter
     }
 
     if (filters?.standalone) {
@@ -74,6 +79,7 @@ export class TasksService {
         title: data.title,
         description: data.description,
         priority: data.priority,
+        category: data.category ?? 'CLIENT_WORK',
         dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         projectId: data.projectId || undefined,
         userId,
@@ -105,6 +111,7 @@ export class TasksService {
       description: data.description,
       status: data.status,
       priority: data.priority,
+      category: data.category,
       dueDate: data.dueDate !== undefined
         ? (data.dueDate ? new Date(data.dueDate) : null)
         : undefined,
