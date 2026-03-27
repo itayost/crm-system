@@ -110,7 +110,10 @@ ${staleLeads.map(l => `- ${l.name} (${l.status})`).join('\n')}
 ${activeProjects.map(p => `- ${p.name} (${p.contact.name}) | ${p._count.tasks} משימות`).join('\n')}
 
 משימות ממתינות לפי קטגוריה:
-${taskCountsByCategory.map(c => `- ${c.category}: ${c._count}`).join('\n')}
+${taskCountsByCategory.map(c => {
+      const labels: Record<string, string> = { CLIENT_WORK: 'עבודת לקוח', MARKETING: 'שיווק', LEAD_FOLLOWUP: 'מעקב לידים', ADMIN: 'מנהלה' }
+      return `- ${labels[c.category] ?? c.category}: ${c._count}`
+    }).join('\n')}
 
 משימות שיווק ב-14 ימים אחרונים: ${recentMarketingTasks}
 `
@@ -131,7 +134,9 @@ Structure:
 5. End with a motivating one-liner
 
 Use WhatsApp formatting: *bold* (single asterisk), _italic_ (underscore).
-Keep it scannable — max 15 lines. No Markdown syntax.`,
+Keep it scannable — max 15 lines.
+NEVER use Markdown syntax. NEVER escape underscores with backslash. Write plain Hebrew text.
+Use Hebrew labels for categories (עבודת לקוח, שיווק, מעקב לידים, מנהלה) — never show English enum values.`,
       prompt: briefData,
     })
 
