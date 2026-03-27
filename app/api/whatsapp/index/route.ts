@@ -46,16 +46,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    await prisma.whatsAppMessage.create({
-      data: {
-        phoneNumber,
-        direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
-        content: message.body,
-        contactId: contact.id,
-        sessionName: process.env.WAHA_PERSONAL_SESSION ?? 'personal',
-        timestamp: new Date(message.timestamp * 1000),
-      },
-    })
+    await Promise.all([
+      prisma.whatsAppMessage.create({
+        data: {
+          phoneNumber,
+          direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
+          content: message.body,
+          contactId: contact.id,
+          sessionName: process.env.WAHA_PERSONAL_SESSION ?? 'personal',
+          timestamp: new Date(message.timestamp * 1000),
+        },
+      }),
+      prisma.contact.update({
+        where: { id: contact.id },
+        data: { lastContactedAt: new Date() },
+      }),
+    ])
 
     return NextResponse.json({ ok: true })
   } catch (error) {

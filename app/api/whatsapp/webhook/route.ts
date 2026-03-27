@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // Save owner's chatId (LID) for morning briefs
+    await WhatsAppAgentService.saveOwnerChatId(message.from)
+
     const reply = await WhatsAppAgentService.processMessage(user.id, message.body)
 
     await WahaService.sendMessage({

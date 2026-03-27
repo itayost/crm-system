@@ -121,4 +121,25 @@ export class WhatsAppAgentService {
       },
     })
   }
+
+  static async saveOwnerChatId(chatId: string) {
+    await prisma.botConversation.upsert({
+      where: { id: CONVERSATION_ID },
+      update: { ownerChatId: chatId },
+      create: {
+        id: CONVERSATION_ID,
+        messages: [],
+        ownerChatId: chatId,
+        lastActiveAt: new Date(),
+      },
+    })
+  }
+
+  static async getOwnerChatId(): Promise<string | null> {
+    const conversation = await prisma.botConversation.findFirst({
+      where: { id: CONVERSATION_ID },
+      select: { ownerChatId: true },
+    })
+    return conversation?.ownerChatId ?? null
+  }
 }
