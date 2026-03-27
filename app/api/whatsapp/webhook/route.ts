@@ -20,15 +20,9 @@ export async function POST(req: NextRequest) {
     }
 
     const message = body.payload
-    if (!message?.body || message.fromMe) {
-      return NextResponse.json({ ok: true })
-    }
+    console.log('Webhook payload:', JSON.stringify({ event: body.event, session: body.session, fromMe: message?.fromMe, body: message?.body?.substring(0, 50), from: message?.from }))
 
-    // WAHA provides participant phone in _data.notifyName or we can check the chatId
-    // For LID format (@lid), use _data.from.user or session participant info
-    // Since this is a single-user bot, we just verify the session is "bot" — only the owner messages the bot number
-    const session = body.session ?? ''
-    if (session !== (process.env.WAHA_BOT_SESSION ?? 'bot')) {
+    if (!message?.body || message.fromMe) {
       return NextResponse.json({ ok: true })
     }
 
