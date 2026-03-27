@@ -20,13 +20,19 @@ export async function POST(req: NextRequest) {
     }
 
     const message = body.payload
+    console.log('Webhook received:', JSON.stringify({ event: body.event, from: message?.from, fromMe: message?.fromMe, body: message?.body?.substring(0, 50) }))
+
     if (!message?.body || !message?.from || message.fromMe) {
+      console.log('Skipped: missing body/from or fromMe')
       return NextResponse.json({ ok: true })
     }
 
     const senderPhone = WahaService.extractPhoneNumber(message.from)
     const ownerNormalized = OWNER_PHONE.replace(/[-\s]/g, '')
+    console.log('Phone check:', { senderPhone, ownerNormalized, match: senderPhone.endsWith(ownerNormalized.slice(-7)) })
+
     if (!senderPhone.endsWith(ownerNormalized.slice(-7))) {
+      console.log('Skipped: not owner')
       return NextResponse.json({ ok: true })
     }
 
