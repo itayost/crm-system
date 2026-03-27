@@ -48,11 +48,37 @@ export class WahaService {
   }
 
   static extractPhoneNumber(chatId: string): string {
-    // Convert 972XXXXXXXXX@c.us back to 05XXXXXXXX
     const number = chatId.replace('@c.us', '').replace('@s.whatsapp.net', '')
     if (number.startsWith('972')) {
       return `0${number.slice(3)}`
     }
     return number
+  }
+
+  static isLidFormat(chatId: string): boolean {
+    return chatId.endsWith('@lid')
+  }
+
+  static async resolveLidToPhone(lid: string, session: string): Promise<string | null> {
+    try {
+      const lids: Array<{ lid: string; pn: string }> = await this.request(
+        `/api/${session}/lids?limit=500`
+      )
+      const match = lids.find((entry) => entry.lid === lid)
+      if (match) {
+        return this.extractPhoneNumber(match.pn)
+      }
+      return null
+    } catch (error) {
+      console.error('Failed to resolve LID:', error)
+      return null
+    }
+  }
+
+  static async getPhoneFromChatId(chatId: string, session: string): Promise<string | null> {
+    if (this.isLidFormat(chatId)) {
+      return this.resolveLidToPhone(chatId, session)
+    }
+    return this.extractPhoneNumber(chatId)
   }
 }

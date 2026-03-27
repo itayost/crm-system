@@ -22,9 +22,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const phoneNumber = WahaService.extractPhoneNumber(
-      message.fromMe ? message.to : message.from
-    )
+    const rawChatId = message.fromMe ? message.to : message.from
+    const session = process.env.WAHA_PERSONAL_SESSION ?? 'personal'
+    const phoneNumber = await WahaService.getPhoneFromChatId(rawChatId, session)
+
+    if (!phoneNumber) {
+      return NextResponse.json({ ok: true })
+    }
 
     const normalized = phoneNumber.replace(/[-\s]/g, '')
     const contact = await prisma.contact.findFirst({
