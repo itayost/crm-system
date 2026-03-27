@@ -19,6 +19,14 @@ Rules:
 - For forwarded client messages: extract the action item as task title
 - You can check client message history for context using getClientMessages
 
+Formatting — use WhatsApp format, NOT Markdown:
+- Bold: *text* (single asterisk, not double)
+- Italic: _text_ (underscore)
+- Monospace: \`\`\`text\`\`\`
+- Strikethrough: ~text~
+- Do NOT use **text**, ## headers, or other Markdown syntax
+- Use line breaks for readability, not bullet points with dashes
+
 Categories:
 - CLIENT_WORK (עבודת לקוח) — tasks related to client projects
 - MARKETING (שיווק) — portfolio, social media, advertising

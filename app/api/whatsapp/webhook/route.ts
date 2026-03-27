@@ -4,7 +4,6 @@ import { WahaService } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 
 const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET ?? ''
-const OWNER_PHONE = process.env.WHATSAPP_OWNER_PHONE ?? ''
 
 export async function POST(req: NextRequest) {
   const secret = req.headers.get('x-webhook-secret')
@@ -20,8 +19,6 @@ export async function POST(req: NextRequest) {
     }
 
     const message = body.payload
-    console.log('Webhook payload:', JSON.stringify({ event: body.event, session: body.session, fromMe: message?.fromMe, body: message?.body?.substring(0, 50), from: message?.from }))
-
     if (!message?.body || message.fromMe) {
       return NextResponse.json({ ok: true })
     }
