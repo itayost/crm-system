@@ -37,12 +37,17 @@ export async function POST(req: NextRequest) {
       select: { id: true },
     })
 
+    // Only store messages from known contacts (clients/leads in the CRM)
+    if (!contact) {
+      return NextResponse.json({ ok: true })
+    }
+
     await prisma.whatsAppMessage.create({
       data: {
         phoneNumber,
         direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
         content: message.body,
-        contactId: contact?.id ?? null,
+        contactId: contact.id,
         sessionName: process.env.WAHA_PERSONAL_SESSION ?? 'personal',
         timestamp: new Date(message.timestamp * 1000),
       },
