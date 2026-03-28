@@ -87,7 +87,7 @@ export class ContactsService {
 
     if (data.status === 'INACTIVE') {
       const hasActiveProjects = contact.projects.some(
-        (p) => p.status === 'IN_PROGRESS' || p.status === 'DRAFT' || p.status === 'ON_HOLD'
+        (p) => p.status === 'ACTIVE'
       )
       if (hasActiveProjects) {
         throw new Error('לא ניתן להפוך ללא פעיל כשיש פרויקטים פעילים')

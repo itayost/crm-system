@@ -56,7 +56,7 @@ model Project {
   name               String
   description        String?             @db.Text
   type               ProjectType
-  status             ProjectStatus       @default(DRAFT)
+  status             ProjectStatus       @default(ACTIVE)
   priority           Priority            @default(MEDIUM)
   startDate          DateTime?
   deadline           DateTime?
@@ -135,11 +135,8 @@ enum ProjectType {
 }
 
 enum ProjectStatus {
-  DRAFT
-  IN_PROGRESS
-  ON_HOLD
+  ACTIVE
   COMPLETED
-  CANCELLED
 }
 
 enum Priority {

@@ -145,7 +145,7 @@ export function createCrmTools(userId: string) {
       description: 'Update a project. Can change status, price, deadline, etc.',
       inputSchema: z.object({
         nameQuery: z.string().describe('Project name to search for (fuzzy match)'),
-        status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
+        status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
         price: z.number().optional(),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
         deadline: z.string().optional().describe('Deadline date in ISO format'),
@@ -166,7 +166,7 @@ export function createCrmTools(userId: string) {
     listProjects: tool({
       description: 'List projects. Can filter by status or client name.',
       inputSchema: z.object({
-        status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
+        status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
         contactName: z.string().optional().describe('Filter by client name (fuzzy match)'),
       }),
       execute: async ({ status, contactName }) => {
@@ -195,7 +195,8 @@ export function createCrmTools(userId: string) {
     createTask: tool({
       description: 'Create a new task. Can be standalone or linked to a project.',
       inputSchema: z.object({
-        title: z.string().describe('Task title/description'),
+        title: z.string().describe('Task title — short and actionable'),
+        description: z.string().optional().describe('Task description with context — what needs to be done, for which client, relevant details'),
         category: z.enum(['CLIENT_WORK', 'MARKETING', 'LEAD_FOLLOWUP', 'ADMIN']).optional().describe('Task category, default CLIENT_WORK'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('Priority level, default MEDIUM'),
         projectName: z.string().optional().describe('Project name to link to (fuzzy match)'),

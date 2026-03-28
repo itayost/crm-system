@@ -178,13 +178,20 @@ export default function TasksPage() {
   }
 
   const handleQuickCapture = async () => {
-    const trimmedTitle = quickTitle.trim()
-    if (!trimmedTitle) return
+    const trimmedInput = quickTitle.trim()
+    if (!trimmedInput) return
+
+    const lines = trimmedInput.split('\n')
+    const title = lines[0].trim()
+    const description = lines.slice(1).join('\n').trim() || undefined
+
+    if (!title) return
 
     setQuickSubmitting(true)
     try {
       await api.post('/tasks', {
-        title: trimmedTitle,
+        title,
+        description,
         category: quickCategory,
         priority: 'MEDIUM',
       })
@@ -219,20 +226,20 @@ export default function TasksPage() {
 
       {/* Quick Capture */}
       <div className="bg-white rounded-lg border p-3">
-        <div className="flex items-center gap-3">
-          <Input
-            type="text"
-            placeholder="משימה חדשה..."
+        <div className="flex items-start gap-3">
+          <textarea
+            placeholder="שורה ראשונה = כותרת, שאר השורות = תיאור..."
             value={quickTitle}
             onChange={(e) => setQuickTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 handleQuickCapture()
               }
             }}
             disabled={quickSubmitting}
-            className="flex-1"
+            rows={2}
+            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />
           <Select value={quickCategory} onValueChange={setQuickCategory}>
             <SelectTrigger className="w-40">
@@ -369,14 +376,23 @@ export default function TasksPage() {
                       )}
                     </button>
                   </TableCell>
-                  <TableCell
-                    className={`font-medium ${
-                      task.status === 'COMPLETED'
-                        ? 'line-through text-gray-400'
-                        : ''
-                    }`}
-                  >
-                    {task.title}
+                  <TableCell>
+                    <div
+                      className={`font-medium ${
+                        task.status === 'COMPLETED'
+                          ? 'line-through text-gray-400'
+                          : ''
+                      }`}
+                    >
+                      {task.title}
+                    </div>
+                    {task.description && (
+                      <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">
+                        {task.description.length > 60
+                          ? `${task.description.slice(0, 60)}...`
+                          : task.description}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge

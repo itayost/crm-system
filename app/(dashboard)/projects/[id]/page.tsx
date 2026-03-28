@@ -38,19 +38,13 @@ import { ProjectForm } from '@/components/forms/project-form'
 import { TaskForm } from '@/components/forms/task-form'
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'טיוטה',
-  IN_PROGRESS: 'בתהליך',
-  ON_HOLD: 'מושהה',
+  ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  ON_HOLD: 'bg-yellow-100 text-yellow-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  ACTIVE: 'bg-green-100 text-green-800',
+  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -96,26 +90,6 @@ const FREQUENCY_LABELS: Record<string, string> = {
   YEARLY: 'שנתי',
 }
 
-// Status transitions: from -> allowed transitions
-const STATUS_TRANSITIONS: Record<string, { status: string; label: string }[]> = {
-  DRAFT: [
-    { status: 'IN_PROGRESS', label: 'התחל עבודה' },
-    { status: 'CANCELLED', label: 'בטל' },
-  ],
-  IN_PROGRESS: [
-    { status: 'ON_HOLD', label: 'השהה' },
-    { status: 'COMPLETED', label: 'סיים' },
-    { status: 'CANCELLED', label: 'בטל' },
-  ],
-  ON_HOLD: [
-    { status: 'IN_PROGRESS', label: 'חדש עבודה' },
-    { status: 'CANCELLED', label: 'בטל' },
-  ],
-  COMPLETED: [],
-  CANCELLED: [
-    { status: 'DRAFT', label: 'החזר לטיוטה' },
-  ],
-}
 
 interface Task {
   id: string
@@ -239,8 +213,6 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const transitions = STATUS_TRANSITIONS[project.status] ?? []
-
   return (
     <div className="space-y-6">
       {/* Back Button + Header */}
@@ -276,6 +248,26 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          {project.status === 'ACTIVE' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={updatingStatus}
+              onClick={() => handleStatusChange('COMPLETED')}
+            >
+              <CheckSquare className="w-4 h-4 ml-2" />
+              סמן כהושלם
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={updatingStatus}
+              onClick={() => handleStatusChange('ACTIVE')}
+            >
+              הפעל מחדש
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setShowEditForm(true)}>
             <Edit className="w-4 h-4 ml-2" />
             עריכה
@@ -305,25 +297,6 @@ export default function ProjectDetailPage() {
           </AlertDialog>
         </div>
       </div>
-
-      {/* Status Transitions */}
-      {transitions.length > 0 && (
-        <div className="flex gap-2">
-          {transitions.map((transition) => (
-            <Button
-              key={transition.status}
-              variant={
-                transition.status === 'CANCELLED' ? 'destructive' : 'outline'
-              }
-              size="sm"
-              disabled={updatingStatus}
-              onClick={() => handleStatusChange(transition.status)}
-            >
-              {transition.label}
-            </Button>
-          ))}
-        </div>
-      )}
 
       {/* Project Info Card */}
       <Card>

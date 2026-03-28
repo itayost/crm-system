@@ -27,7 +27,7 @@ export class DashboardService {
         where: { userId, status: 'CLIENT' },
       }),
       prisma.project.count({
-        where: { userId, status: { in: ['DRAFT', 'IN_PROGRESS'] } },
+        where: { userId, status: 'ACTIVE' },
       }),
       prisma.project.count({
         where: { userId, status: 'COMPLETED' },
@@ -55,7 +55,7 @@ export class DashboardService {
         },
       }),
       prisma.project.findMany({
-        where: { userId, status: { in: ['DRAFT', 'IN_PROGRESS'] } },
+        where: { userId, status: 'ACTIVE' },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: {

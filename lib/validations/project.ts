@@ -23,7 +23,7 @@ export const updateProjectSchema = z.object({
     'LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP',
     'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION',
   ]).optional(),
-  status: z.enum(['DRAFT', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']).optional(),
+  status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   startDate: z.string().datetime().nullable().optional(),
   deadline: z.string().datetime().nullable().optional(),

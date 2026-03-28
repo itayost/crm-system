@@ -81,11 +81,11 @@ async function globalSetup(_config: FullConfig) {
   })
 
   // 4. Seed projects
-  const projectDraft = await prisma.project.create({
+  const projectActive = await prisma.project.create({
     data: {
       name: 'פרויקט אתר',
       type: 'WEBSITE',
-      status: 'DRAFT',
+      status: 'ACTIVE',
       priority: 'HIGH',
       price: 5000,
       contactId: clientActive.id,
@@ -97,7 +97,7 @@ async function globalSetup(_config: FullConfig) {
     data: {
       name: 'פרויקט אפליקציה',
       type: 'WEB_APP',
-      status: 'IN_PROGRESS',
+      status: 'ACTIVE',
       priority: 'URGENT',
       price: 15000,
       contactId: clientActive.id,
@@ -111,7 +111,7 @@ async function globalSetup(_config: FullConfig) {
       title: 'משימה ראשונה',
       status: 'TODO',
       priority: 'HIGH',
-      projectId: projectDraft.id,
+      projectId: projectActive.id,
       userId: user.id,
     },
   })
@@ -131,7 +131,7 @@ async function globalSetup(_config: FullConfig) {
       status: 'COMPLETED',
       priority: 'LOW',
       completedAt: new Date(),
-      projectId: projectDraft.id,
+      projectId: projectActive.id,
       userId: user.id,
     },
   })

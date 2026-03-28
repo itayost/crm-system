@@ -28,19 +28,13 @@ import {
 import { ProjectForm } from '@/components/forms/project-form'
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'טיוטה',
-  IN_PROGRESS: 'בתהליך',
-  ON_HOLD: 'מושהה',
+  ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  ON_HOLD: 'bg-yellow-100 text-yellow-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  ACTIVE: 'bg-green-100 text-green-800',
+  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -69,11 +63,8 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'הכל' },
-  { value: 'DRAFT', label: 'טיוטה' },
-  { value: 'IN_PROGRESS', label: 'בתהליך' },
-  { value: 'ON_HOLD', label: 'מושהה' },
+  { value: 'ACTIVE', label: 'פעיל' },
   { value: 'COMPLETED', label: 'הושלם' },
-  { value: 'CANCELLED', label: 'בוטל' },
 ]
 
 interface Project {

@@ -65,19 +65,13 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'טיוטה',
-  IN_PROGRESS: 'בתהליך',
-  ON_HOLD: 'מושהה',
+  ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
 }
 
 const PROJECT_STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  ON_HOLD: 'bg-yellow-100 text-yellow-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+  ACTIVE: 'bg-green-100 text-green-800',
+  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING']

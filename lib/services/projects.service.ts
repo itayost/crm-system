@@ -115,6 +115,8 @@ export class ProjectsService {
 
     if (data.status === 'COMPLETED' && !project.completedAt) {
       updateData.completedAt = new Date()
+    } else if (data.status === 'ACTIVE') {
+      updateData.completedAt = null
     }
 
     return prisma.project.update({

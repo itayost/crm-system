@@ -18,17 +18,15 @@ test.describe('Projects', () => {
 
   test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
     // Open the status filter select (shadcn Select component)
-    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|טיוטה|בתהליך/ })
+    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|פעיל|הושלם/ })
     await statusTrigger.click()
 
-    // Select "בתהליך" (IN_PROGRESS)
-    await page.locator('[role="option"]').filter({ hasText: 'בתהליך' }).click()
+    // Select "הושלם" (COMPLETED)
+    await page.locator('[role="option"]').filter({ hasText: 'הושלם' }).click()
     await page.waitForLoadState('networkidle')
 
-    // "פרויקט אפליקציה" is IN_PROGRESS, should be visible
-    await expect(page.locator('td').filter({ hasText: 'פרויקט אפליקציה' })).toBeVisible()
-
-    // "פרויקט אתר" is DRAFT, should NOT be visible
+    // Both seeded projects are ACTIVE, so neither should be visible when filtering COMPLETED
+    await expect(page.locator('td').filter({ hasText: 'פרויקט אפליקציה' })).not.toBeVisible()
     await expect(page.locator('td').filter({ hasText: 'פרויקט אתר' })).not.toBeVisible()
   })
 
@@ -156,36 +154,30 @@ test.describe('Projects', () => {
     await expectToastSuccess(page, 'פרויקט עודכן בהצלחה')
   })
 
-  test('status-transitions: transition from DRAFT to IN_PROGRESS to COMPLETED', async ({ page }) => {
-    // Navigate to "פרויקט אתר" detail (status: DRAFT)
+  test('status-toggle: toggle between ACTIVE and COMPLETED', async ({ page }) => {
+    // Navigate to "פרויקט אתר" detail (status: ACTIVE)
     const projectRow = getTableRow(page, 'פרויקט אתר')
     await projectRow.click()
     await page.waitForLoadState('networkidle')
 
-    // Verify DRAFT status
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'טיוטה' })).toBeVisible()
+    // Verify ACTIVE status
+    await expect(page.locator('[class*="badge"]').filter({ hasText: 'פעיל' })).toBeVisible()
 
-    // Click "התחל עבודה" (DRAFT -> IN_PROGRESS)
-    await page.locator('button').filter({ hasText: 'התחל עבודה' }).click()
-    await expectToastSuccess(page, 'סטטוס עודכן בהצלחה')
-    await page.waitForLoadState('networkidle')
-
-    // Verify IN_PROGRESS status
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'בתהליך' })).toBeVisible()
-
-    // Click "סיים" (IN_PROGRESS -> COMPLETED)
-    await page.locator('button').filter({ hasText: 'סיים' }).click()
+    // Click "סמן כהושלם" (ACTIVE -> COMPLETED)
+    await page.locator('button').filter({ hasText: 'סמן כהושלם' }).click()
     await expectToastSuccess(page, 'סטטוס עודכן בהצלחה')
     await page.waitForLoadState('networkidle')
 
     // Verify COMPLETED status
     await expect(page.locator('[class*="badge"]').filter({ hasText: 'הושלם' })).toBeVisible()
 
-    // Revert: set back to DRAFT via API
-    const id = page.url().split('/projects/')[1]
-    await page.request.put(`/api/projects/${id}`, {
-      data: { status: 'DRAFT' },
-    })
+    // Click "הפעל מחדש" (COMPLETED -> ACTIVE)
+    await page.locator('button').filter({ hasText: 'הפעל מחדש' }).click()
+    await expectToastSuccess(page, 'סטטוס עודכן בהצלחה')
+    await page.waitForLoadState('networkidle')
+
+    // Verify back to ACTIVE
+    await expect(page.locator('[class*="badge"]').filter({ hasText: 'פעיל' })).toBeVisible()
   })
 
   test('delete-success: creates and deletes a project with no tasks', async ({ page }) => {

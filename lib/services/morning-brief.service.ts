@@ -61,7 +61,7 @@ export class MorningBriefService {
         select: { name: true, status: true, lastContactedAt: true, createdAt: true },
       }),
       prisma.project.findMany({
-        where: { userId, status: 'IN_PROGRESS' },
+        where: { userId, status: 'ACTIVE' },
         include: {
           contact: { select: { name: true } },
           _count: { select: { tasks: true } },
