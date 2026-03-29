@@ -26,7 +26,6 @@ export function createCrmTools(userId: string) {
           email: undefined,
           source: source ?? 'OTHER',
         })
-        // If status specified and not NEW, update it
         if (status && status !== 'NEW') {
           const updated = await ContactsService.update(userId, contact.id, { email: undefined, status })
           return { success: true, contact: { id: updated.id, name: updated.name, phone: updated.phone, status: updated.status } }
@@ -80,7 +79,7 @@ export function createCrmTools(userId: string) {
     }),
 
     getContact: tool({
-      description: 'Get full details of a specific contact including their projects.',
+      description: 'Get full details of a specific contact including their projects and tasks. ALWAYS call this first when a client name is mentioned.',
       inputSchema: z.object({
         nameQuery: z.string().describe('Contact name to search for (fuzzy match)'),
       }),
@@ -107,6 +106,12 @@ export function createCrmTools(userId: string) {
               status: p.status,
               type: p.type,
               price: p.price ? Number(p.price) : null,
+              tasks: p.tasks?.map((t: { title: string; status: string; priority: string; category: string }) => ({
+                title: t.title,
+                status: t.status,
+                priority: t.priority,
+                category: t.category,
+              })) ?? [],
             })),
           },
         }
@@ -163,6 +168,40 @@ export function createCrmTools(userId: string) {
       },
     }),
 
+    getProject: tool({
+      description: 'Get full project details including all tasks. Use when asked about project status or what work is pending.',
+      inputSchema: z.object({
+        nameQuery: z.string().describe('Project name (fuzzy match)'),
+      }),
+      execute: async ({ nameQuery }) => {
+        const result = await fuzzyMatchProject(userId, nameQuery)
+        if (result.ambiguous) {
+          return { success: false, ambiguous: true, options: result.matches.map((p, i) => `${i + 1}. ${p.name}`) }
+        }
+        if (!result.match) {
+          return { success: false, error: `לא נמצא פרויקט בשם "${nameQuery}"` }
+        }
+        const project = await ProjectsService.getById(userId, result.match.id)
+        return {
+          success: true,
+          project: {
+            name: project.name,
+            type: project.type,
+            status: project.status,
+            price: project.price ? Number(project.price) : null,
+            deadline: project.deadline?.toISOString() ?? null,
+            contact: project.contact?.name,
+            tasks: project.tasks.map((t) => ({
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+              category: t.category,
+            })),
+          },
+        }
+      },
+    }),
+
     listProjects: tool({
       description: 'List projects. Can filter by status or client name.',
       inputSchema: z.object({
@@ -196,7 +235,7 @@ export function createCrmTools(userId: string) {
       description: 'Create a new task. Can be standalone or linked to a project.',
       inputSchema: z.object({
         title: z.string().describe('Task title — short and actionable'),
-        description: z.string().optional().describe('Task description with context — what needs to be done, for which client, relevant details'),
+        description: z.string().optional().describe('Task description with context'),
         category: z.enum(['CLIENT_WORK', 'MARKETING', 'LEAD_FOLLOWUP', 'ADMIN']).optional().describe('Task category, default CLIENT_WORK'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().describe('Priority level, default MEDIUM'),
         projectName: z.string().optional().describe('Project name to link to (fuzzy match)'),
@@ -204,15 +243,26 @@ export function createCrmTools(userId: string) {
       }),
       execute: async ({ projectName, ...data }) => {
         let projectId: string | undefined
+        let linkedProjectName: string | null = null
+
         if (projectName) {
           const result = await fuzzyMatchProject(userId, projectName)
-          if (result.match) projectId = result.match.id
+          if (result.ambiguous) {
+            return { success: false, error: 'כמה פרויקטים תואמים', options: result.matches.map(p => p.name) }
+          }
+          if (!result.match) {
+            return { success: false, error: `לא נמצא פרויקט "${projectName}" — צור קודם או בדוק את השם` }
+          }
+          projectId = result.match.id
+          linkedProjectName = result.match.name
         }
-        const task = await TasksService.create(userId, {
-          ...data,
-          projectId,
-        })
-        return { success: true, task: { id: task.id, title: task.title, category: task.category, priority: task.priority } }
+
+        const task = await TasksService.create(userId, { ...data, projectId })
+        return {
+          success: true,
+          task: { id: task.id, title: task.title, category: task.category, priority: task.priority },
+          linkedProject: linkedProjectName,
+        }
       },
     }),
 
@@ -267,7 +317,7 @@ export function createCrmTools(userId: string) {
     // --- GENERAL ---
 
     getDashboard: tool({
-      description: 'Get dashboard summary with revenue, active projects count, pending tasks, and leads in pipeline.',
+      description: 'Get dashboard summary with revenue, active projects, pending tasks, and leads. Includes top pending tasks and recent leads.',
       inputSchema: z.object({}),
       execute: async () => {
         const data = await DashboardService.getData(userId)
@@ -279,6 +329,12 @@ export function createCrmTools(userId: string) {
           completedProjects: data.projects.completed,
           pendingTasks: data.tasks.pending,
           overdueTasks: data.tasks.overdue,
+          topPendingTasks: data.pendingTasks?.map((t: { title: string; priority: string; category: string; project: { name: string } | null }) => ({
+            title: t.title,
+            priority: t.priority,
+            category: t.category,
+            project: t.project?.name ?? 'ללא פרויקט',
+          })) ?? [],
         }
       },
     }),

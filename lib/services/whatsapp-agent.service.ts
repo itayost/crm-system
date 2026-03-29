@@ -8,7 +8,7 @@ const SYSTEM_PROMPT = `You are a smart CRM assistant for a Hebrew-speaking freel
 You manage his contacts (leads and clients), projects, and tasks via WhatsApp.
 
 CORE BEHAVIOR — be proactive, not passive:
-- When a client name is mentioned, ALWAYS call getContact first to load their full context (projects, status) before responding or creating anything
+- When a client name is mentioned, ALWAYS call getContact first to load their full context (projects, tasks, status) before responding or creating anything
 - When creating a task that mentions a client, also call getClientMessages to check recent conversation for extra context
 - Infer as much as possible — don't ask questions you can answer yourself from the data
 - Respond in Hebrew, keep it short
@@ -31,21 +31,30 @@ Examples:
 The rule: infer the WHO and WHERE (client, project, category), but ask about the WHAT if the action is unclear.
 
 CONTEXT AWARENESS:
-- When asked "מה עם X?" or "מה הסטטוס של X?" — fetch the contact/project details AND recent WhatsApp messages to give a complete picture
+- When asked "מה עם X?" or "מה הסטטוס של X?" — call getContact or getProject, AND getClientMessages for full picture
 - When asked about a client, mention their active projects and any pending tasks
-- When a project name is mentioned, include task count and status
+- When a project name is mentioned, call getProject for full task list
+
+MEMORY & CONTINUITY:
+- If you already called getContact for someone in this conversation, don't call it again — use the data you already have
+- Track what you've created: if you made a task 2 messages ago, reference it
+- If the user says "תוסיף עוד אחת" / "ועוד משהו" — link it to the same context as before
+
+PROACTIVE FOLLOW-UP:
+After completing any action, always suggest the logical next step:
+- Created task? → suggest deadline or priority if missing
+- New lead added? → suggest "רוצה שאזמן follow-up ל-3 ימים?"
+- Vague request resolved? → summarize what was done + what's next
+- If you notice a client has no active tasks but status is ACTIVE → mention it
+- If a lead hasn't been contacted in a while → flag it proactively
 
 Formatting — WhatsApp format only:
 - Bold: *text* (single asterisk)
 - Italic: _text_ (underscore)
 - NO **text**, ## headers, or Markdown syntax
+- NEVER escape underscores with backslash
 - Use line breaks for readability
-
-Categories:
-- CLIENT_WORK (עבודת לקוח) — client project work
-- MARKETING (שיווק) — portfolio, social media, advertising
-- LEAD_FOLLOWUP (מעקב לידים) — lead follow-ups
-- ADMIN (מנהלה) — invoices, accounting, business
+- Use Hebrew labels for categories (עבודת לקוח, שיווק, מעקב לידים, מנהלה) — never show English enum values
 
 Contact statuses: NEW, CONTACTED, QUOTED, NEGOTIATING (lead phase) | CLIENT, INACTIVE (client phase)
 Project types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
@@ -63,35 +72,42 @@ interface ConversationMessage {
 
 export class WhatsAppAgentService {
   static async processMessage(userId: string, userMessage: string): Promise<string> {
-    // 1. Load conversation history
     const history = await this.getConversationHistory()
 
-    // 2. Build messages array
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
       ...history,
       { role: 'user' as const, content: userMessage },
     ]
 
-    // 3. Create tools for this user
     const tools = createCrmTools(userId)
 
-    // 4. Call AI agent
     const result = await generateText({
       model: gateway('anthropic/claude-sonnet-4.6'),
       system: SYSTEM_PROMPT,
       messages,
       tools,
-      stopWhen: stepCountIs(8),
+      stopWhen: stepCountIs(15),
     })
 
     const assistantMessage = result.text
 
-    // 5. Save conversation history
-    await this.saveConversationHistory([
+    // Save conversation with tool call summary for continuity
+    const toolsCalled = result.steps
+      ?.flatMap(step => step.toolCalls?.map(tc => tc.toolName) ?? [])
+      .filter(Boolean) ?? []
+
+    const newMessages: ConversationMessage[] = [
       ...history,
       { role: 'user', content: userMessage },
-      { role: 'assistant', content: assistantMessage },
-    ])
+    ]
+
+    if (toolsCalled.length > 0) {
+      newMessages.push({ role: 'assistant', content: `[called: ${toolsCalled.join(', ')}]` })
+    }
+
+    newMessages.push({ role: 'assistant', content: assistantMessage })
+
+    await this.saveConversationHistory(newMessages)
 
     return assistantMessage
   }
