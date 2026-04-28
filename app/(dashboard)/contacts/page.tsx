@@ -90,6 +90,12 @@ export default function ContactsPage() {
     return () => clearTimeout(debounce)
   }, [fetchContacts, search])
 
+  const visibleContacts = contacts.filter((c) => {
+    if (tab === 'leads') return ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'].includes(c.status)
+    if (tab === 'clients') return ['CLIENT', 'INACTIVE'].includes(c.status)
+    return true
+  })
+
   const formatDate = (dateStr: string) => {
     try {
       return format(new Date(dateStr), 'dd/MM/yyyy')
@@ -141,7 +147,7 @@ export default function ContactsPage() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : contacts.length === 0 ? (
+          ) : visibleContacts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <p className="text-lg font-medium">אין אנשי קשר</p>
               <p className="text-sm mt-1">
@@ -161,7 +167,7 @@ export default function ContactsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contacts.map((contact) => (
+                  {visibleContacts.map((contact) => (
                     <TableRow
                       key={contact.id}
                       className="cursor-pointer"
