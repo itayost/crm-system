@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
+import { WahaService } from '@/lib/services/waha.service'
+import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 
 const israeliPhoneRegex = /^0(5[0-9]|[2-4]|7[0-9]|8|9)-?\d{7}$/
 
@@ -45,6 +47,11 @@ export async function POST(req: NextRequest) {
       select: { id: true, name: true, phone: true },
     })
 
+    // Send WhatsApp notification to owner (fire and forget — don't block response)
+    notifyOwnerOfNewLead(contact, data).catch((err) =>
+      console.error('Failed to notify owner of new lead:', err)
+    )
+
     return NextResponse.json({ success: true, contact }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -59,6 +66,41 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+type LeadData = z.infer<typeof publicLeadSchema>
+
+async function notifyOwnerOfNewLead(
+  contact: { id: string; name: string; phone: string },
+  data: LeadData
+) {
+  const ownerChatId = await WhatsAppAgentService.getOwnerChatId()
+  if (!ownerChatId) {
+    console.log('No owner chatId set — skipping new lead notification')
+    return
+  }
+
+  const lines = [
+    '🔔 *ליד חדש מהאתר!*',
+    '',
+    `*שם:* ${contact.name}`,
+    `*טלפון:* ${contact.phone}`,
+  ]
+
+  if (data.email) lines.push(`*אימייל:* ${data.email}`)
+  if (data.company) lines.push(`*חברה:* ${data.company}`)
+  if (data.projectType) lines.push(`*סוג פרויקט:* ${data.projectType}`)
+  if (data.estimatedBudget) lines.push(`*תקציב משוער:* ${data.estimatedBudget.toLocaleString()} ₪`)
+  if (data.notes) {
+    lines.push('')
+    lines.push(`*הודעה:*`)
+    lines.push(data.notes)
+  }
+
+  await WahaService.sendMessage({
+    chatId: ownerChatId,
+    text: lines.join('\n'),
+  })
 }
 
 export async function OPTIONS() {
