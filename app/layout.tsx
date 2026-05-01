@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '../providers/session-provider'
-import './phase-4c-gamma-followup-2-sabotage-marker' // intentional: triggers vercel build failure (will revert)
 
 export const metadata: Metadata = {
   title: 'CRM System - מערכת ניהול עסק',
