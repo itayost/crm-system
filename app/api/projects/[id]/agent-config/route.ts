@@ -1,8 +1,24 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { withAuth, createResponse } from '@/lib/api/api-handler'
 import { prisma } from '@/lib/db/prisma'
+
+// Matches the ownership pattern in every other Project mutation route
+// (e.g., app/api/projects/[id]/route.ts via ProjectsService.getById).
+async function ensureProjectOwned(
+  projectId: string,
+  userId: string,
+): Promise<NextResponse | null> {
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+    select: { id: true },
+  })
+  if (!project) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  }
+  return null
+}
 
 const slugSchema = z
   .string()
@@ -29,8 +45,11 @@ const createSchema = z.object({
 // PATCH disallows agentSlug edits — slug is immutable once set.
 const updateSchema = createSchema.omit({ agentSlug: true }).partial()
 
-export const POST = withAuth(async (req: NextRequest, { params }) => {
+export const POST = withAuth(async (req: NextRequest, { params, userId }) => {
   const { id: projectId } = await params
+  const ownershipError = await ensureProjectOwned(projectId, userId)
+  if (ownershipError) return ownershipError
+
   const body = createSchema.parse(await req.json())
   const created = await prisma.agentProjectConfig.create({
     data: {
@@ -43,8 +62,11 @@ export const POST = withAuth(async (req: NextRequest, { params }) => {
   return createResponse(created, 201)
 })
 
-export const PATCH = withAuth(async (req: NextRequest, { params }) => {
+export const PATCH = withAuth(async (req: NextRequest, { params, userId }) => {
   const { id: projectId } = await params
+  const ownershipError = await ensureProjectOwned(projectId, userId)
+  if (ownershipError) return ownershipError
+
   const { safetyConfig, ingestionConfig, ...rest } = updateSchema.parse(await req.json())
   const updated = await prisma.agentProjectConfig.update({
     where: { projectId },
