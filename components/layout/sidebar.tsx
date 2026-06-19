@@ -6,9 +6,11 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Users,
+  Building2,
   Briefcase,
   Plus,
   CheckSquare,
+  Inbox,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSession } from 'next-auth/react'
@@ -25,9 +27,19 @@ const navigation = [
     icon: Users,
   },
   {
+    name: 'לקוחות',
+    href: '/clients',
+    icon: Building2,
+  },
+  {
     name: 'פרויקטים',
     href: '/projects',
     icon: Briefcase,
+  },
+  {
+    name: 'בקשות',
+    href: '/requests',
+    icon: Inbox,
   },
   {
     name: 'משימות',

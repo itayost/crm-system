@@ -8,7 +8,7 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
 
   const projects = await ProjectsService.getAll(userId, {
     status: searchParams.get('status') || undefined,
-    contactId: searchParams.get('contactId') || undefined,
+    clientId: searchParams.get('clientId') || undefined,
     search: searchParams.get('search') || undefined,
   })
 

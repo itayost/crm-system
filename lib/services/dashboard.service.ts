@@ -12,6 +12,8 @@ export class DashboardService {
       completedProjectCount,
       pendingTaskCount,
       overdueTaskCount,
+      pendingReviewRequestCount,
+      openRequestCount,
       recentContacts,
       activeProjects,
       pendingTasks,
@@ -23,8 +25,8 @@ export class DashboardService {
       prisma.contact.count({
         where: { userId, status: { in: [...LEAD_STATUSES] } },
       }),
-      prisma.contact.count({
-        where: { userId, status: 'CLIENT' },
+      prisma.client.count({
+        where: { userId },
       }),
       prisma.project.count({
         where: { userId, status: 'ACTIVE' },
@@ -41,6 +43,12 @@ export class DashboardService {
           status: { in: ['TODO', 'IN_PROGRESS'] },
           dueDate: { lt: new Date() },
         },
+      }),
+      prisma.request.count({
+        where: { userId, status: 'PENDING_REVIEW' },
+      }),
+      prisma.request.count({
+        where: { userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
       }),
       prisma.contact.findMany({
         where: { userId },
@@ -59,7 +67,7 @@ export class DashboardService {
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: {
-          contact: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true } },
           _count: { select: { tasks: true } },
         },
       }),
@@ -96,6 +104,10 @@ export class DashboardService {
       tasks: {
         pending: pendingTaskCount,
         overdue: overdueTaskCount,
+      },
+      requests: {
+        pendingReview: pendingReviewRequestCount,
+        open: openRequestCount,
       },
       recentContacts,
       activeProjects,

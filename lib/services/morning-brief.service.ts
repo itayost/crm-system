@@ -25,18 +25,19 @@ export class MorningBriefService {
       activeProjects,
       taskCountsByCategory,
       recentMarketingTasks,
+      pendingRequests,
     ] = await Promise.all([
       prisma.task.findMany({
         where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueDate: { lt: todayStart } },
-        include: { project: { select: { name: true, contact: { select: { name: true } } } } },
+        include: { project: { select: { name: true, client: { select: { name: true } } } } },
       }),
       prisma.task.findMany({
         where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueDate: { gte: todayStart, lt: todayEnd } },
-        include: { project: { select: { name: true, contact: { select: { name: true } } } } },
+        include: { project: { select: { name: true, client: { select: { name: true } } } } },
       }),
       prisma.task.findMany({
         where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueDate: { gte: todayEnd, lt: weekEnd } },
-        include: { project: { select: { name: true, contact: { select: { name: true } } } } },
+        include: { project: { select: { name: true, client: { select: { name: true } } } } },
       }),
       prisma.contact.findMany({
         where: { userId, status: { in: [...LEAD_STATUSES] }, createdAt: { gte: yesterday } },
@@ -63,7 +64,7 @@ export class MorningBriefService {
       prisma.project.findMany({
         where: { userId, status: 'ACTIVE' },
         include: {
-          contact: { select: { name: true } },
+          client: { select: { name: true } },
           _count: { select: { tasks: true } },
         },
       }),
@@ -75,10 +76,27 @@ export class MorningBriefService {
       prisma.task.count({
         where: { userId, category: 'MARKETING', createdAt: { gte: fourteenDaysAgo } },
       }),
+      prisma.request.findMany({
+        where: { userId, status: 'PENDING_REVIEW' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        take: 10,
+        include: {
+          client: { select: { name: true } },
+          contact: { select: { name: true } },
+        },
+      }),
     ])
 
-    const formatTask = (t: { title: string; priority: string; dueDate: Date | null; project: { name: string; contact: { name: string } | null } | null }) => {
-      const client = t.project?.contact?.name ?? ''
+    const requestTypeLabel: Record<string, string> = {
+      REQUEST: 'בקשה',
+      BUG: 'באג',
+      IMPROVEMENT: 'שיפור',
+      QUESTION: 'שאלה',
+      OTHER: 'אחר',
+    }
+
+    const formatTask = (t: { title: string; priority: string; dueDate: Date | null; project: { name: string; client: { name: string } | null } | null }) => {
+      const client = t.project?.client?.name ?? ''
       const project = t.project?.name ?? ''
       const priority = t.priority
       const due = t.dueDate ? t.dueDate.toLocaleDateString('he-IL') : ''
@@ -107,7 +125,7 @@ ${staleClients.map(c => `- ${c.name} (קשר אחרון: ${c.lastContactedAt?.to
 ${staleLeads.map(l => `- ${l.name} (${l.status})`).join('\n')}
 
 פרויקטים בתהליך (${activeProjects.length}):
-${activeProjects.map(p => `- ${p.name} (${p.contact.name}) | ${p._count.tasks} משימות`).join('\n')}
+${activeProjects.map(p => `- ${p.name} (${p.client.name}) | ${p._count.tasks} משימות`).join('\n')}
 
 משימות ממתינות לפי קטגוריה:
 ${taskCountsByCategory.map(c => {
@@ -116,6 +134,17 @@ ${taskCountsByCategory.map(c => {
     }).join('\n')}
 
 משימות שיווק ב-14 ימים אחרונים: ${recentMarketingTasks}
+
+בקשות חדשות לאישור (${pendingRequests.length}):
+${pendingRequests.length > 0
+  ? pendingRequests
+      .slice(0, 5)
+      .map(
+        (r) =>
+          `- [${requestTypeLabel[r.type] ?? r.type}] ${r.title} (${r.client?.name ?? r.contact?.name ?? 'לא ידוע'})`
+      )
+      .join('\n')
+  : 'אין'}
 `
 
     const result = await generateText({
@@ -131,7 +160,8 @@ Structure:
    - Follow-up reminders for stale contacts/leads
    - Marketing nudge if no marketing tasks in 14 days
    - Any other observations
-5. End with a motivating one-liner
+5. If there are "בקשות חדשות לאישור", add a short section "X בקשות ממתינות לאישור" with the 3 most important items, and suggest Itay approve/dismiss them via the bot
+6. End with a motivating one-liner
 
 Use WhatsApp formatting: *bold* (single asterisk), _italic_ (underscore).
 Keep it scannable — max 15 lines.

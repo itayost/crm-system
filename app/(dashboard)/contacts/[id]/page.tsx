@@ -102,7 +102,12 @@ interface ContactDetail {
   convertedAt?: string | null
   createdAt: string
   updatedAt: string
-  projects: Project[]
+  role?: string | null
+  client?: {
+    id: string
+    name: string
+    projects: Project[]
+  } | null
 }
 
 export default function ContactDetailPage() {
@@ -367,6 +372,29 @@ export default function ContactDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Business link (for clients) */}
+      {contact.client && (
+        <Card>
+          <CardContent className="py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-600">עסק:</span>
+              <button
+                className="text-sm font-medium text-blue-600 hover:underline"
+                onClick={() => router.push(`/clients/${contact.client!.id}`)}
+              >
+                {contact.client.name}
+              </button>
+              {contact.role && (
+                <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                  {contact.role}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Projects Section (for clients) */}
       {contact.status === 'CLIENT' && (
         <Card>
@@ -374,8 +402,10 @@ export default function ContactDetailPage() {
             <CardTitle>פרויקטים</CardTitle>
             <Button
               size="sm"
+              disabled={!contact.client}
               onClick={() =>
-                router.push(`/projects?new=true&contactId=${contact.id}`)
+                contact.client &&
+                router.push(`/projects?new=true&clientId=${contact.client.id}`)
               }
             >
               <Plus className="w-4 h-4 ml-2" />
@@ -383,13 +413,13 @@ export default function ContactDetailPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {contact.projects.length === 0 ? (
+            {(contact.client?.projects ?? []).length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6">
                 אין פרויקטים עדיין
               </p>
             ) : (
               <div className="space-y-3">
-                {contact.projects.map((project) => (
+                {(contact.client?.projects ?? []).map((project) => (
                   <div
                     key={project.id}
                     className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"

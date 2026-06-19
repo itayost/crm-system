@@ -46,6 +46,10 @@ async function globalSetup(_config: FullConfig) {
     },
   })
 
+  const clientActiveBiz = await prisma.client.create({
+    data: { name: 'לקוח פעיל', userId: user.id },
+  })
+
   const clientActive = await prisma.contact.create({
     data: {
       name: 'לקוח פעיל',
@@ -54,8 +58,15 @@ async function globalSetup(_config: FullConfig) {
       status: 'CLIENT',
       source: 'REFERRAL',
       convertedAt: new Date(),
+      clientId: clientActiveBiz.id,
+      isPrimary: true,
+      role: 'בעלים',
       userId: user.id,
     },
+  })
+
+  const vipBiz = await prisma.client.create({
+    data: { name: 'לקוח VIP', isVip: true, userId: user.id },
   })
 
   await prisma.contact.create({
@@ -66,8 +77,14 @@ async function globalSetup(_config: FullConfig) {
       source: 'PHONE',
       isVip: true,
       convertedAt: new Date(),
+      clientId: vipBiz.id,
+      isPrimary: true,
       userId: user.id,
     },
+  })
+
+  const inactiveBiz = await prisma.client.create({
+    data: { name: 'לקוח לא פעיל', userId: user.id },
   })
 
   await prisma.contact.create({
@@ -76,6 +93,8 @@ async function globalSetup(_config: FullConfig) {
       phone: '0505678901',
       status: 'INACTIVE',
       source: 'OTHER',
+      clientId: inactiveBiz.id,
+      isPrimary: true,
       userId: user.id,
     },
   })
@@ -88,7 +107,8 @@ async function globalSetup(_config: FullConfig) {
       status: 'ACTIVE',
       priority: 'HIGH',
       price: 5000,
-      contactId: clientActive.id,
+      clientId: clientActiveBiz.id,
+      primaryContactId: clientActive.id,
       userId: user.id,
     },
   })
@@ -100,7 +120,8 @@ async function globalSetup(_config: FullConfig) {
       status: 'ACTIVE',
       priority: 'URGENT',
       price: 15000,
-      contactId: clientActive.id,
+      clientId: clientActiveBiz.id,
+      primaryContactId: clientActive.id,
       userId: user.id,
     },
   })
@@ -165,9 +186,11 @@ async function cleanupTestData() {
   })
 
   if (testUser) {
+    await prisma.request.deleteMany({ where: { userId: testUser.id } })
     await prisma.task.deleteMany({ where: { userId: testUser.id } })
     await prisma.project.deleteMany({ where: { userId: testUser.id } })
     await prisma.contact.deleteMany({ where: { userId: testUser.id } })
+    await prisma.client.deleteMany({ where: { userId: testUser.id } })
     await prisma.user.delete({ where: { id: testUser.id } })
   }
 }

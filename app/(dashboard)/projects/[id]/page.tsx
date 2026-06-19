@@ -99,14 +99,6 @@ interface Task {
   dueDate?: string | null
 }
 
-interface Contact {
-  id: string
-  name: string
-  phone: string
-  email?: string | null
-  company?: string | null
-}
-
 interface ProjectDetail {
   id: string
   name: string
@@ -120,8 +112,10 @@ interface ProjectDetail {
   price?: number | string | null
   retention?: number | string | null
   retentionFrequency?: string | null
-  contactId: string
-  contact: Contact
+  clientId: string
+  client: { id: string; name: string } | null
+  primaryContactId?: string | null
+  primaryContact?: { id: string; name: string } | null
   tasks: Task[]
   createdAt: string
 }
@@ -306,21 +300,25 @@ export default function ProjectDetailPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              {/* Contact */}
+              {/* Client (business) */}
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-gray-400" />
                 <span className="text-sm text-gray-600">לקוח:</span>
-                <button
-                  className="text-sm font-medium text-blue-600 hover:underline"
-                  onClick={() =>
-                    router.push(`/contacts/${project.contact.id}`)
-                  }
-                >
-                  {project.contact.name}
-                  {project.contact.company
-                    ? ` (${project.contact.company})`
-                    : ''}
-                </button>
+                {project.client ? (
+                  <button
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                    onClick={() => router.push(`/clients/${project.client!.id}`)}
+                  >
+                    {project.client.name}
+                  </button>
+                ) : (
+                  <span className="text-sm font-medium">-</span>
+                )}
+                {project.primaryContact && (
+                  <span className="text-xs text-gray-500">
+                    · {project.primaryContact.name}
+                  </span>
+                )}
               </div>
 
               {/* Dates */}

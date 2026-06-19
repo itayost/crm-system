@@ -56,10 +56,21 @@ Formatting — WhatsApp format only:
 - Use line breaks for readability
 - Use Hebrew labels for categories (עבודת לקוח, שיווק, מעקב לידים, מנהלה) — never show English enum values
 
+CLIENTS WITH MANY PEOPLE:
+- A "לקוח" (Client) is a business that can have several contacts (owner + workers), possibly on different phone numbers. Projects belong to the business, not a single person.
+- When asked about a business, use getClientRequests and getClientConversation to see the full picture across all its people — not just one contact.
+
+REQUESTS (client tickets):
+- A Request is a client ticket with a type: REQUEST (בקשה), BUG (תקלה), IMPROVEMENT (שיפור), QUESTION (שאלה).
+- Requests the AI extracted automatically from WhatsApp enter as PENDING_REVIEW and wait for Itay's approval — they cannot be worked on until approved.
+- "מה יש לאשר?" / "בקשות חדשות?" → call listPendingRequests. To approve/dismiss: reviewRequest (by title). To log a new ask: createRequest. "מה <לקוח> ביקש / מה שבור אצלו?" → getClientRequests.
+
 Contact statuses: NEW, CONTACTED, QUOTED, NEGOTIATING (lead phase) | CLIENT, INACTIVE (client phase)
 Project types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
 Project statuses: ACTIVE, COMPLETED
 Task statuses: TODO, IN_PROGRESS, COMPLETED, CANCELLED
+Request types: REQUEST, BUG, IMPROVEMENT, QUESTION, OTHER
+Request statuses: PENDING_REVIEW, OPEN, IN_PROGRESS, RESOLVED, DISMISSED
 Priorities: LOW, MEDIUM, HIGH, URGENT`
 
 const MAX_CONVERSATION_MESSAGES = 20

@@ -4,7 +4,7 @@ import type { CreateProjectInput, UpdateProjectInput } from '@/lib/validations/p
 
 interface ProjectFilters {
   status?: string
-  contactId?: string
+  clientId?: string
   search?: string
 }
 
@@ -16,8 +16,8 @@ export class ProjectsService {
       where.status = filters.status as Prisma.EnumProjectStatusFilter
     }
 
-    if (filters?.contactId) {
-      where.contactId = filters.contactId
+    if (filters?.clientId) {
+      where.clientId = filters.clientId
     }
 
     if (filters?.search) {
@@ -30,7 +30,8 @@ export class ProjectsService {
     return prisma.project.findMany({
       where,
       include: {
-        contact: { select: { id: true, name: true, company: true } },
+        client: { select: { id: true, name: true } },
+        primaryContact: { select: { id: true, name: true } },
         _count: { select: { tasks: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -41,7 +42,8 @@ export class ProjectsService {
     const project = await prisma.project.findFirst({
       where: { id, userId },
       include: {
-        contact: true,
+        client: true,
+        primaryContact: true,
         tasks: true,
       },
     })
@@ -54,16 +56,22 @@ export class ProjectsService {
   }
 
   static async create(userId: string, data: CreateProjectInput) {
-    const contact = await prisma.contact.findFirst({
-      where: { id: data.contactId, userId },
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, userId },
     })
 
-    if (!contact) {
-      throw new Error('איש קשר לא נמצא')
+    if (!client) {
+      throw new Error('לקוח לא נמצא')
     }
 
-    if (contact.status !== 'CLIENT') {
-      throw new Error('ניתן ליצור פרויקט רק עבור לקוח פעיל')
+    if (data.primaryContactId) {
+      const contact = await prisma.contact.findFirst({
+        where: { id: data.primaryContactId, userId, clientId: data.clientId },
+        select: { id: true },
+      })
+      if (!contact) {
+        throw new Error('איש קשר לא נמצא')
+      }
     }
 
     return prisma.project.create({
@@ -77,7 +85,8 @@ export class ProjectsService {
         price: data.price != null ? new Prisma.Decimal(data.price) : undefined,
         retention: data.retention != null ? new Prisma.Decimal(data.retention) : undefined,
         retentionFrequency: data.retentionFrequency,
-        contactId: data.contactId,
+        clientId: data.clientId,
+        primaryContactId: data.primaryContactId,
         userId,
       },
     })

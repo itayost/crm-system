@@ -67,7 +67,8 @@ const projectFormSchema = z.object({
   price: z.string().optional(),
   retention: z.string().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
-  contactId: z.string().min(1, 'לקוח חובה'),
+  clientId: z.string().min(1, 'לקוח חובה'),
+  primaryContactId: z.string().optional(),
 })
 
 type ProjectFormValues = z.input<typeof projectFormSchema>
@@ -83,18 +84,24 @@ interface Project {
   price?: number | string | null
   retention?: number | string | null
   retentionFrequency?: string | null
-  contactId: string
+  clientId: string
+  primaryContactId?: string | null
 }
 
-interface ClientContact {
+interface ClientOption {
   id: string
   name: string
-  company?: string | null
+}
+
+interface ContactOption {
+  id: string
+  name: string
+  role?: string | null
 }
 
 interface ProjectFormProps {
   project?: Project
-  defaultContactId?: string
+  defaultClientId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -102,14 +109,15 @@ interface ProjectFormProps {
 
 export function ProjectForm({
   project,
-  defaultContactId,
+  defaultClientId,
   open,
   onOpenChange,
   onSuccess,
 }: ProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [clients, setClients] = useState<ClientContact[]>([])
+  const [clients, setClients] = useState<ClientOption[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
+  const [clientContacts, setClientContacts] = useState<ContactOption[]>([])
   const isEditing = !!project
 
   const toDateInputValue = (dateStr: string | null | undefined) => {
@@ -135,20 +143,22 @@ export function ProjectForm({
       retentionFrequency:
         (project?.retentionFrequency as ProjectFormValues['retentionFrequency']) ??
         undefined,
-      contactId: project?.contactId ?? defaultContactId ?? '',
+      clientId: project?.clientId ?? defaultClientId ?? '',
+      primaryContactId: project?.primaryContactId ?? undefined,
     },
   })
 
   const retentionValue = form.watch('retention')
   const hasRetention = retentionValue != null && retentionValue !== '' && retentionValue !== '0'
+  const selectedClientId = form.watch('clientId')
 
-  // Fetch client contacts for the select
+  // Fetch clients (businesses) for the select
   useEffect(() => {
     if (!open) return
     const fetchClients = async () => {
       setLoadingClients(true)
       try {
-        const response = await api.get('/contacts?phase=client')
+        const response = await api.get('/clients')
         setClients(response.data)
       } catch {
         toast.error('שגיאה בטעינת לקוחות')
@@ -158,6 +168,23 @@ export function ProjectForm({
     }
     fetchClients()
   }, [open])
+
+  // Fetch the selected client's people for the optional primary-contact select
+  useEffect(() => {
+    if (!open || !selectedClientId) {
+      setClientContacts([])
+      return
+    }
+    const fetchContacts = async () => {
+      try {
+        const response = await api.get(`/contacts?clientId=${selectedClientId}`)
+        setClientContacts(response.data)
+      } catch {
+        setClientContacts([])
+      }
+    }
+    fetchContacts()
+  }, [open, selectedClientId])
 
   const handleSubmit = async (values: ProjectFormValues) => {
     setIsSubmitting(true)
@@ -178,11 +205,14 @@ export function ProjectForm({
         retentionFrequency: hasRetention
           ? values.retentionFrequency || 'MONTHLY'
           : undefined,
+        primaryContactId: values.primaryContactId || undefined,
       }
 
       if (isEditing) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { contactId: _, ...updatePayload } = payload
+        // clientId is immutable on edit; primaryContactId is set at creation
+        const { clientId: _clientId, primaryContactId: _poc, ...updatePayload } = payload
+        void _clientId
+        void _poc
         await api.put(`/projects/${project.id}`, updatePayload)
         toast.success('פרויקט עודכן בהצלחה')
       } else {
@@ -316,40 +346,76 @@ export function ProjectForm({
               />
             </div>
 
-            {/* Contact (Client) */}
+            {/* Client (business) */}
             {!isEditing && (
-              <FormField
-                control={form.control}
-                name="contactId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>לקוח *</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              loadingClients ? 'טוען...' : 'בחר לקוח'
-                            }
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                            {client.company ? ` (${client.company})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <>
+                <FormField
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>לקוח *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                loadingClients ? 'טוען...' : 'בחר לקוח'
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Optional point of contact for this project */}
+                {clientContacts.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="primaryContactId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>איש קשר לפרויקט</FormLabel>
+                        <Select
+                          onValueChange={(v) =>
+                            field.onChange(v === 'none' ? undefined : v)
+                          }
+                          defaultValue={field.value ?? 'none'}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="ללא" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">ללא</SelectItem>
+                            {clientContacts.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                                {c.role ? ` (${c.role})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </>
             )}
 
             <div className="grid grid-cols-2 gap-4">

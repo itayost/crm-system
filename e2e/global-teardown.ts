@@ -9,9 +9,11 @@ async function globalTeardown(_config: FullConfig) {
   })
 
   if (testUser) {
+    await prisma.request.deleteMany({ where: { userId: testUser.id } })
     await prisma.task.deleteMany({ where: { userId: testUser.id } })
     await prisma.project.deleteMany({ where: { userId: testUser.id } })
     await prisma.contact.deleteMany({ where: { userId: testUser.id } })
+    await prisma.client.deleteMany({ where: { userId: testUser.id } })
     await prisma.user.delete({ where: { id: testUser.id } })
   }
 

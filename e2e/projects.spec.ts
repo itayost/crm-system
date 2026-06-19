@@ -181,20 +181,10 @@ test.describe('Projects', () => {
   })
 
   test('delete-success: creates and deletes a project with no tasks', async ({ page }) => {
-    // Create a project via API for deletion testing
-    const createResponse = await page.request.post('/api/projects', {
-      data: {
-        name: 'פרויקט למחיקה',
-        type: 'LANDING_PAGE',
-        priority: 'LOW',
-        contactId: '', // Will need a real ID
-      },
-    })
-
-    // We need a real client contact ID - get it from the contacts API
-    const contactsResponse = await page.request.get('/api/contacts?phase=client')
-    const contacts = await contactsResponse.json()
-    const clientId = contacts[0]?.id
+    // We need a real client (business) ID - get it from the clients API
+    const clientsResponse = await page.request.get('/api/clients')
+    const clients = await clientsResponse.json()
+    const clientId = clients[0]?.id
 
     // Create via API with proper client ID
     const properCreate = await page.request.post('/api/projects', {
@@ -202,7 +192,7 @@ test.describe('Projects', () => {
         name: 'פרויקט למחיקה',
         type: 'LANDING_PAGE',
         priority: 'LOW',
-        contactId: clientId,
+        clientId,
       },
     })
     const created = await properCreate.json()

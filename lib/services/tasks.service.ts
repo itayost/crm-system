@@ -51,7 +51,7 @@ export class TasksService {
       where: { id, userId },
       include: {
         project: {
-          include: { contact: true },
+          include: { client: true, primaryContact: true },
         },
       },
     })

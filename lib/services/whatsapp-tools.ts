@@ -5,7 +5,14 @@ import { ContactsService } from './contacts.service'
 import { ProjectsService } from './projects.service'
 import { TasksService } from './tasks.service'
 import { DashboardService } from './dashboard.service'
-import { fuzzyMatchContact, fuzzyMatchProject, fuzzyMatchTask } from './fuzzy-match'
+import { RequestsService } from './requests.service'
+import {
+  fuzzyMatchContact,
+  fuzzyMatchClient,
+  fuzzyMatchProject,
+  fuzzyMatchTask,
+  fuzzyMatchRequest,
+} from './fuzzy-match'
 
 export function createCrmTools(userId: string) {
   return {
@@ -72,7 +79,8 @@ export function createCrmTools(userId: string) {
             name: c.name,
             phone: c.phone,
             status: c.status,
-            projectCount: c.projects?.length ?? 0,
+            business: c.client?.name ?? null,
+            projectCount: c._count?.projects ?? 0,
           })),
         }
       },
@@ -99,9 +107,10 @@ export function createCrmTools(userId: string) {
             phone: contact.phone,
             email: contact.email,
             status: contact.status,
-            isVip: contact.isVip,
-            company: contact.company,
-            projects: contact.projects.map((p) => ({
+            isVip: contact.client?.isVip ?? contact.isVip,
+            business: contact.client?.name ?? contact.company,
+            role: contact.role,
+            projects: (contact.client?.projects ?? []).map((p) => ({
               name: p.name,
               status: p.status,
               type: p.type,
@@ -121,28 +130,39 @@ export function createCrmTools(userId: string) {
     // --- PROJECTS ---
 
     createProject: tool({
-      description: 'Create a new project for a client. The contact must have CLIENT status.',
+      description: 'Create a new project for a client (business). Provide the business or primary person name.',
       inputSchema: z.object({
         name: z.string().describe('Project name'),
         type: z.enum(['LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP', 'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION']),
-        contactName: z.string().describe('Client name (fuzzy match)'),
+        clientName: z.string().describe('Client/business name (fuzzy match). A contact name also works if they belong to a business.'),
         price: z.number().optional().describe('Project price in ILS'),
         retention: z.number().optional().describe('Monthly/yearly maintenance fee'),
         retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
       }),
-      execute: async ({ contactName, ...data }) => {
-        const result = await fuzzyMatchContact(userId, contactName)
-        if (result.ambiguous) {
-          return { success: false, ambiguous: true, options: result.matches.map((c, i) => `${i + 1}. ${c.name}`) }
+      execute: async ({ clientName, ...data }) => {
+        const byClient = await fuzzyMatchClient(userId, clientName)
+        if (byClient.match) {
+          const project = await ProjectsService.create(userId, { ...data, clientId: byClient.match.id })
+          return { success: true, project: { id: project.id, name: project.name, type: project.type } }
         }
-        if (!result.match) {
-          return { success: false, error: `לא נמצא לקוח בשם "${contactName}"` }
+        if (byClient.ambiguous) {
+          return { success: false, ambiguous: true, options: byClient.matches.map((c, i) => `${i + 1}. ${c.name}`) }
         }
-        const project = await ProjectsService.create(userId, {
-          ...data,
-          contactId: result.match.id,
-        })
-        return { success: true, project: { id: project.id, name: project.name, type: project.type } }
+
+        // Fall back: maybe they named a person rather than the business
+        const byContact = await fuzzyMatchContact(userId, clientName)
+        if (byContact.match?.clientId) {
+          const project = await ProjectsService.create(userId, {
+            ...data,
+            clientId: byContact.match.clientId,
+            primaryContactId: byContact.match.id,
+          })
+          return { success: true, project: { id: project.id, name: project.name, type: project.type } }
+        }
+        if (byContact.match) {
+          return { success: false, error: 'לאיש הקשר אין עסק משויך — המר ללקוח קודם' }
+        }
+        return { success: false, error: `לא נמצא לקוח בשם "${clientName}"` }
       },
     }),
 
@@ -190,7 +210,8 @@ export function createCrmTools(userId: string) {
             status: project.status,
             price: project.price ? Number(project.price) : null,
             deadline: project.deadline?.toISOString() ?? null,
-            contact: project.contact?.name,
+            client: project.client?.name,
+            contact: project.primaryContact?.name ?? null,
             tasks: project.tasks.map((t) => ({
               title: t.title,
               status: t.status,
@@ -203,25 +224,30 @@ export function createCrmTools(userId: string) {
     }),
 
     listProjects: tool({
-      description: 'List projects. Can filter by status or client name.',
+      description: 'List projects. Can filter by status or client/business name.',
       inputSchema: z.object({
         status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
-        contactName: z.string().optional().describe('Filter by client name (fuzzy match)'),
+        clientName: z.string().optional().describe('Filter by client/business name (fuzzy match)'),
       }),
-      execute: async ({ status, contactName }) => {
-        let contactId: string | undefined
-        if (contactName) {
-          const result = await fuzzyMatchContact(userId, contactName)
-          if (result.match) contactId = result.match.id
+      execute: async ({ status, clientName }) => {
+        let clientId: string | undefined
+        if (clientName) {
+          const byClient = await fuzzyMatchClient(userId, clientName)
+          if (byClient.match) {
+            clientId = byClient.match.id
+          } else {
+            const byContact = await fuzzyMatchContact(userId, clientName)
+            if (byContact.match?.clientId) clientId = byContact.match.clientId
+          }
         }
-        const projects = await ProjectsService.getAll(userId, { status, contactId })
+        const projects = await ProjectsService.getAll(userId, { status, clientId })
         return {
           count: projects.length,
           projects: projects.map((p) => ({
             name: p.name,
             status: p.status,
             type: p.type,
-            contact: p.contact?.name ?? 'לא ידוע',
+            client: p.client?.name ?? 'לא ידוע',
             price: p.price ? Number(p.price) : null,
             taskCount: p._count?.tasks ?? 0,
           })),
@@ -329,6 +355,8 @@ export function createCrmTools(userId: string) {
           completedProjects: data.projects.completed,
           pendingTasks: data.tasks.pending,
           overdueTasks: data.tasks.overdue,
+          pendingRequests: data.requests.pendingReview,
+          openRequests: data.requests.open,
           topPendingTasks: data.pendingTasks?.map((t: { title: string; priority: string; category: string; project: { name: string } | null }) => ({
             title: t.title,
             priority: t.priority,
@@ -367,6 +395,197 @@ export function createCrmTools(userId: string) {
           messageCount: messages.length,
           messages: messages.map((m) => ({
             direction: m.direction === 'INCOMING' ? 'לקוח' : 'אתה',
+            content: m.content,
+            time: m.timestamp.toISOString(),
+          })),
+        }
+      },
+    }),
+
+    // --- REQUESTS (client tickets) ---
+
+    createRequest: tool({
+      description: 'Create a client request/ticket (new request, bug, or improvement) for a specific business.',
+      inputSchema: z.object({
+        clientName: z.string().describe('Client/business name (fuzzy match). A contact name also works.'),
+        title: z.string().describe('Short actionable title in Hebrew'),
+        description: z.string().optional(),
+        type: z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER']).optional(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+        projectName: z.string().optional().describe('Optional project to link (fuzzy match)'),
+      }),
+      execute: async ({ clientName, projectName, ...data }) => {
+        let clientId: string | undefined
+        const byClient = await fuzzyMatchClient(userId, clientName)
+        if (byClient.match) {
+          clientId = byClient.match.id
+        } else if (byClient.ambiguous) {
+          return { success: false, ambiguous: true, options: byClient.matches.map((c, i) => `${i + 1}. ${c.name}`) }
+        } else {
+          const byContact = await fuzzyMatchContact(userId, clientName)
+          if (byContact.match?.clientId) clientId = byContact.match.clientId
+        }
+        if (!clientId) {
+          return { success: false, error: `לא נמצא לקוח בשם "${clientName}"` }
+        }
+
+        let projectId: string | undefined
+        if (projectName) {
+          const proj = await fuzzyMatchProject(userId, projectName)
+          if (proj.match) projectId = proj.match.id
+        }
+
+        const request = await RequestsService.create(userId, { ...data, clientId, projectId })
+        return { success: true, request: { id: request.id, title: request.title, type: request.type, status: request.status } }
+      },
+    }),
+
+    listRequests: tool({
+      description: 'List client requests. Filter by client, status, or type.',
+      inputSchema: z.object({
+        clientName: z.string().optional().describe('Filter by client/business name (fuzzy match)'),
+        status: z.enum(['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'DISMISSED']).optional(),
+        type: z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER']).optional(),
+      }),
+      execute: async ({ clientName, status, type }) => {
+        let clientId: string | undefined
+        if (clientName) {
+          const byClient = await fuzzyMatchClient(userId, clientName)
+          if (byClient.match) clientId = byClient.match.id
+        }
+        const requests = await RequestsService.getAll(userId, { clientId, status, type })
+        return {
+          count: requests.length,
+          requests: requests.map((r) => ({
+            title: r.title,
+            type: r.type,
+            status: r.status,
+            priority: r.priority,
+            client: r.client?.name ?? null,
+            project: r.project?.name ?? null,
+          })),
+        }
+      },
+    }),
+
+    listPendingRequests: tool({
+      description: 'List AI-drafted requests waiting for your review/approval. Use when asked what needs review.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const requests = await RequestsService.getAll(userId, { pendingReview: true })
+        return {
+          count: requests.length,
+          requests: requests.map((r) => ({
+            id: r.id,
+            title: r.title,
+            type: r.type,
+            client: r.client?.name ?? null,
+            aiNote: r.aiNote,
+          })),
+        }
+      },
+    }),
+
+    updateRequest: tool({
+      description: 'Update a client request — change status, type, or priority.',
+      inputSchema: z.object({
+        titleQuery: z.string().describe('Request title to search for (fuzzy match)'),
+        status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'DISMISSED']).optional(),
+        type: z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER']).optional(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+      }),
+      execute: async ({ titleQuery, ...updates }) => {
+        const result = await fuzzyMatchRequest(userId, titleQuery)
+        if (result.ambiguous) {
+          return { success: false, ambiguous: true, options: result.matches.map((r, i) => `${i + 1}. ${r.title}`) }
+        }
+        if (!result.match) {
+          return { success: false, error: `לא נמצאה בקשה בשם "${titleQuery}"` }
+        }
+        const request = await RequestsService.update(userId, result.match.id, updates)
+        return { success: true, request: { id: request.id, title: request.title, status: request.status } }
+      },
+    }),
+
+    reviewRequest: tool({
+      description: 'Approve or dismiss an AI-drafted request (one that is waiting for review), by title.',
+      inputSchema: z.object({
+        titleQuery: z.string().describe('Request title to search for (fuzzy match)'),
+        decision: z.enum(['approve', 'dismiss']),
+      }),
+      execute: async ({ titleQuery, decision }) => {
+        const result = await fuzzyMatchRequest(userId, titleQuery)
+        if (result.ambiguous) {
+          return { success: false, ambiguous: true, options: result.matches.map((r, i) => `${i + 1}. ${r.title}`) }
+        }
+        if (!result.match) {
+          return { success: false, error: `לא נמצאה בקשה בשם "${titleQuery}"` }
+        }
+        const request =
+          decision === 'approve'
+            ? await RequestsService.approve(userId, result.match.id)
+            : await RequestsService.dismiss(userId, result.match.id)
+        return { success: true, request: { id: request.id, title: request.title, status: request.status } }
+      },
+    }),
+
+    getClientRequests: tool({
+      description: 'Get all requests/tickets for a specific client across all their people. Use to answer "what did <client> ask for / what is broken for <client>".',
+      inputSchema: z.object({
+        clientName: z.string().describe('Client/business name (fuzzy match)'),
+        status: z.enum(['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'DISMISSED']).optional(),
+      }),
+      execute: async ({ clientName, status }) => {
+        const byClient = await fuzzyMatchClient(userId, clientName)
+        if (byClient.ambiguous) {
+          return { success: false, ambiguous: true, options: byClient.matches.map((c, i) => `${i + 1}. ${c.name}`) }
+        }
+        if (!byClient.match) {
+          return { success: false, error: `לא נמצא לקוח בשם "${clientName}"` }
+        }
+        const requests = await RequestsService.getAll(userId, { clientId: byClient.match.id, status })
+        return {
+          client: byClient.match.name,
+          count: requests.length,
+          requests: requests.map((r) => ({
+            title: r.title,
+            type: r.type,
+            status: r.status,
+            priority: r.priority,
+          })),
+        }
+      },
+    }),
+
+    getClientConversation: tool({
+      description: 'Get recent WhatsApp messages across ALL people of a client/business. Use to answer "what did <client> say/ask for" — covers the owner and all workers, even on different numbers.',
+      inputSchema: z.object({
+        clientName: z.string().describe('Client/business name (fuzzy match)'),
+        days: z.number().optional().describe('How many days back to look, default 14'),
+      }),
+      execute: async ({ clientName, days }) => {
+        const res = await fuzzyMatchClient(userId, clientName)
+        if (res.ambiguous) {
+          return { success: false, ambiguous: true, options: res.matches.map((c, i) => `${i + 1}. ${c.name}`) }
+        }
+        if (!res.match) {
+          return { success: false, error: `לא נמצא עסק בשם "${clientName}"` }
+        }
+        const since = new Date()
+        since.setDate(since.getDate() - (days ?? 14))
+
+        const messages = await prisma.whatsAppMessage.findMany({
+          where: { clientId: res.match.id, timestamp: { gte: since } },
+          orderBy: { timestamp: 'asc' },
+          take: 80,
+          include: { contact: { select: { name: true } } },
+        })
+
+        return {
+          client: res.match.name,
+          messageCount: messages.length,
+          messages: messages.map((m) => ({
+            who: m.direction === 'INCOMING' ? (m.contact?.name ?? 'לקוח') : 'אתה',
             content: m.content,
             time: m.timestamp.toISOString(),
           })),

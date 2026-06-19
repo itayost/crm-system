@@ -6,8 +6,6 @@ import type {
   AgentProjectView,
 } from '@/lib/types/agent-project-config'
 
-const INTERNAL_COMPANY = 'ItayOst Internal'
-
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const authError = validateAgentBearer(req)
   if (authError) return authError
@@ -18,33 +16,45 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       include: {
         project: {
           include: {
-            contact: true,
+            client: { include: { contacts: true } },
+            primaryContact: true,
           },
         },
       },
       orderBy: { agentSlug: 'asc' },
     })
 
-    const projects: AgentProjectView[] = rows.map((r) => ({
-      agentSlug: r.agentSlug,
-      displayName: r.project.name,
-      status: r.status.toLowerCase() as 'active',
-      github: { owner: r.githubOwner, repo: r.githubRepo, branch: r.githubBranch },
-      vercel: { teamId: r.vercelTeamId, projectId: r.vercelProjectId },
-      supabase: r.supabaseProjectRef ? { projectRef: r.supabaseProjectRef } : null,
-      smoke: r.smokeUrl ? { url: r.smokeUrl } : null,
-      domains: r.domains,
-      safety: r.safetyConfig as Record<string, unknown>,
-      morningReport: { include: r.morningReportInclude },
-      ingestion: r.ingestionConfig as Record<string, unknown> | null,
-      client: {
-        id: r.project.contact.id,
-        name: r.project.contact.name,
-        phone: r.project.contact.phone,
-        email: r.project.contact.email,
-        isInternal: r.project.contact.company === INTERNAL_COMPANY,
-      },
-    }))
+    const projects: AgentProjectView[] = rows.map((r) => {
+      const client = r.project.client
+      // A business has no single phone/email — source them from the project's
+      // point of contact, falling back to the client's primary contact.
+      const poc =
+        r.project.primaryContact ??
+        client.contacts.find((c) => c.isPrimary) ??
+        client.contacts[0] ??
+        null
+
+      return {
+        agentSlug: r.agentSlug,
+        displayName: r.project.name,
+        status: r.status.toLowerCase() as 'active',
+        github: { owner: r.githubOwner, repo: r.githubRepo, branch: r.githubBranch },
+        vercel: { teamId: r.vercelTeamId, projectId: r.vercelProjectId },
+        supabase: r.supabaseProjectRef ? { projectRef: r.supabaseProjectRef } : null,
+        smoke: r.smokeUrl ? { url: r.smokeUrl } : null,
+        domains: r.domains,
+        safety: r.safetyConfig as Record<string, unknown>,
+        morningReport: { include: r.morningReportInclude },
+        ingestion: r.ingestionConfig as Record<string, unknown> | null,
+        client: {
+          id: client.id,
+          name: client.name,
+          phone: poc?.phone ?? '',
+          email: poc?.email ?? null,
+          isInternal: client.isInternal,
+        },
+      }
+    })
 
     const body: AgentProjectsResponse = {
       projects,

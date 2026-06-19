@@ -13,7 +13,8 @@ export const createProjectSchema = z.object({
   price: z.number().optional(),
   retention: z.number().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
-  contactId: z.string().min(1, 'לקוח חובה'),
+  clientId: z.string().min(1, 'לקוח חובה'),
+  primaryContactId: z.string().optional(),
 })
 
 export const updateProjectSchema = z.object({

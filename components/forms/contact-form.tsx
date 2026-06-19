@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import {
@@ -43,6 +43,8 @@ const SOURCE_OPTIONS = [
   { value: 'OTHER', label: 'אחר' },
 ] as const
 
+const NO_CLIENT = 'none'
+
 const contactFormSchema = z.object({
   name: z.string().min(1, 'שם חובה'),
   phone: z
@@ -60,9 +62,9 @@ const contactFormSchema = z.object({
   estimatedBudget: z.string().optional(),
   projectType: z.string().optional(),
   notes: z.string().optional(),
-  isVip: z.boolean().optional(),
-  address: z.string().optional(),
-  taxId: z.string().optional(),
+  clientId: z.string().optional(),
+  role: z.string().optional(),
+  isPrimary: z.boolean().optional(),
 })
 
 type ContactFormValues = z.input<typeof contactFormSchema>
@@ -78,13 +80,19 @@ interface Contact {
   estimatedBudget?: number | string | null
   projectType?: string | null
   notes?: string | null
-  isVip?: boolean
-  address?: string | null
-  taxId?: string | null
+  clientId?: string | null
+  role?: string | null
+  isPrimary?: boolean
+}
+
+interface ClientOption {
+  id: string
+  name: string
 }
 
 interface ContactFormProps {
   contact?: Contact
+  defaultClientId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
@@ -92,13 +100,14 @@ interface ContactFormProps {
 
 export function ContactForm({
   contact,
+  defaultClientId,
   open,
   onOpenChange,
   onSuccess,
 }: ContactFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [clients, setClients] = useState<ClientOption[]>([])
   const isEditing = !!contact
-  const isClient = contact?.status === 'CLIENT'
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -113,16 +122,35 @@ export function ContactForm({
         : '',
       projectType: contact?.projectType ?? '',
       notes: contact?.notes ?? '',
-      isVip: contact?.isVip ?? false,
-      address: contact?.address ?? '',
-      taxId: contact?.taxId ?? '',
+      clientId: contact?.clientId ?? defaultClientId ?? NO_CLIENT,
+      role: contact?.role ?? '',
+      isPrimary: contact?.isPrimary ?? false,
     },
   })
+
+  const selectedClientId = form.watch('clientId')
+  const hasClient = !!selectedClientId && selectedClientId !== NO_CLIENT
+
+  // Load businesses so a contact can be attached to one
+  useEffect(() => {
+    if (!open) return
+    const fetchClients = async () => {
+      try {
+        const response = await api.get('/clients')
+        setClients(response.data)
+      } catch {
+        setClients([])
+      }
+    }
+    fetchClients()
+  }, [open])
 
   const handleSubmit = async (values: ContactFormValues) => {
     setIsSubmitting(true)
     try {
       const budgetNum = values.estimatedBudget ? Number(values.estimatedBudget) : undefined
+      const clientId =
+        values.clientId && values.clientId !== NO_CLIENT ? values.clientId : undefined
       const payload = {
         ...values,
         email: values.email || undefined,
@@ -130,8 +158,9 @@ export function ContactForm({
         estimatedBudget: budgetNum && !isNaN(budgetNum) ? budgetNum : undefined,
         projectType: values.projectType || undefined,
         notes: values.notes || undefined,
-        address: values.address || undefined,
-        taxId: values.taxId || undefined,
+        clientId,
+        role: clientId ? values.role || undefined : undefined,
+        isPrimary: clientId ? values.isPrimary : undefined,
       }
 
       if (isEditing) {
@@ -146,11 +175,8 @@ export function ContactForm({
       onOpenChange(false)
       form.reset()
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'שגיאה בשמירת איש קשר'
-      toast.error(message)
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת איש קשר')
     } finally {
       setIsSubmitting(false)
     }
@@ -317,58 +343,70 @@ export function ContactForm({
               )}
             />
 
-            {/* Client-only fields */}
-            {isClient && (
-              <>
-                <div className="border-t pt-4 mt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    פרטי לקוח
-                  </p>
-                </div>
+            {/* Business membership */}
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                שיוך לעסק (לקוח)
+              </p>
+            </div>
 
-                {/* VIP */}
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>עסק</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? NO_CLIENT}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="ללא" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={NO_CLIENT}>ללא</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {hasClient && (
+              <>
                 <FormField
                   control={form.control}
-                  name="isVip"
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>תפקיד בעסק</FormLabel>
+                      <FormControl>
+                        <Input placeholder="למשל: בעלים, מנהל פרויקט" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isPrimary"
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                      <FormLabel className="text-sm">לקוח VIP</FormLabel>
+                      <FormLabel className="text-sm">איש קשר ראשי</FormLabel>
                       <FormControl>
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {/* Address */}
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>כתובת</FormLabel>
-                      <FormControl>
-                        <Input placeholder="כתובת מלאה" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Tax ID */}
-                <FormField
-                  control={form.control}
-                  name="taxId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ח.פ / ע.מ</FormLabel>
-                      <FormControl>
-                        <Input placeholder="מספר עוסק" {...field} />
-                      </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />

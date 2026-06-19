@@ -11,6 +11,7 @@ import {
   Plus,
   ArrowLeft,
   Calendar,
+  Inbox,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -82,10 +83,10 @@ interface ActiveProject {
   status: string
   type: string
   deadline?: string | null
-  contact: {
+  client: {
     id: string
     name: string
-  }
+  } | null
   _count: {
     tasks: number
   }
@@ -104,6 +105,10 @@ interface DashboardData {
   tasks: {
     pending: number
     overdue: number
+  }
+  requests: {
+    pendingReview: number
+    open: number
   }
   recentContacts: unknown[]
   activeProjects: ActiveProject[]
@@ -146,8 +151,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -175,6 +180,7 @@ export default function DashboardPage() {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      href: undefined as string | undefined,
     },
     {
       title: 'פרויקטים פעילים',
@@ -183,6 +189,7 @@ export default function DashboardPage() {
       icon: Briefcase,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      href: '/projects',
     },
     {
       title: 'לידים בצנרת',
@@ -191,6 +198,7 @@ export default function DashboardPage() {
       icon: Users,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      href: '/contacts',
     },
     {
       title: 'משימות ממתינות',
@@ -201,6 +209,18 @@ export default function DashboardPage() {
       icon: CheckSquare,
       color: data.tasks.overdue > 0 ? 'text-red-600' : 'text-orange-600',
       bgColor: data.tasks.overdue > 0 ? 'bg-red-50' : 'bg-orange-50',
+      href: '/tasks',
+    },
+    {
+      title: 'בקשות לקוחות',
+      value: String(data.requests.open),
+      description: data.requests.pendingReview > 0
+        ? `${data.requests.pendingReview} ממתינות לאישור`
+        : 'אין בקשות לאישור',
+      icon: Inbox,
+      color: data.requests.pendingReview > 0 ? 'text-red-600' : 'text-amber-600',
+      bgColor: data.requests.pendingReview > 0 ? 'bg-red-50' : 'bg-amber-50',
+      href: '/requests',
     },
   ]
 
@@ -234,11 +254,15 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {kpiCards.map((kpi) => {
           const Icon = kpi.icon
           return (
-            <Card key={kpi.title}>
+            <Card
+              key={kpi.title}
+              className={kpi.href ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+              onClick={() => kpi.href && router.push(kpi.href)}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -389,7 +413,7 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {project.contact.name} | {project._count.tasks} משימות
+                        {project.client?.name ?? '-'} | {project._count.tasks} משימות
                       </p>
                     </div>
                     {project.deadline && (

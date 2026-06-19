@@ -18,8 +18,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   contacts Contact[]
+  clients  Client[]
   projects Project[]
   tasks    Task[]
+  requests Request[]
 }
 
 model Contact {
@@ -39,16 +41,24 @@ model Contact {
   convertedAt     DateTime?
   lastContactedAt DateTime?
 
+  // Membership in a Client (business)
+  role      String?
+  isPrimary Boolean @default(false)
+  clientId  String?
+  client    Client? @relation(fields: [clientId], references: [id])
+
   userId           String
   user             User               @relation(fields: [userId], references: [id])
-  projects         Project[]
+  projects         Project[]          @relation("ProjectPrimaryContact")
   whatsappMessages WhatsAppMessage[]
+  requests         Request[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
+  @@index([clientId])
 }
 
 model Project {
@@ -65,11 +75,14 @@ model Project {
   retention          Decimal?            @db.Decimal(10, 2)
   retentionFrequency RetentionFrequency?
 
-  contactId String
-  contact   Contact @relation(fields: [contactId], references: [id])
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id])
+  primaryContactId String?
+  primaryContact   Contact? @relation("ProjectPrimaryContact", fields: [primaryContactId], references: [id])
   userId    String
   user      User    @relation(fields: [userId], references: [id])
   tasks       Task[]
+  requests    Request[]
   agentConfig AgentProjectConfig?
 
   createdAt DateTime @default(now())
@@ -77,6 +90,7 @@ model Project {
 
   @@index([status])
   @@index([deadline])
+  @@index([clientId])
 }
 
 model Task {
@@ -100,6 +114,29 @@ model Task {
   @@index([projectId])
   @@index([status])
   @@index([category])
+}
+
+model Client {
+  id         String  @id @default(cuid())
+  name       String
+  isVip      Boolean @default(false)
+  address    String?
+  taxId      String?
+  notes      String? @db.Text
+  isInternal Boolean @default(false)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  contacts Contact[]
+  projects Project[]
+  requests Request[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -174,17 +211,25 @@ enum MessageDirection {
 model WhatsAppMessage {
   id          String           @id @default(cuid())
   phoneNumber String
+  rawChatId   String?
   direction   MessageDirection
   content     String           @db.Text
   contactId   String?
   contact     Contact?         @relation(fields: [contactId], references: [id])
+  clientId    String?
   sessionName String
   timestamp   DateTime
+  processedAt DateTime?
   createdAt   DateTime         @default(now())
+
+  requests    Request[]
 
   @@index([phoneNumber])
   @@index([contactId])
+  @@index([clientId])
   @@index([timestamp])
+  @@index([processedAt])
+  @@index([clientId, processedAt])
 }
 
 model BotConversation {
@@ -229,4 +274,64 @@ enum AgentMonitoringStatus {
   ACTIVE
   PAUSED
   DISABLED
+}
+
+model Request {
+  id          String        @id @default(cuid())
+  title       String
+  description String?       @db.Text
+  type        RequestType   @default(REQUEST)
+  status      RequestStatus @default(OPEN)
+  priority    Priority      @default(MEDIUM)
+  source      RequestSource @default(MANUAL)
+
+  isAiGenerated Boolean @default(false)
+  aiConfidence  Float?
+  aiNote        String? @db.Text
+
+  sourceMessageId String?
+  sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([type])
+  @@index([userId, status])
+  @@index([sourceMessageId])
+}
+
+enum RequestType {
+  REQUEST
+  BUG
+  IMPROVEMENT
+  QUESTION
+  OTHER
+}
+
+enum RequestStatus {
+  PENDING_REVIEW
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+enum RequestSource {
+  WHATSAPP
+  MANUAL
+  EMAIL
+  OTHER
 }

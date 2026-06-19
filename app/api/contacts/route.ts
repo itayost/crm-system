@@ -10,6 +10,7 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
     status: searchParams.get('status') || undefined,
     source: searchParams.get('source') || undefined,
     phase: (searchParams.get('phase') as 'lead' | 'client') || undefined,
+    clientId: searchParams.get('clientId') || undefined,
     search: searchParams.get('search') || undefined,
   })
 

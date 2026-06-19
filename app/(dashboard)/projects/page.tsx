@@ -75,11 +75,10 @@ interface Project {
   priority: string
   price?: number | string | null
   deadline?: string | null
-  contact: {
+  client: {
     id: string
     name: string
-    company?: string | null
-  }
+  } | null
   _count: {
     tasks: number
   }
@@ -93,16 +92,16 @@ function ProjectsPageContent() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [showForm, setShowForm] = useState(false)
-  const [defaultContactId, setDefaultContactId] = useState<string | undefined>(
+  const [defaultClientId, setDefaultClientId] = useState<string | undefined>(
     undefined
   )
 
   // Check if opened with ?new=true
   useEffect(() => {
     if (searchParams.get('new') === 'true') {
-      const contactId = searchParams.get('contactId')
-      if (contactId) {
-        setDefaultContactId(contactId)
+      const clientId = searchParams.get('clientId')
+      if (clientId) {
+        setDefaultClientId(clientId)
       }
       setShowForm(true)
       // Clean URL
@@ -227,14 +226,7 @@ function ProjectsPageContent() {
                   <TableCell className="font-medium">
                     {project.name}
                   </TableCell>
-                  <TableCell>
-                    {project.contact.name}
-                    {project.contact.company && (
-                      <span className="text-xs text-gray-500 mr-1">
-                        ({project.contact.company})
-                      </span>
-                    )}
-                  </TableCell>
+                  <TableCell>{project.client?.name ?? '-'}</TableCell>
                   <TableCell>
                     {TYPE_LABELS[project.type] ?? project.type}
                   </TableCell>
@@ -265,12 +257,12 @@ function ProjectsPageContent() {
 
       {/* Create Form Dialog */}
       <ProjectForm
-        defaultContactId={defaultContactId}
+        defaultClientId={defaultClientId}
         open={showForm}
         onOpenChange={(open) => {
           setShowForm(open)
           if (!open) {
-            setDefaultContactId(undefined)
+            setDefaultClientId(undefined)
           }
         }}
         onSuccess={fetchProjects}

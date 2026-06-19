@@ -11,6 +11,9 @@ export const createContactSchema = z.object({
   estimatedBudget: z.number().optional(),
   projectType: z.string().optional(),
   notes: z.string().optional(),
+  clientId: z.string().optional(),
+  role: z.string().optional(),
+  isPrimary: z.boolean().optional(),
 })
 
 export const updateContactSchema = z.object({
@@ -26,6 +29,9 @@ export const updateContactSchema = z.object({
   address: z.string().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
+  clientId: z.string().optional(),
+  role: z.string().optional(),
+  isPrimary: z.boolean().optional(),
 })
 
 export type CreateContactInput = z.infer<typeof createContactSchema>

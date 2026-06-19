@@ -24,44 +24,47 @@ export async function POST(req: NextRequest) {
 
     const rawChatId = message.fromMe ? message.to : message.from
     const session = process.env.WAHA_PERSONAL_SESSION ?? 'personal'
-    const phoneNumber = await WahaService.getPhoneFromChatId(rawChatId, session)
+    const resolvedPhone = await WahaService.getPhoneFromChatId(rawChatId, session)
 
-    if (!phoneNumber) {
-      return NextResponse.json({ ok: true })
+    // Never drop a message: if the LID can't be resolved to a phone yet,
+    // keep the raw chat id so a later pass can re-resolve and attribute it.
+    const phoneNumber = resolvedPhone ?? rawChatId
+
+    let contact: { id: string; clientId: string | null } | null = null
+    if (resolvedPhone) {
+      const normalized = resolvedPhone.replace(/[-\s]/g, '')
+      contact = await prisma.contact.findFirst({
+        where: {
+          OR: [
+            { phone: normalized },
+            { phone: { endsWith: normalized.slice(-7) } },
+          ],
+        },
+        select: { id: true, clientId: true },
+      })
     }
 
-    const normalized = phoneNumber.replace(/[-\s]/g, '')
-    const contact = await prisma.contact.findFirst({
-      where: {
-        OR: [
-          { phone: normalized },
-          { phone: { endsWith: normalized.slice(-7) } },
-        ],
+    // Store every message. Unknown numbers land with contactId=null (unattributed)
+    // and wait for manual attribution; they are never auto-extracted.
+    await prisma.whatsAppMessage.create({
+      data: {
+        phoneNumber,
+        rawChatId,
+        direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
+        content: message.body,
+        contactId: contact?.id ?? null,
+        clientId: contact?.clientId ?? null,
+        sessionName: session,
+        timestamp: new Date(message.timestamp * 1000),
       },
-      select: { id: true },
     })
 
-    // Only store messages from known contacts (clients/leads in the CRM)
-    if (!contact) {
-      return NextResponse.json({ ok: true })
-    }
-
-    await Promise.all([
-      prisma.whatsAppMessage.create({
-        data: {
-          phoneNumber,
-          direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
-          content: message.body,
-          contactId: contact.id,
-          sessionName: process.env.WAHA_PERSONAL_SESSION ?? 'personal',
-          timestamp: new Date(message.timestamp * 1000),
-        },
-      }),
-      prisma.contact.update({
+    if (contact) {
+      await prisma.contact.update({
         where: { id: contact.id },
         data: { lastContactedAt: new Date() },
-      }),
-    ])
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {

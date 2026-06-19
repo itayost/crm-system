@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import type { CreateContactInput, UpdateContactInput } from '@/lib/validations/contact'
+import { ClientsService } from './clients.service'
 
 const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
 const CLIENT_STATUSES = ['CLIENT', 'INACTIVE'] as const
@@ -9,6 +10,7 @@ interface ContactFilters {
   status?: string
   source?: string
   phase?: 'lead' | 'client'
+  clientId?: string
   search?: string
 }
 
@@ -30,6 +32,10 @@ export class ContactsService {
       where.status = { in: [...CLIENT_STATUSES] }
     }
 
+    if (filters?.clientId) {
+      where.clientId = filters.clientId
+    }
+
     if (filters?.search) {
       where.AND = [
         {
@@ -45,7 +51,10 @@ export class ContactsService {
 
     return prisma.contact.findMany({
       where,
-      include: { projects: true },
+      include: {
+        client: { select: { id: true, name: true } },
+        _count: { select: { projects: true } },
+      },
       orderBy: { createdAt: 'desc' },
     })
   }
@@ -54,8 +63,10 @@ export class ContactsService {
     const contact = await prisma.contact.findFirst({
       where: { id, userId },
       include: {
-        projects: {
-          include: { tasks: true },
+        client: {
+          include: {
+            projects: { include: { tasks: true } },
+          },
         },
       },
     })
@@ -82,7 +93,7 @@ export class ContactsService {
   static async update(userId: string, id: string, data: UpdateContactInput) {
     const contact = await prisma.contact.findFirst({
       where: { id, userId },
-      include: { projects: { select: { status: true } } },
+      include: { client: { select: { projects: { select: { status: true } } } } },
     })
 
     if (!contact) {
@@ -90,22 +101,28 @@ export class ContactsService {
     }
 
     if (data.status === 'INACTIVE') {
-      const hasActiveProjects = contact.projects.some(
-        (p) => p.status === 'ACTIVE'
-      )
+      const hasActiveProjects =
+        contact.client?.projects.some((p) => p.status === 'ACTIVE') ?? false
       if (hasActiveProjects) {
         throw new Error('לא ניתן להפוך ללא פעיל כשיש פרויקטים פעילים')
       }
     }
 
-    const updateData: Prisma.ContactUpdateInput = {
+    // First time a contact becomes a CLIENT, spin up its Client (business).
+    let justConverted = false
+    if (data.status === 'CLIENT' && !contact.clientId) {
+      await ClientsService.convertContactToClient(userId, id)
+      justConverted = true
+    }
+
+    const updateData: Prisma.ContactUncheckedUpdateInput = {
       ...data,
       estimatedBudget: data.estimatedBudget != null
         ? new Prisma.Decimal(data.estimatedBudget)
         : data.estimatedBudget,
     }
 
-    if (data.status === 'CLIENT' && !contact.convertedAt) {
+    if (data.status === 'CLIENT' && !contact.convertedAt && !justConverted) {
       updateData.convertedAt = new Date()
     }
 
@@ -118,15 +135,15 @@ export class ContactsService {
   static async delete(userId: string, id: string) {
     const contact = await prisma.contact.findFirst({
       where: { id, userId },
-      include: { _count: { select: { projects: true } } },
+      include: { client: { select: { _count: { select: { projects: true } } } } },
     })
 
     if (!contact) {
       throw new Error('איש קשר לא נמצא')
     }
 
-    if (contact._count.projects > 0) {
-      throw new Error('לא ניתן למחוק איש קשר שיש לו פרויקטים')
+    if (contact.isPrimary && (contact.client?._count.projects ?? 0) > 0) {
+      throw new Error('לא ניתן למחוק איש קשר ראשי של לקוח שיש לו פרויקטים')
     }
 
     return prisma.contact.delete({ where: { id } })
