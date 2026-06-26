@@ -3,8 +3,12 @@ import { z } from 'zod'
 const israeliPhoneRegex = /^0(5[0-9]|[2-4]|7[0-9]|8|9)-?\d{7}$/
 
 export const publicRequestSchema = z.object({
-  token: z.string().min(1),
-  type: z.enum(['BUG', 'REQUEST', 'QUESTION', 'OTHER']).optional(),
+  token: z.string().min(1, 'הקישור אינו תקין'),
+  type: z
+    .enum(['BUG', 'REQUEST', 'QUESTION', 'OTHER'], {
+      errorMap: () => ({ message: 'סוג פנייה לא תקין' }),
+    })
+    .optional(),
   title: z.string().min(1, 'כותרת חובה'),
   description: z.string().min(1, 'תיאור חובה'),
   projectId: z.string().optional(),
