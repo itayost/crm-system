@@ -148,8 +148,12 @@ export default function ClientDetailPage() {
 
   const handleCopyLink = async () => {
     if (!formUrl) return
-    await navigator.clipboard.writeText(formUrl)
-    toast.success('הקישור הועתק')
+    try {
+      await navigator.clipboard.writeText(formUrl)
+      toast.success('הקישור הועתק')
+    } catch {
+      toast.error('שגיאה בהעתקת הקישור')
+    }
   }
 
   const fetchRequests = useCallback(async () => {

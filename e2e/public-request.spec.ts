@@ -31,5 +31,7 @@ test.describe('client form link UI', () => {
     await expect(page.getByText('טופס פניות')).toBeVisible()
     await page.getByRole('button', { name: 'צור קישור' }).click()
     await expect(page.locator('code', { hasText: '/r/' })).toBeVisible()
+    const codeText = await page.locator('code', { hasText: '/r/' }).innerText()
+    expect(codeText).toMatch(/^https?:\/\/.+\/r\/[0-9a-f-]{36}$/)
   })
 })

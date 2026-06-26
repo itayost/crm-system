@@ -152,7 +152,11 @@ export class ClientsService {
       select: { formToken: true },
     })
 
-    return { formToken: updated.formToken as string }
+    if (!updated.formToken) {
+      throw new Error('כישלון בשמירת הטוקן')
+    }
+
+    return { formToken: updated.formToken }
   }
 
   static async getMessages(userId: string, clientId: string, days = 30) {
