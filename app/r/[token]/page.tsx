@@ -16,7 +16,6 @@ export default async function PublicRequestPage({
       id: true,
       name: true,
       projects: {
-        where: { status: 'ACTIVE' },
         select: { id: true, name: true },
         orderBy: { createdAt: 'desc' },
       },
