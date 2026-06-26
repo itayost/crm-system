@@ -186,6 +186,21 @@ export default function RequestsPage() {
     setShowForm(true)
   }
 
+  const openAttachment = async (id: string, path: string) => {
+    const tab = window.open('', '_blank')
+    try {
+      const { data } = await api.get(`/requests/${id}/attachment?path=${encodeURIComponent(path)}`)
+      if (tab) {
+        tab.location.href = data.url
+      } else {
+        window.open(data.url, '_blank')
+      }
+    } catch {
+      if (tab) tab.close()
+      toast.error('שגיאה בפתיחת הקובץ')
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     try {
       return format(new Date(dateStr), 'dd/MM/yyyy')
@@ -245,12 +260,9 @@ export default function RequestsPage() {
                         <button
                           type="button"
                           className="text-xs text-blue-600 underline"
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation()
-                            const { data } = await api.get(
-                              `/requests/${request.id}/attachment?path=${encodeURIComponent(request.attachments[0])}`
-                            )
-                            window.open(data.url, '_blank')
+                            openAttachment(request.id, request.attachments[0])
                           }}
                         >
                           צפייה בקובץ
@@ -381,12 +393,9 @@ export default function RequestsPage() {
                       <button
                         type="button"
                         className="text-xs text-blue-600 underline mr-2"
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation()
-                          const { data } = await api.get(
-                            `/requests/${request.id}/attachment?path=${encodeURIComponent(request.attachments[0])}`
-                          )
-                          window.open(data.url, '_blank')
+                          openAttachment(request.id, request.attachments[0])
                         }}
                       >
                         צפייה בקובץ

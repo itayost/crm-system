@@ -16,6 +16,10 @@ export const GET = withAuth(async (req: NextRequest, { params, userId }) => {
     return errorResponse('קובץ לא נמצא', 404)
   }
 
-  const url = await StorageService.getSignedUrl(path)
-  return createResponse({ url })
+  try {
+    const url = await StorageService.getSignedUrl(path)
+    return createResponse({ url })
+  } catch {
+    return errorResponse('שגיאה בהפקת קישור לקובץ', 500)
+  }
 })
