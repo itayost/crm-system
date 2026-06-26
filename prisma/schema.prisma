@@ -124,6 +124,7 @@ model Client {
   taxId      String?
   notes      String? @db.Text
   isInternal Boolean @default(false)
+  formToken  String? @unique
 
   userId String
   user   User @relation(fields: [userId], references: [id])
@@ -288,6 +289,7 @@ model Request {
   isAiGenerated Boolean @default(false)
   aiConfidence  Float?
   aiNote        String? @db.Text
+  attachments   String[] @default([])
 
   sourceMessageId String?
   sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
@@ -333,5 +335,6 @@ enum RequestSource {
   WHATSAPP
   MANUAL
   EMAIL
+  FORM
   OTHER
 }
