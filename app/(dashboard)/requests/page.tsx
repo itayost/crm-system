@@ -85,6 +85,8 @@ interface RequestRecord {
   type: string
   status: string
   priority: string
+  source: string
+  attachments: string[]
   isAiGenerated: boolean
   aiNote?: string | null
   clientId: string
@@ -228,12 +230,32 @@ export default function RequestsPage() {
                       <Badge className={TYPE_COLORS[request.type] ?? ''} variant="secondary">
                         {TYPE_LABELS[request.type] ?? request.type}
                       </Badge>
+                      {request.source === 'FORM' && (
+                        <Badge variant="secondary" className="bg-sky-100 text-sky-800">
+                          טופס
+                        </Badge>
+                      )}
                       {request.isAiGenerated && (
                         <Badge variant="secondary" className="bg-violet-100 text-violet-800">
                           AI
                         </Badge>
                       )}
                       <span className="text-sm font-medium">{request.title}</span>
+                      {request.attachments?.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs text-blue-600 underline"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const { data } = await api.get(
+                              `/requests/${request.id}/attachment?path=${encodeURIComponent(request.attachments[0])}`
+                            )
+                            window.open(data.url, '_blank')
+                          }}
+                        >
+                          צפייה בקובץ
+                        </button>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {request.client?.name ?? '-'}
@@ -355,11 +377,33 @@ export default function RequestsPage() {
                     {request.isAiGenerated && (
                       <Sparkles className="inline w-3 h-3 text-violet-500 mr-1" />
                     )}
+                    {request.attachments?.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-blue-600 underline mr-2"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const { data } = await api.get(
+                            `/requests/${request.id}/attachment?path=${encodeURIComponent(request.attachments[0])}`
+                          )
+                          window.open(data.url, '_blank')
+                        }}
+                      >
+                        צפייה בקובץ
+                      </button>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={TYPE_COLORS[request.type] ?? ''} variant="secondary">
-                      {TYPE_LABELS[request.type] ?? request.type}
-                    </Badge>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Badge className={TYPE_COLORS[request.type] ?? ''} variant="secondary">
+                        {TYPE_LABELS[request.type] ?? request.type}
+                      </Badge>
+                      {request.source === 'FORM' && (
+                        <Badge variant="secondary" className="bg-sky-100 text-sky-800">
+                          טופס
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge className={STATUS_COLORS[request.status] ?? ''} variant="secondary">

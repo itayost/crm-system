@@ -106,6 +106,26 @@ test.describe('public request submission', () => {
   })
 })
 
+test.describe('requests dashboard shows form tickets', () => {
+  test('form ticket appears with a form badge in the review queue', async ({ page, request, playwright }) => {
+    const client = await createClient(request, `טסט לוח ${Date.now()}`)
+    const tokRes = await request.post(`/api/clients/${client.id}/form-token`)
+    const { formToken } = await tokRes.json()
+    const title = `פנייה ללוח ${Date.now()}`
+
+    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    await pub.post('/api/public/requests', {
+      multipart: { token: formToken, type: 'BUG', title, description: 'בדיקה' },
+    })
+    await pub.dispose()
+
+    await page.goto('/requests')
+    const row = page.locator('tr', { hasText: title }).first()
+    await expect(row).toBeVisible()
+    await expect(row.getByText('טופס')).toBeVisible()
+  })
+})
+
 test.describe('public form page', () => {
   test('renders not-found for an unknown token', async ({ page }) => {
     await page.goto('/r/nope-not-real')
