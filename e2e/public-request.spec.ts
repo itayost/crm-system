@@ -105,3 +105,25 @@ test.describe('public request submission', () => {
     expect(requests.find((r: { title: string }) => r.title === title)).toBeUndefined()
   })
 })
+
+test.describe('public form page', () => {
+  test('renders not-found for an unknown token', async ({ page }) => {
+    await page.goto('/r/nope-not-real')
+    await expect(page.getByText('הקישור אינו תקין')).toBeVisible()
+  })
+
+  test('submits the form and shows a thank-you', async ({ page, request }) => {
+    const client = await createClient(request, `טסט עמוד ${Date.now()}`)
+    const tokRes = await request.post(`/api/clients/${client.id}/form-token`)
+    const { formToken } = await tokRes.json()
+
+    await page.goto(`/r/${formToken}`)
+    await expect(page.getByRole('heading', { name: /דיווח תקלה/ })).toBeVisible()
+
+    await page.locator('input[name="title"]').fill(`תקלה מהדפדפן ${Date.now()}`)
+    await page.locator('textarea[name="description"]').fill('משהו לא עובד')
+    await page.getByRole('button', { name: 'שליחה' }).click()
+
+    await expect(page.getByText('תודה!')).toBeVisible()
+  })
+})
