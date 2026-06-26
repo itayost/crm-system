@@ -139,6 +139,22 @@ export class ClientsService {
     })
   }
 
+  static async regenerateFormToken(userId: string, id: string) {
+    const client = await prisma.client.findFirst({ where: { id, userId } })
+
+    if (!client) {
+      throw new Error('לקוח לא נמצא')
+    }
+
+    const updated = await prisma.client.update({
+      where: { id },
+      data: { formToken: crypto.randomUUID() },
+      select: { formToken: true },
+    })
+
+    return { formToken: updated.formToken as string }
+  }
+
   static async getMessages(userId: string, clientId: string, days = 30) {
     const client = await prisma.client.findFirst({
       where: { id: clientId, userId },

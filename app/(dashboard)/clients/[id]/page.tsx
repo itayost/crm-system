@@ -110,6 +110,7 @@ interface ClientDetail {
   taxId?: string | null
   notes?: string | null
   createdAt: string
+  formToken: string | null
   contacts: ClientContact[]
   projects: ClientProject[]
 }
@@ -125,6 +126,31 @@ export default function ClientDetailPage() {
   const [showContactForm, setShowContactForm] = useState(false)
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [tokenBusy, setTokenBusy] = useState(false)
+
+  const formUrl = client?.formToken
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/r/${client.formToken}`
+    : null
+
+  const handleGenerateToken = async () => {
+    if (!client) return
+    setTokenBusy(true)
+    try {
+      const { data } = await api.post(`/clients/${client.id}/form-token`)
+      setClient({ ...client, formToken: data.formToken })
+      toast.success('הקישור נוצר')
+    } catch {
+      toast.error('שגיאה ביצירת הקישור')
+    } finally {
+      setTokenBusy(false)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (!formUrl) return
+    await navigator.clipboard.writeText(formUrl)
+    toast.success('הקישור הועתק')
+  }
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -281,6 +307,32 @@ export default function ClientDetailPage() {
               <p className="text-sm text-gray-600 mb-1">הערות:</p>
               <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Form token link */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>טופס פניות</CardTitle>
+          <Button size="sm" onClick={handleGenerateToken} disabled={tokenBusy}>
+            {client.formToken ? 'אפס קישור' : 'צור קישור'}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {formUrl ? (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded bg-gray-100 px-3 py-2 text-sm" dir="ltr">
+                {formUrl}
+              </code>
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                העתק
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              צור קישור פרטי שהלקוח יכול להשתמש בו כדי לדווח על תקלות ובקשות.
+            </p>
           )}
         </CardContent>
       </Card>
