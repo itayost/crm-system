@@ -6,7 +6,7 @@ export const publicRequestSchema = z.object({
   token: z.string().min(1, 'הקישור אינו תקין'),
   type: z
     .enum(['BUG', 'REQUEST', 'QUESTION', 'OTHER'], {
-      errorMap: () => ({ message: 'סוג פנייה לא תקין' }),
+      error: 'סוג פנייה לא תקין',
     })
     .optional(),
   title: z.string().min(1, 'כותרת חובה'),
