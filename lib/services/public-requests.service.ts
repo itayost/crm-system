@@ -12,6 +12,12 @@ export interface PublicRequestSubmit {
   attachments: string[]
 }
 
+export interface ResolvedClient {
+  id: string
+  name: string
+  userId: string
+}
+
 export interface SubmitResult {
   id: string
   clientName: string
@@ -21,15 +27,16 @@ export interface SubmitResult {
 }
 
 export class PublicRequestsService {
-  static async submit(input: PublicRequestSubmit): Promise<SubmitResult> {
-    const client = await prisma.client.findFirst({
-      where: { formToken: input.token },
+  // Resolve the owning client from a public form token. Callers validate the
+  // result before doing any side effects (e.g. uploading an attachment).
+  static async resolveClientByToken(token: string): Promise<ResolvedClient | null> {
+    return prisma.client.findFirst({
+      where: { formToken: token },
       select: { id: true, name: true, userId: true },
     })
-    if (!client) {
-      throw new Error('NOT_FOUND')
-    }
+  }
 
+  static async submit(client: ResolvedClient, input: PublicRequestSubmit): Promise<SubmitResult> {
     // projectId is only honored if it belongs to this client.
     let projectId: string | undefined = undefined
     if (input.projectId) {
@@ -40,54 +47,58 @@ export class PublicRequestsService {
       projectId = project?.id
     }
 
-    // Reporter Contact only when a phone is provided (Contact.phone is non-null).
-    let contactId: string | undefined = undefined
-    if (input.reporterPhone) {
-      const existing = await prisma.contact.findFirst({
-        where: { userId: client.userId, clientId: client.id, phone: input.reporterPhone },
-        select: { id: true },
-      })
-      if (existing) {
-        contactId = existing.id
-      } else {
-        const created = await prisma.contact.create({
-          data: {
-            name: input.reporterName || 'לקוח',
-            phone: input.reporterPhone,
-            email: input.reporterEmail,
-            status: 'CLIENT',
-            source: 'OTHER',
-            clientId: client.id,
-            userId: client.userId,
-          },
+    // Contact match/create and Request create must be atomic so a failed
+    // request insert never leaves a ghost reporter Contact behind.
+    const request = await prisma.$transaction(async (tx) => {
+      // Reporter Contact only when a phone is provided (Contact.phone is non-null).
+      let contactId: string | undefined = undefined
+      if (input.reporterPhone) {
+        const existing = await tx.contact.findFirst({
+          where: { userId: client.userId, clientId: client.id, phone: input.reporterPhone },
           select: { id: true },
         })
-        contactId = created.id
+        if (existing) {
+          contactId = existing.id
+        } else {
+          const created = await tx.contact.create({
+            data: {
+              name: input.reporterName || 'לקוח',
+              phone: input.reporterPhone,
+              email: input.reporterEmail,
+              status: 'CLIENT',
+              source: 'OTHER',
+              clientId: client.id,
+              userId: client.userId,
+            },
+            select: { id: true },
+          })
+          contactId = created.id
+        }
       }
-    }
 
-    // If we could not attach a Contact, keep reporter details in the description.
-    const reporterLine =
-      !contactId && (input.reporterName || input.reporterEmail)
-        ? `\n\nדיווח מאת: ${[input.reporterName, input.reporterEmail].filter(Boolean).join(' / ')}`
-        : ''
+      // If we could not attach a Contact, keep reporter details in the description.
+      const reporterLine =
+        !contactId && (input.reporterName || input.reporterEmail)
+          ? `\n\nדיווח מאת: ${[input.reporterName, input.reporterEmail].filter(Boolean).join(' / ')}`
+          : ''
 
-    const request = await prisma.request.create({
-      data: {
-        title: input.title,
-        description: input.description + reporterLine,
-        type: input.type ?? 'REQUEST',
-        status: 'PENDING_REVIEW',
-        source: 'FORM',
-        priority: 'MEDIUM',
-        isAiGenerated: false,
-        attachments: input.attachments,
-        clientId: client.id,
-        contactId,
-        projectId,
-        userId: client.userId,
-      },
-      select: { id: true },
+      return tx.request.create({
+        data: {
+          title: input.title,
+          description: input.description + reporterLine,
+          type: input.type ?? 'REQUEST',
+          status: 'PENDING_REVIEW',
+          source: 'FORM',
+          priority: 'MEDIUM',
+          isAiGenerated: false,
+          attachments: input.attachments,
+          clientId: client.id,
+          contactId,
+          projectId,
+          userId: client.userId,
+        },
+        select: { id: true },
+      })
     })
 
     return {

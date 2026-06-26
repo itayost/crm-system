@@ -134,6 +134,13 @@ export default function ClientDetailPage() {
 
   const handleGenerateToken = async () => {
     if (!client) return
+    // Resetting an existing token invalidates any link already shared with the client.
+    if (
+      client.formToken &&
+      !window.confirm('איפוס הקישור ינתק את הקישור הקיים שכבר נשלח ללקוח. להמשיך?')
+    ) {
+      return
+    }
     setTokenBusy(true)
     try {
       const { data } = await api.post(`/clients/${client.id}/form-token`)

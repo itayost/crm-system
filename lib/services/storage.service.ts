@@ -28,7 +28,7 @@ function getClient(): SupabaseClient {
 }
 
 function sanitizeName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80)
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
 }
 
 export class StorageService {
@@ -52,5 +52,15 @@ export class StorageService {
       throw new Error(`Signed URL failed: ${error?.message ?? 'unknown'}`)
     }
     return data.signedUrl
+  }
+
+  // Best-effort cleanup; a storage failure must not block deleting the record.
+  static async removeAttachments(paths: string[]): Promise<void> {
+    if (paths.length === 0) return
+    try {
+      await getClient().storage.from(BUCKET).remove(paths)
+    } catch (err) {
+      console.error('Failed to remove attachments:', err)
+    }
   }
 }

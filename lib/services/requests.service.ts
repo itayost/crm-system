@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { StorageService } from './storage.service'
 import type {
   CreateRequestInput,
   UpdateRequestInput,
@@ -193,11 +194,17 @@ export class RequestsService {
   }
 
   static async delete(userId: string, id: string) {
-    const request = await prisma.request.findFirst({ where: { id, userId } })
+    const request = await prisma.request.findFirst({
+      where: { id, userId },
+      select: { id: true, attachments: true },
+    })
     if (!request) {
       throw new Error('בקשה לא נמצאה')
     }
-    return prisma.request.delete({ where: { id } })
+    const deleted = await prisma.request.delete({ where: { id } })
+    // Remove any stored attachments so deleting a request does not orphan files.
+    await StorageService.removeAttachments(request.attachments)
+    return deleted
   }
 
   /**

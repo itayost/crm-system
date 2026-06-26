@@ -188,15 +188,15 @@ export default function RequestsPage() {
 
   const openAttachment = async (id: string, path: string) => {
     const tab = window.open('', '_blank')
+    if (!tab) {
+      toast.error('הדפדפן חסם את פתיחת הקובץ. אפשרו חלונות קופצים ונסו שוב')
+      return
+    }
     try {
       const { data } = await api.get(`/requests/${id}/attachment?path=${encodeURIComponent(path)}`)
-      if (tab) {
-        tab.location.href = data.url
-      } else {
-        window.open(data.url, '_blank')
-      }
+      tab.location.href = data.url
     } catch {
-      if (tab) tab.close()
+      tab.close()
       toast.error('שגיאה בפתיחת הקובץ')
     }
   }

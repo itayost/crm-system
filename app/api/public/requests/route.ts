@@ -33,6 +33,14 @@ export async function POST(req: NextRequest) {
       reporterEmail: form.get('reporterEmail') || undefined,
     })
 
+    // Resolve the owning client before any side effects so an invalid token
+    // never leaves an orphaned upload behind, and the file lands under the
+    // real client id (not a placeholder).
+    const client = await PublicRequestsService.resolveClientByToken(data.token)
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'הקישור אינו תקין' }, { status: 404 })
+    }
+
     // Optional single attachment.
     const attachments: string[] = []
     const file = form.get('file')
@@ -42,7 +50,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: check.error }, { status: 400 })
       }
       try {
-        const path = await StorageService.uploadAttachment({ clientId: 'pending', file })
+        const path = await StorageService.uploadAttachment({ clientId: client.id, file })
         attachments.push(path)
       } catch (err) {
         // Never lose the ticket over a failed upload.
@@ -50,7 +58,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const result = await PublicRequestsService.submit({ ...data, attachments })
+    const result = await PublicRequestsService.submit(client, { ...data, attachments })
 
     notifyOwner(result, data.type).catch((err) =>
       console.error('Failed to notify owner of new request:', err)
@@ -63,9 +71,6 @@ export async function POST(req: NextRequest) {
         { success: false, error: error.issues[0]?.message ?? 'נתונים לא תקינים' },
         { status: 400 }
       )
-    }
-    if (error instanceof Error && error.message === 'NOT_FOUND') {
-      return NextResponse.json({ success: false, error: 'הקישור אינו תקין' }, { status: 404 })
     }
     console.error('Public request submission error:', error)
     return NextResponse.json({ success: false, error: 'שגיאה בשליחת הטופס' }, { status: 500 })

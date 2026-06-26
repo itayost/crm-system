@@ -9,7 +9,7 @@ const requestStatus = z.enum([
   'DISMISSED',
 ])
 const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
-const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'OTHER'])
+const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])
 
 export const createRequestSchema = z.object({
   title: z.string().min(1, 'כותרת בקשה חובה'),
