@@ -162,6 +162,7 @@ export function createSupportTools(context: SupportToolContext) {
 
         const { draft } = pending
         const media = await SupportConversationService.getPendingMedia(context)
+        const repoFindings = await SupportConversationService.getRepoFindings(context)
         const untranscribed = media.filter((item) => !item.transcribed).length
         // Only this client's own storage folder can ever end up on the ticket.
         const attachments = media
@@ -189,6 +190,7 @@ export function createSupportTools(context: SupportToolContext) {
               untranscribed > 0
                 ? `שים לב: ${untranscribed} קבצי מדיה לא תומללו - צריך לפתוח אותם ידנית`
                 : null,
+              repoFindings.length > 0 ? `ממצאים מהקוד: ${repoFindings.join('; ')}` : null,
             ]
               .filter(Boolean)
               .join('. '),

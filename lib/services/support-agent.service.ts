@@ -6,6 +6,7 @@ import {
   type SupportMessage,
 } from './support-conversation.service'
 import { createSupportTools } from './support-tools'
+import { configuredProjects, createRepoTools } from './support-repo-tools'
 
 /**
  * The client-facing support agent: one persona, one WhatsApp chat at a time.
@@ -53,19 +54,29 @@ export class SupportAgentService {
       { role: 'user', content: input.text },
     ]
 
+    const toolContext = {
+      userId: input.userId,
+      clientId: input.clientId,
+      clientName: input.clientName,
+      contactId: input.contactId,
+      contactName: input.contactName,
+      chatId: input.chatId,
+      sourceMessageId: input.sourceMessageId,
+    }
+
+    // Repo tools exist only when this client has a project with a configured
+    // repository; otherwise the agent simply never sees them.
+    const repoProjects = await configuredProjects(toolContext)
+    const tools = {
+      ...createSupportTools(toolContext),
+      ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects) : {}),
+    }
+
     const result = await generateText({
       model: gateway(MODEL),
-      system: buildSystemPrompt(input, conversation.pendingDraft?.title ?? null),
+      system: buildSystemPrompt(input, conversation.pendingDraft?.title ?? null, repoProjects.length > 0),
       messages,
-      tools: createSupportTools({
-        userId: input.userId,
-        clientId: input.clientId,
-        clientName: input.clientName,
-        contactId: input.contactId,
-        contactName: input.contactName,
-        chatId: input.chatId,
-        sourceMessageId: input.sourceMessageId,
-      }),
+      tools,
       stopWhen: stepCountIs(MAX_STEPS),
     })
 
@@ -80,7 +91,11 @@ export class SupportAgentService {
   }
 }
 
-function buildSystemPrompt(input: SupportAgentInput, pendingSummaryTitle: string | null): string {
+function buildSystemPrompt(
+  input: SupportAgentInput,
+  pendingSummaryTitle: string | null,
+  hasRepoTools: boolean
+): string {
   const pendingLine = pendingSummaryTitle
     ? `יש סיכום שממתין לאישור הלקוח: "${pendingSummaryTitle}". אם ההודעה הנוכחית מאשרת אותו — קרא ל-fileRequest מיד. אם היא מתקנת אותו — קרא שוב ל-proposeSummary עם הגרסה המתוקנת.`
     : 'אין כרגע סיכום שממתין לאישור.'
@@ -106,6 +121,15 @@ function buildSystemPrompt(input: SupportAgentInput, pendingSummaryTitle: string
 לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.
 
 ${pendingLine}
+${
+  hasRepoTools
+    ? `
+בדיקה פנימית בקוד:
+- לחלק מהפרויקטים יש גישת קריאה לקוד (listProjectFiles, searchProjectCode, readProjectFile). השתמש בהם כדי להבין על מה הלקוח מדבר ולשאול שאלה ממוקדת יותר.
+- כל מה שאתה רואה שם הוא פנימי. אסור בהחלט להזכיר ללקוח שמות קבצים, נתיבים, קוד, שמות פונקציות או מונחים טכניים, ואסור לרמוז שקראת את הקוד.
+- אם הבדיקה נכשלת, פשוט המשך בשיחה רגילה בלי להזכיר את זה.`
+    : ''
+}
 
 שאלות סטטוס ("מה קורה עם הבאג שדיווחתי?") — קרא ל-getMyRequests וענה בשפה פשוטה, בלי מזהים ובלי מונחים מהמערכת.
 

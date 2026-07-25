@@ -275,6 +275,8 @@ model SupportConversation {
   /// Media sent in this conversation that the next filed request should carry:
   /// [{ path, mimeType, transcribed }]
   pendingMedia Json @default("[]")
+  /// Internal repository findings for the next filed request's AI note.
+  repoFindings Json @default("[]")
 
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())

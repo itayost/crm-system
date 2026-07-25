@@ -38,6 +38,9 @@ const pendingMediaSchema = z.object({
 /** Cap on media carried by one unfiled request, so a chatty chat cannot grow without bound. */
 const MAX_PENDING_MEDIA = 10
 
+/** Cap on repository findings collected for one unfiled request. */
+const MAX_REPO_FINDINGS = 10
+
 /** Media received in this conversation that the next filed request should carry. */
 export type PendingMedia = z.infer<typeof pendingMediaSchema>
 
@@ -84,6 +87,7 @@ export class SupportConversationService {
               confirmationAskedAt: null,
               remindersSent: 0,
               pendingMedia: [],
+              repoFindings: [],
             }
           : {}),
       },
@@ -134,10 +138,33 @@ export class SupportConversationService {
         pendingDraft: Prisma.DbNull,
         confirmationAskedAt: null,
         remindersSent: 0,
-        // The media went out with the ticket; the next request starts clean.
+        // The media and findings went out with the ticket; the next request
+        // starts clean.
         pendingMedia: [],
+        repoFindings: [],
       },
     })
+  }
+
+  static async getRepoFindings(context: SupportConversationContext): Promise<string[]> {
+    const conversation = await prisma.supportConversation.findUnique({
+      where: identity(context),
+      select: { repoFindings: true },
+    })
+
+    const parsed = z.array(z.string()).safeParse(conversation?.repoFindings ?? null)
+    return parsed.success ? parsed.data : []
+  }
+
+  /** Appended atomically for the same reason as media, and capped the same way. */
+  static async addRepoFinding(context: SupportConversationContext, finding: string) {
+    await prisma.$executeRaw`
+      UPDATE "SupportConversation"
+      SET "repoFindings" = "repoFindings" || ${JSON.stringify([finding])}::jsonb
+      WHERE "userId" = ${context.userId}
+        AND "chatId" = ${context.chatId}
+        AND jsonb_array_length("repoFindings") < ${MAX_REPO_FINDINGS}
+    `
   }
 
   static async getPendingMedia(context: SupportConversationContext): Promise<PendingMedia[]> {

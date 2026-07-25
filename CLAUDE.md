@@ -253,6 +253,8 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `OWNER_PHONE` -- Itay's number; the only sender routed to the owner agent on the bot session
 - `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
 - `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
+- `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
+- `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
 
 ## E2E Testing
 

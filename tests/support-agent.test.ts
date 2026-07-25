@@ -78,22 +78,24 @@ const prismaMock = {
   $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
   // Stands in for the atomic jsonb append: UPDATE ... SET pendingMedia =
   // pendingMedia || $1 WHERE userId = $2 AND chatId = $3 AND length < $4
-  $executeRaw: vi.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+  $executeRaw: vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const column = strings.join('').includes('repoFindings') ? 'repoFindings' : 'pendingMedia'
     const [json, userId, chatId, max] = values as [string, string, string, number]
     const key = `${userId}:${chatId}`
     const row = conversations.get(key)
     if (!row) return 0
 
-    const current = Array.isArray(row.pendingMedia) ? (row.pendingMedia as unknown[]) : []
+    const current = Array.isArray(row[column]) ? (row[column] as unknown[]) : []
     if (current.length >= max) return 0
 
-    conversations.set(key, { ...row, pendingMedia: [...current, ...JSON.parse(json)] })
+    conversations.set(key, { ...row, [column]: [...current, ...JSON.parse(json)] })
     return 1
   }),
 }
 
 const wahaMock = { sendMessage: vi.fn() }
 const agentMock = { resolveOwnerChatId: vi.fn() }
+const githubMock = { listTree: vi.fn(), searchCode: vi.fn(), readFile: vi.fn() }
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/services/waha.service', () => ({
@@ -102,6 +104,12 @@ vi.mock('@/lib/services/waha.service', () => ({
   personalSessionName: () => 'personal',
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
+vi.mock('@/lib/services/github.service', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/services/github.service')>(
+    '@/lib/services/github.service'
+  )
+  return { ...actual, GitHubService: githubMock }
+})
 
 const { SupportAgentService } = await import('@/lib/services/support-agent.service')
 
@@ -431,6 +439,64 @@ describe('support agent', () => {
     await SupportAgentService.handleMessage({ ...input, text: 'כן' })
 
     expect(createdRequestData().attachments).toEqual([])
+  })
+
+  it('offers no repository tools when the client has no configured project', async () => {
+    let toolNames: string[] = []
+    driver = async ({ tools }) => {
+      toolNames = Object.keys(tools)
+      return { text: 'שלום' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(toolNames).toEqual([
+      'listMyProjects',
+      'getMyRequests',
+      'proposeSummary',
+      'fileRequest',
+    ])
+  })
+
+  it('offers repository tools and carries their findings onto the ticket', async () => {
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => {
+      if (where.agentConfig) {
+        return [
+          {
+            id: 'project-1',
+            name: 'האתר',
+            agentConfig: {
+              githubOwner: 'itayost',
+              githubRepo: 'garden-site',
+              githubBranch: 'main',
+            },
+          },
+        ]
+      }
+      return [{ id: 'project-1', name: 'האתר', status: 'ACTIVE' }]
+    })
+
+    githubMock.searchCode.mockResolvedValue({
+      ok: true,
+      data: { paths: ['src/app/checkout/page.tsx'], total: 3 },
+    })
+
+    driver = async ({ tools }) => {
+      expect(Object.keys(tools)).toContain('searchProjectCode')
+      await tools.searchProjectCode.execute({ projectName: 'האתר', query: 'שליחת הזמנה' })
+      return { text: 'לאיזה עמוד הכוונה?' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    await proposeInOwnTurn()
+
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(createdRequestData().aiNote).toContain('ממצאים מהקוד')
   })
 
   it('keeps conversations for the same chat id separate per owner', async () => {
