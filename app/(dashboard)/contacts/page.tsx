@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ContactForm } from '@/components/forms/contact-form'
+import { tone, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: 'חדש',
@@ -28,15 +29,6 @@ const STATUS_LABELS: Record<string, string> = {
   NEGOTIATING: 'במשא ומתן',
   CLIENT: 'לקוח',
   INACTIVE: 'לא פעיל',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  NEW: 'bg-blue-100 text-blue-800',
-  CONTACTED: 'bg-yellow-100 text-yellow-800',
-  QUOTED: 'bg-purple-100 text-purple-800',
-  NEGOTIATING: 'bg-orange-100 text-orange-800',
-  CLIENT: 'bg-green-100 text-green-800',
-  INACTIVE: 'bg-gray-100 text-gray-600',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -109,8 +101,8 @@ export default function ContactsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">אנשי קשר</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-content-strong">אנשי קשר</h1>
+          <p className="text-sm text-content-subtle mt-1">
             ניהול לידים ולקוחות
           </p>
         </div>
@@ -122,7 +114,7 @@ export default function ContactsPage() {
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
         <Input
           type="search"
           placeholder="חיפוש לפי שם, טלפון, אימייל..."
@@ -148,7 +140,7 @@ export default function ContactsPage() {
               ))}
             </div>
           ) : visibleContacts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-content-subtle">
               <p className="text-lg font-medium">אין אנשי קשר</p>
               <p className="text-sm mt-1">
                 {search ? 'לא נמצאו תוצאות לחיפוש' : 'צור איש קשר חדש כדי להתחיל'}
@@ -176,7 +168,7 @@ export default function ContactsPage() {
                       <TableCell className="font-medium">
                         {contact.name}
                         {contact.company && (
-                          <span className="text-xs text-gray-500 mr-2">
+                          <span className="text-xs text-content-subtle mr-2">
                             ({contact.company})
                           </span>
                         )}
@@ -186,7 +178,7 @@ export default function ContactsPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={STATUS_COLORS[contact.status] ?? ''}
+                          className={tone(CONTACT_STATUS_TONES, contact.status)}
                           variant="secondary"
                         >
                           {STATUS_LABELS[contact.status] ?? contact.status}

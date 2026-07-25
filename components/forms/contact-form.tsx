@@ -354,7 +354,7 @@ export function ContactForm({
 
             {/* Business membership */}
             <div className="border-t pt-4 mt-4">
-              <p className="text-sm font-medium text-gray-700 mb-3">
+              <p className="text-sm font-medium text-content-body mb-3">
                 שיוך לעסק (לקוח)
               </p>
             </div>

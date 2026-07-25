@@ -62,7 +62,7 @@ const REQUEST_STATUS_COLORS: Record<string, string> = {
   OPEN: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-indigo-100 text-indigo-800',
   RESOLVED: 'bg-green-100 text-green-800',
-  DISMISSED: 'bg-gray-100 text-gray-600',
+  DISMISSED: 'bg-surface-muted text-content-muted',
 }
 
 interface ClientRequest {
@@ -79,7 +79,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 
 const PROJECT_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-700',
+  COMPLETED: 'bg-surface-muted text-content-body',
 }
 
 interface ClientContact {
@@ -230,7 +230,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-content-subtle">
         <p>לקוח לא נמצא</p>
       </div>
     )
@@ -245,7 +245,7 @@ export default function ClientDetailPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
+            <h1 className="text-2xl font-bold text-content-strong">{client.name}</h1>
             {client.isVip && (
               <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
             )}
@@ -295,19 +295,19 @@ export default function ClientDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {client.address && (
               <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">כתובת:</span>
+                <Building2 className="w-4 h-4 text-content-faint" />
+                <span className="text-sm text-content-muted">כתובת:</span>
                 <span className="text-sm font-medium">{client.address}</span>
               </div>
             )}
             {client.taxId && (
               <div>
-                <span className="text-sm text-gray-600">ח.פ / ע.מ: </span>
+                <span className="text-sm text-content-muted">ח.פ / ע.מ: </span>
                 <span className="text-sm font-medium">{client.taxId}</span>
               </div>
             )}
             <div>
-              <span className="text-sm text-gray-600">נוצר בתאריך: </span>
+              <span className="text-sm text-content-muted">נוצר בתאריך: </span>
               <span className="text-sm font-medium">
                 {formatDate(client.createdAt)}
               </span>
@@ -315,7 +315,7 @@ export default function ClientDetailPage() {
           </div>
           {client.notes && (
             <div className="mt-6 pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-1">הערות:</p>
+              <p className="text-sm text-content-muted mb-1">הערות:</p>
               <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
             </div>
           )}
@@ -333,7 +333,7 @@ export default function ClientDetailPage() {
         <CardContent>
           {formUrl ? (
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded bg-gray-100 px-3 py-2 text-sm" dir="ltr">
+              <code className="flex-1 truncate rounded bg-surface-muted px-3 py-2 text-sm" dir="ltr">
                 {formUrl}
               </code>
               <Button variant="outline" size="sm" onClick={handleCopyLink}>
@@ -341,7 +341,7 @@ export default function ClientDetailPage() {
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-content-subtle">
               צור קישור פרטי שהלקוח יכול להשתמש בו כדי לדווח על תקלות ובקשות.
             </p>
           )}
@@ -359,7 +359,7 @@ export default function ClientDetailPage() {
         </CardHeader>
         <CardContent>
           {client.contacts.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-6">
+            <p className="text-sm text-content-subtle text-center py-6">
               אין אנשי קשר עדיין
             </p>
           ) : (
@@ -367,7 +367,7 @@ export default function ClientDetailPage() {
               {client.contacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
                   onClick={() => router.push(`/contacts/${contact.id}`)}
                   role="button"
                   tabIndex={0}
@@ -378,7 +378,7 @@ export default function ClientDetailPage() {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <User className="w-4 h-4 text-gray-400" />
+                    <User className="w-4 h-4 text-content-faint" />
                     <span className="text-sm font-medium">{contact.name}</span>
                     {contact.isPrimary && (
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
@@ -386,10 +386,10 @@ export default function ClientDetailPage() {
                       </Badge>
                     )}
                     {contact.role && (
-                      <span className="text-xs text-gray-500">{contact.role}</span>
+                      <span className="text-xs text-content-subtle">{contact.role}</span>
                     )}
                   </div>
-                  <span className="text-sm text-gray-500" dir="ltr">
+                  <span className="text-sm text-content-subtle" dir="ltr">
                     {contact.phone}
                   </span>
                 </div>
@@ -413,7 +413,7 @@ export default function ClientDetailPage() {
         </CardHeader>
         <CardContent>
           {client.projects.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-6">
+            <p className="text-sm text-content-subtle text-center py-6">
               אין פרויקטים עדיין
             </p>
           ) : (
@@ -421,7 +421,7 @@ export default function ClientDetailPage() {
               {client.projects.map((project) => (
                 <div
                   key={project.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
                   onClick={() => router.push(`/projects/${project.id}`)}
                   role="button"
                   tabIndex={0}
@@ -432,7 +432,7 @@ export default function ClientDetailPage() {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <Briefcase className="w-4 h-4 text-gray-400" />
+                    <Briefcase className="w-4 h-4 text-content-faint" />
                     <span className="text-sm font-medium">{project.name}</span>
                     <Badge
                       className={PROJECT_STATUS_COLORS[project.status] ?? ''}
@@ -441,7 +441,7 @@ export default function ClientDetailPage() {
                       {PROJECT_STATUS_LABELS[project.status] ?? project.status}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <div className="flex items-center gap-4 text-sm text-content-subtle">
                     {project.price != null && (
                       <span>{formatCurrency(project.price)}</span>
                     )}
@@ -458,7 +458,7 @@ export default function ClientDetailPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Inbox className="w-5 h-5 text-gray-400" />
+            <Inbox className="w-5 h-5 text-content-faint" />
             פניות
           </CardTitle>
           <Button size="sm" onClick={() => setShowRequestForm(true)}>
@@ -468,7 +468,7 @@ export default function ClientDetailPage() {
         </CardHeader>
         <CardContent>
           {requests.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-6">אין פניות עדיין</p>
+            <p className="text-sm text-content-subtle text-center py-6">אין פניות עדיין</p>
           ) : (
             <div className="space-y-3">
               {requests.map((request) => (
@@ -478,7 +478,7 @@ export default function ClientDetailPage() {
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium">{request.title}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-content-subtle">
                       {REQUEST_TYPE_LABELS[request.type] ?? request.type}
                     </span>
                   </div>
@@ -499,12 +499,12 @@ export default function ClientDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-gray-400" />
+            <MessageSquare className="w-5 h-5 text-content-faint" />
             ציר זמן שיחות
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-400 text-center py-6">
+          <p className="text-sm text-content-faint text-center py-6">
             סיכום שיחות וואטסאפ של כל אנשי הקשר יתווסף בקרוב
           </p>
         </CardContent>

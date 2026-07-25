@@ -8,7 +8,24 @@ const config = {
   theme: {
     extend: {
       colors: {
+        // Semantic layer only. Components never name a primitive, and the
+        // primitives themselves stay in globals.css where they cannot be
+        // reached by a utility class.
         border: "hsl(var(--border))",
+        "border-strong": "hsl(var(--border-strong))",
+        link: "hsl(var(--link))",
+        surface: {
+          app: "hsl(var(--surface-app))",
+          subtle: "hsl(var(--surface-subtle))",
+          muted: "hsl(var(--surface-muted))",
+        },
+        content: {
+          strong: "hsl(var(--foreground-strong))",
+          body: "hsl(var(--foreground-body))",
+          muted: "hsl(var(--foreground-muted))",
+          subtle: "hsl(var(--foreground-subtle))",
+          faint: "hsl(var(--foreground-faint))",
+        },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",

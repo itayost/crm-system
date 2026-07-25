@@ -62,8 +62,8 @@ export function Sidebar() {
             <span className="text-white font-bold text-lg">CRM</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">מערכת ניהול</h1>
-            <p className="text-xs text-gray-500">גרסה 2.0</p>
+            <h1 className="text-xl font-bold text-content-strong">מערכת ניהול</h1>
+            <p className="text-xs text-content-subtle">גרסה 2.0</p>
           </div>
         </div>
       </div>
@@ -79,7 +79,7 @@ export function Sidebar() {
       {/* Main Navigation */}
       <nav className="flex-1 overflow-y-auto py-4">
         <div className="px-3 mb-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <p className="text-xs font-semibold text-content-faint uppercase tracking-wider">
             ראשי
           </p>
         </div>
@@ -94,15 +94,15 @@ export function Sidebar() {
               href={item.href}
               className={cn(
                 'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-150',
-                'hover:bg-gray-50',
+                'hover:bg-surface-subtle',
                 isActive ?
-                  'bg-blue-50 text-blue-600 border-r-4 border-blue-600' :
-                  'text-gray-700 hover:text-gray-900'
+                  'bg-blue-50 text-link border-r-4 border-blue-600' :
+                  'text-content-body hover:text-content-strong'
               )}
             >
               <Icon className={cn(
                 "w-5 h-5 transition-colors",
-                isActive ? "text-blue-600" : "text-gray-400"
+                isActive ? "text-link" : "text-content-faint"
               )} />
               <span className="flex-1">{item.name}</span>
             </Link>
@@ -111,10 +111,10 @@ export function Sidebar() {
       </nav>
 
       {/* User Section */}
-      <div className="p-4 border-t bg-gray-50">
+      <div className="p-4 border-t bg-surface-subtle">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-gray-600 font-medium">
+            <span className="text-content-muted font-medium">
               {session?.user?.name ?
                 session.user.name.split(' ').length >= 2 ?
                   session.user.name.split(' ')[0][0] + session.user.name.split(' ')[1][0] :
@@ -124,10 +124,10 @@ export function Sidebar() {
             </span>
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-content-strong">
               {session?.user?.name || 'משתמש'}
             </p>
-            <p className="text-xs text-gray-500">עוסק פטור</p>
+            <p className="text-xs text-content-subtle">עוסק פטור</p>
           </div>
         </div>
       </div>

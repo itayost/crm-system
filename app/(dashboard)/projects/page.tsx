@@ -26,15 +26,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ProjectForm } from '@/components/forms/project-form'
+import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -52,13 +48,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   MEDIUM: 'בינוני',
   HIGH: 'גבוה',
   URGENT: 'דחוף',
-}
-
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'bg-gray-100 text-gray-700',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
 }
 
 const STATUS_FILTER_OPTIONS = [
@@ -151,8 +140,8 @@ function ProjectsPageContent() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">פרויקטים</h1>
-          <p className="text-sm text-gray-500 mt-1">ניהול ומעקב פרויקטים</p>
+          <h1 className="text-2xl font-bold text-content-strong">פרויקטים</h1>
+          <p className="text-sm text-content-subtle mt-1">ניהול ומעקב פרויקטים</p>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="w-4 h-4 ml-2" />
@@ -163,7 +152,7 @@ function ProjectsPageContent() {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
           <Input
             type="search"
             placeholder="חיפוש פרויקט..."
@@ -194,7 +183,7 @@ function ProjectsPageContent() {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-content-subtle">
           <p className="text-lg font-medium">אין פרויקטים</p>
           <p className="text-sm mt-1">
             {search || statusFilter !== 'ALL'
@@ -232,7 +221,7 @@ function ProjectsPageContent() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={STATUS_COLORS[project.status] ?? ''}
+                      className={tone(PROJECT_STATUS_TONES, project.status)}
                       variant="secondary"
                     >
                       {STATUS_LABELS[project.status] ?? project.status}
@@ -240,7 +229,7 @@ function ProjectsPageContent() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={PRIORITY_COLORS[project.priority] ?? ''}
+                      className={tone(PRIORITY_TONES, project.priority)}
                       variant="secondary"
                     >
                       {PRIORITY_LABELS[project.priority] ?? project.priority}

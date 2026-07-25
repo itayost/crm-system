@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { tone, TASK_CATEGORY_TONES } from '@/lib/design/tones'
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
@@ -32,7 +33,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 
 const PROJECT_STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-700',
+  COMPLETED: 'bg-surface-muted text-content-body',
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -40,13 +41,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   MARKETING: 'שיווק',
   LEAD_FOLLOWUP: 'מעקב לידים',
   ADMIN: 'מנהלה',
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  CLIENT_WORK: 'bg-blue-100 text-blue-700',
-  MARKETING: 'bg-purple-100 text-purple-700',
-  LEAD_FOLLOWUP: 'bg-orange-100 text-orange-700',
-  ADMIN: 'bg-gray-100 text-gray-700',
 }
 
 interface PendingTask {
@@ -147,7 +141,7 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-content-subtle">
         <p>שגיאה בטעינת הנתונים</p>
       </div>
     )
@@ -168,7 +162,7 @@ export default function DashboardPage() {
       value: String(data.projects.active),
       description: `${data.projects.completed} הושלמו`,
       icon: Briefcase,
-      color: 'text-blue-600',
+      color: 'text-link',
       bgColor: 'bg-blue-50',
       href: '/projects',
     },
@@ -209,7 +203,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">דשבורד</h1>
+        <h1 className="text-2xl font-bold text-content-strong">דשבורד</h1>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => router.push('/contacts')}>
             <Plus className="w-4 h-4 ml-2" />
@@ -260,11 +254,11 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-content-subtle">
                       {kpi.title}
                     </p>
                     <p className="text-2xl font-bold mt-1">{kpi.value}</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-content-faint mt-1">
                       {kpi.description}
                     </p>
                   </div>
@@ -297,7 +291,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {data.pendingTasks.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
+              <p className="text-sm text-content-subtle text-center py-4">
                 אין משימות ממתינות
               </p>
             ) : (
@@ -307,7 +301,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-subtle cursor-pointer transition-colors"
                       onClick={() => router.push('/tasks')}
                       role="button"
                       tabIndex={0}
@@ -320,20 +314,20 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm font-medium">{task.title}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-content-subtle">
                             {task.project?.name ?? 'ללא פרויקט'}
                           </span>
                           {task.category && (
                             <span
                               className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                CATEGORY_COLORS[task.category] ?? ''
+                                tone(TASK_CATEGORY_TONES, task.category)
                               }`}
                             >
                               {CATEGORY_LABELS[task.category] ?? task.category}
                             </span>
                           )}
                           {task.dueDate && (
-                            <span className={`text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                            <span className={`text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-content-subtle'}`}>
                               | {formatDate(task.dueDate)}
                             </span>
                           )}
@@ -344,7 +338,7 @@ export default function DashboardPage() {
                           task.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
                           task.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
                           task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-600'
+                          'bg-surface-muted text-content-muted'
                         }
                         variant="secondary"
                       >
@@ -375,7 +369,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {data.activeProjects.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">
+              <p className="text-sm text-content-subtle text-center py-4">
                 אין פרויקטים פעילים
               </p>
             ) : (
@@ -383,7 +377,7 @@ export default function DashboardPage() {
                 {data.activeProjects.map((project) => (
                   <div
                     key={project.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-subtle cursor-pointer transition-colors"
                     onClick={() => router.push(`/projects/${project.id}`)}
                     role="button"
                     tabIndex={0}
@@ -406,12 +400,12 @@ export default function DashboardPage() {
                             project.status}
                         </Badge>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-content-subtle mt-1">
                         {project.client?.name ?? '-'} | {project._count.tasks} משימות
                       </p>
                     </div>
                     {project.deadline && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-1 text-xs text-content-subtle">
                         <Calendar className="w-3 h-3" />
                         <span>{formatDate(project.deadline)}</span>
                       </div>

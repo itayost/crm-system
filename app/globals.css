@@ -5,27 +5,132 @@
 
 @layer base {
   :root {
+    /* ------------------------------------------------------------------
+     * Layer 1 - primitives. The raw palette this product uses, and only
+     * the shades it actually uses. Nothing outside this block should name
+     * a colour; nothing inside it should mean anything.
+     * ------------------------------------------------------------------ */
+    --gray-50: 210 20% 98%;
+    --gray-100: 220 14.3% 95.9%;
+    --gray-200: 220 13% 91%;
+    --gray-300: 216 12.2% 83.9%;
+    --gray-400: 217.9 10.6% 64.9%;
+    --gray-500: 220 8.9% 46.1%;
+    --gray-600: 215 13.8% 34.1%;
+    --gray-700: 216.9 19.1% 26.7%;
+    --gray-800: 215 27.9% 16.9%;
+    --gray-900: 220.9 39.3% 11%;
+
+    --blue-50: 213.8 100% 96.9%;
+    --blue-100: 214.3 94.6% 92.7%;
+    --blue-500: 217.2 91.2% 59.8%;
+    --blue-600: 221.2 83.2% 53.3%;
+    --blue-700: 224.3 76.3% 48%;
+    --blue-800: 225.9 70.7% 40.2%;
+
+    --green-50: 138.5 76.5% 96.7%;
+    --green-100: 140.6 84.2% 92.5%;
+    --green-700: 142.4 71.8% 29.2%;
+    --green-800: 142.8 64.2% 24.1%;
+
+    --red-50: 0 85.7% 97.3%;
+    --red-100: 0 93.3% 94.1%;
+    --red-600: 0 72.2% 50.6%;
+    --red-700: 0 73.7% 41.8%;
+    --red-800: 0 70% 35.3%;
+
+    --orange-100: 34.3 100% 91.8%;
+    --orange-700: 17.5 88.3% 40.4%;
+    --orange-800: 15 79.1% 33.7%;
+
+    --yellow-100: 54.9 96.7% 88%;
+    --yellow-500: 45.4 93.4% 47.5%;
+    --yellow-800: 31.8 81% 28.8%;
+
+    --purple-100: 268.7 100% 95.5%;
+    --purple-700: 272.1 71.7% 47.1%;
+    --purple-800: 272.9 67.2% 39.4%;
+
+    --indigo-100: 226.5 100% 93.9%;
+    --indigo-800: 243.7 54.5% 41.4%;
+    /* ------------------------------------------------------------------
+     * Layer 2 - semantics. What a colour is *for*. Swapping the palette
+     * or adding a dark theme happens here, and nowhere else.
+     * ------------------------------------------------------------------ */
+
+    /* surfaces */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --surface-app: var(--gray-100);
+    --surface-subtle: var(--gray-50);
+    --surface-muted: var(--gray-100);
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
+    /* text hierarchy, strongest to faintest */
+    --foreground: 222.2 84% 4.9%;
+    --foreground-strong: var(--gray-900);
+    --foreground-body: var(--gray-700);
+    --foreground-muted: var(--gray-600);
+    --foreground-subtle: var(--gray-500);
+    --foreground-faint: var(--gray-400);
+
+    /* interactive */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
+    --primary-hover: var(--blue-700);
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+    --link: var(--blue-600);
+
+    /* lines */
     --border: 214.3 31.8% 91.4%;
+    --border-strong: var(--gray-300);
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
+
+    /* status tones - the vocabulary every badge in the app speaks */
+    --tone-neutral-surface: var(--gray-100);
+    --tone-neutral-foreground: var(--gray-700);
+    --tone-info-surface: var(--blue-100);
+    --tone-info-foreground: var(--blue-800);
+    --tone-success-surface: var(--green-100);
+    --tone-success-foreground: var(--green-800);
+    --tone-warning-surface: var(--orange-100);
+    --tone-warning-foreground: var(--orange-800);
+    --tone-caution-surface: var(--yellow-100);
+    --tone-caution-foreground: var(--yellow-800);
+    --tone-danger-surface: var(--red-100);
+    --tone-danger-foreground: var(--red-800);
+    --tone-accent-surface: var(--purple-100);
+    --tone-accent-foreground: var(--purple-800);
+    --tone-progress-surface: var(--indigo-100);
+    --tone-progress-foreground: var(--indigo-800);
+
     --radius: 0.5rem;
   }
+}
+
+@layer components {
+  /* ------------------------------------------------------------------
+   * Layer 3 - components. A tone is a surface and its foreground as one
+   * decision, because they are never chosen apart.
+   * ------------------------------------------------------------------ */
+  .tone-neutral  { background-color: hsl(var(--tone-neutral-surface));  color: hsl(var(--tone-neutral-foreground)); }
+  .tone-info     { background-color: hsl(var(--tone-info-surface));     color: hsl(var(--tone-info-foreground)); }
+  .tone-success  { background-color: hsl(var(--tone-success-surface));  color: hsl(var(--tone-success-foreground)); }
+  .tone-warning  { background-color: hsl(var(--tone-warning-surface));  color: hsl(var(--tone-warning-foreground)); }
+  .tone-caution  { background-color: hsl(var(--tone-caution-surface));  color: hsl(var(--tone-caution-foreground)); }
+  .tone-danger   { background-color: hsl(var(--tone-danger-surface));   color: hsl(var(--tone-danger-foreground)); }
+  .tone-accent   { background-color: hsl(var(--tone-accent-surface));   color: hsl(var(--tone-accent-foreground)); }
+  .tone-progress { background-color: hsl(var(--tone-progress-surface)); color: hsl(var(--tone-progress-foreground)); }
 }
 
 @layer base {

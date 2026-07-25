@@ -37,6 +37,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { ContactForm } from '@/components/forms/contact-form'
+import { tone, CONTACT_STATUS_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: 'חדש',
@@ -45,15 +46,6 @@ const STATUS_LABELS: Record<string, string> = {
   NEGOTIATING: 'במשא ומתן',
   CLIENT: 'לקוח',
   INACTIVE: 'לא פעיל',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  NEW: 'bg-blue-100 text-blue-800',
-  CONTACTED: 'bg-yellow-100 text-yellow-800',
-  QUOTED: 'bg-purple-100 text-purple-800',
-  NEGOTIATING: 'bg-orange-100 text-orange-800',
-  CLIENT: 'bg-green-100 text-green-800',
-  INACTIVE: 'bg-gray-100 text-gray-600',
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -67,11 +59,6 @@ const SOURCE_LABELS: Record<string, string> = {
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-}
-
-const PROJECT_STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING']
@@ -192,7 +179,7 @@ export default function ContactDetailPage() {
 
   if (!contact) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-content-subtle">
         <p>איש קשר לא נמצא</p>
       </div>
     )
@@ -211,21 +198,21 @@ export default function ContactDetailPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-content-strong">
               {contact.name}
             </h1>
             {contact.isVip && (
               <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
             )}
             <Badge
-              className={STATUS_COLORS[contact.status] ?? ''}
+              className={tone(CONTACT_STATUS_TONES, contact.status)}
               variant="secondary"
             >
               {STATUS_LABELS[contact.status] ?? contact.status}
             </Badge>
           </div>
           {contact.company && (
-            <p className="text-sm text-gray-500 mt-1">{contact.company}</p>
+            <p className="text-sm text-content-subtle mt-1">{contact.company}</p>
           )}
         </div>
 
@@ -278,11 +265,11 @@ export default function ContactDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">טלפון:</span>
+                <Phone className="w-4 h-4 text-content-faint" />
+                <span className="text-sm text-content-muted">טלפון:</span>
                 <a
                   href={`tel:${contact.phone}`}
-                  className="text-sm font-medium text-blue-600 hover:underline"
+                  className="text-sm font-medium text-link hover:underline"
                   dir="ltr"
                 >
                   {contact.phone}
@@ -290,11 +277,11 @@ export default function ContactDetailPage() {
               </div>
               {contact.email && (
                 <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">אימייל:</span>
+                  <Mail className="w-4 h-4 text-content-faint" />
+                  <span className="text-sm text-content-muted">אימייל:</span>
                   <a
                     href={`mailto:${contact.email}`}
-                    className="text-sm font-medium text-blue-600 hover:underline"
+                    className="text-sm font-medium text-link hover:underline"
                   >
                     {contact.email}
                   </a>
@@ -302,13 +289,13 @@ export default function ContactDetailPage() {
               )}
               {contact.company && (
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">חברה:</span>
+                  <Building2 className="w-4 h-4 text-content-faint" />
+                  <span className="text-sm text-content-muted">חברה:</span>
                   <span className="text-sm font-medium">{contact.company}</span>
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">מקור:</span>
+                <span className="text-sm text-content-muted">מקור:</span>
                 <span className="text-sm font-medium">
                   {SOURCE_LABELS[contact.source] ?? contact.source}
                 </span>
@@ -318,7 +305,7 @@ export default function ContactDetailPage() {
             <div className="space-y-4">
               {contact.estimatedBudget != null && (
                 <div>
-                  <span className="text-sm text-gray-600">תקציב משוער: </span>
+                  <span className="text-sm text-content-muted">תקציב משוער: </span>
                   <span className="text-sm font-medium">
                     {formatCurrency(contact.estimatedBudget)}
                   </span>
@@ -326,7 +313,7 @@ export default function ContactDetailPage() {
               )}
               {contact.projectType && (
                 <div>
-                  <span className="text-sm text-gray-600">סוג פרויקט: </span>
+                  <span className="text-sm text-content-muted">סוג פרויקט: </span>
                   <span className="text-sm font-medium">
                     {contact.projectType}
                   </span>
@@ -334,25 +321,25 @@ export default function ContactDetailPage() {
               )}
               {contact.address && (
                 <div>
-                  <span className="text-sm text-gray-600">כתובת: </span>
+                  <span className="text-sm text-content-muted">כתובת: </span>
                   <span className="text-sm font-medium">{contact.address}</span>
                 </div>
               )}
               {contact.taxId && (
                 <div>
-                  <span className="text-sm text-gray-600">ח.פ / ע.מ: </span>
+                  <span className="text-sm text-content-muted">ח.פ / ע.מ: </span>
                   <span className="text-sm font-medium">{contact.taxId}</span>
                 </div>
               )}
               <div>
-                <span className="text-sm text-gray-600">נוצר בתאריך: </span>
+                <span className="text-sm text-content-muted">נוצר בתאריך: </span>
                 <span className="text-sm font-medium">
                   {formatDate(contact.createdAt)}
                 </span>
               </div>
               {contact.convertedAt && (
                 <div>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-content-muted">
                     הומר ללקוח בתאריך:{' '}
                   </span>
                   <span className="text-sm font-medium">
@@ -365,7 +352,7 @@ export default function ContactDetailPage() {
 
           {contact.notes && (
             <div className="mt-6 pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-1">הערות:</p>
+              <p className="text-sm text-content-muted mb-1">הערות:</p>
               <p className="text-sm whitespace-pre-wrap">{contact.notes}</p>
             </div>
           )}
@@ -377,16 +364,16 @@ export default function ContactDetailPage() {
         <Card>
           <CardContent className="py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">עסק:</span>
+              <Building2 className="w-4 h-4 text-content-faint" />
+              <span className="text-sm text-content-muted">עסק:</span>
               <button
-                className="text-sm font-medium text-blue-600 hover:underline"
+                className="text-sm font-medium text-link hover:underline"
                 onClick={() => router.push(`/clients/${contact.client!.id}`)}
               >
                 {contact.client.name}
               </button>
               {contact.role && (
-                <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                <Badge variant="secondary" className="bg-surface-muted text-content-body">
                   {contact.role}
                 </Badge>
               )}
@@ -414,7 +401,7 @@ export default function ContactDetailPage() {
           </CardHeader>
           <CardContent>
             {(contact.client?.projects ?? []).length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-6">
+              <p className="text-sm text-content-subtle text-center py-6">
                 אין פרויקטים עדיין
               </p>
             ) : (
@@ -422,7 +409,7 @@ export default function ContactDetailPage() {
                 {(contact.client?.projects ?? []).map((project) => (
                   <div
                     key={project.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
                     onClick={() => router.push(`/projects/${project.id}`)}
                     role="button"
                     tabIndex={0}
@@ -433,13 +420,13 @@ export default function ContactDetailPage() {
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      <Briefcase className="w-4 h-4 text-gray-400" />
+                      <Briefcase className="w-4 h-4 text-content-faint" />
                       <span className="text-sm font-medium">
                         {project.name}
                       </span>
                       <Badge
                         className={
-                          PROJECT_STATUS_COLORS[project.status] ?? ''
+                          tone(PROJECT_STATUS_TONES, project.status)
                         }
                         variant="secondary"
                       >
@@ -447,7 +434,7 @@ export default function ContactDetailPage() {
                           project.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-4 text-sm text-content-subtle">
                       {project.price != null && (
                         <span>{formatCurrency(project.price)}</span>
                       )}

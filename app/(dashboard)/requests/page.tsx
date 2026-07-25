@@ -36,6 +36,7 @@ import {
   INTAKE_FREQUENCY_LABELS,
   type Intake,
 } from '@/lib/validations/intake'
+import { tone, PRIORITY_TONES, REQUEST_STATUS_TONES, REQUEST_TYPE_TONES } from '@/lib/design/tones'
 
 const TYPE_LABELS: Record<string, string> = {
   REQUEST: 'בקשה',
@@ -43,14 +44,6 @@ const TYPE_LABELS: Record<string, string> = {
   IMPROVEMENT: 'שיפור',
   QUESTION: 'שאלה',
   OTHER: 'אחר',
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  REQUEST: 'bg-blue-100 text-blue-800',
-  BUG: 'bg-red-100 text-red-800',
-  IMPROVEMENT: 'bg-purple-100 text-purple-800',
-  QUESTION: 'bg-yellow-100 text-yellow-800',
-  OTHER: 'bg-gray-100 text-gray-700',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -61,26 +54,11 @@ const STATUS_LABELS: Record<string, string> = {
   DISMISSED: 'נדחה',
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING_REVIEW: 'bg-amber-100 text-amber-800',
-  OPEN: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-indigo-100 text-indigo-800',
-  RESOLVED: 'bg-green-100 text-green-800',
-  DISMISSED: 'bg-gray-100 text-gray-600',
-}
-
 const PRIORITY_LABELS: Record<string, string> = {
   LOW: 'נמוך',
   MEDIUM: 'בינוני',
   HIGH: 'גבוה',
   URGENT: 'דחוף',
-}
-
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'bg-gray-100 text-gray-700',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
 }
 
 interface RequestRecord {
@@ -139,16 +117,16 @@ function IntakeDetails({ intake }: { intake?: Intake | null }) {
     <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="text-gray-500 whitespace-nowrap">{label}</dt>
-          <dd className="text-gray-800">{value}</dd>
+          <dt className="text-content-subtle whitespace-nowrap">{label}</dt>
+          <dd className="text-content-strong">{value}</dd>
         </div>
       ))}
       {intake.suggestedType && (
         <div className="contents">
-          <dt className="text-gray-400 whitespace-nowrap">
+          <dt className="text-content-faint whitespace-nowrap">
             {INTAKE_FIELD_LABELS.suggestedType}
           </dt>
-          <dd className="text-gray-400">
+          <dd className="text-content-faint">
             {TYPE_LABELS[intake.suggestedType] ?? intake.suggestedType}
           </dd>
         </div>
@@ -178,7 +156,7 @@ function AttachmentLinks({
         <button
           key={path}
           type="button"
-          className={`text-xs text-blue-600 underline ${className}`}
+          className={`text-xs text-link underline ${className}`}
           onClick={(e) => {
             e.stopPropagation()
             onOpen(path)
@@ -310,8 +288,8 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">בקשות לקוחות</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-content-strong">בקשות לקוחות</h1>
+          <p className="text-sm text-content-subtle mt-1">
             בקשות, תקלות ושיפורים שהלקוחות ביקשו
           </p>
         </div>
@@ -339,7 +317,7 @@ export default function RequestsPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={TYPE_COLORS[request.type] ?? ''} variant="secondary">
+                      <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
                         {TYPE_LABELS[request.type] ?? request.type}
                       </Badge>
                       {request.source === 'FORM' && (
@@ -358,7 +336,7 @@ export default function RequestsPage() {
                         onOpen={(path) => openAttachment(request.id, path)}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-content-subtle mt-1">
                       {request.client?.name ?? '-'}
                       {request.aiNote ? ` · ${request.aiNote}` : ''}
                     </p>
@@ -393,7 +371,7 @@ export default function RequestsPage() {
       {/* Filters */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
           <Input
             type="search"
             placeholder="חיפוש בקשה..."
@@ -451,7 +429,7 @@ export default function RequestsPage() {
           ))}
         </div>
       ) : requests.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-content-subtle">
           <p className="text-lg font-medium">אין בקשות</p>
           <p className="text-sm mt-1">צור בקשה חדשה כדי להתחיל</p>
         </div>
@@ -489,7 +467,7 @@ export default function RequestsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 flex-wrap">
-                      <Badge className={TYPE_COLORS[request.type] ?? ''} variant="secondary">
+                      <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
                         {TYPE_LABELS[request.type] ?? request.type}
                       </Badge>
                       {request.source === 'FORM' && (
@@ -500,12 +478,12 @@ export default function RequestsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={STATUS_COLORS[request.status] ?? ''} variant="secondary">
+                    <Badge className={tone(REQUEST_STATUS_TONES, request.status)} variant="secondary">
                       {STATUS_LABELS[request.status] ?? request.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={PRIORITY_COLORS[request.priority] ?? ''} variant="secondary">
+                    <Badge className={tone(PRIORITY_TONES, request.priority)} variant="secondary">
                       {PRIORITY_LABELS[request.priority] ?? request.priority}
                     </Badge>
                   </TableCell>

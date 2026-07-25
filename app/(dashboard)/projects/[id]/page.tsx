@@ -36,15 +36,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ProjectForm } from '@/components/forms/project-form'
 import { TaskForm } from '@/components/forms/task-form'
+import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES, TASK_STATUS_TONES } from '@/lib/design/tones'
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-700',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -64,25 +60,11 @@ const PRIORITY_LABELS: Record<string, string> = {
   URGENT: 'דחוף',
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'bg-gray-100 text-gray-700',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
-}
-
 const TASK_STATUS_LABELS: Record<string, string> = {
   TODO: 'לביצוע',
   IN_PROGRESS: 'בתהליך',
   COMPLETED: 'הושלם',
   CANCELLED: 'בוטל',
-}
-
-const TASK_STATUS_COLORS: Record<string, string> = {
-  TODO: 'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
 }
 
 const FREQUENCY_LABELS: Record<string, string> = {
@@ -201,7 +183,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="text-center py-12 text-content-subtle">
         <p>פרויקט לא נמצא</p>
       </div>
     )
@@ -220,23 +202,23 @@ export default function ProjectDetailPage() {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-content-strong">
               {project.name}
             </h1>
             <Badge
-              className={STATUS_COLORS[project.status] ?? ''}
+              className={tone(PROJECT_STATUS_TONES, project.status)}
               variant="secondary"
             >
               {STATUS_LABELS[project.status] ?? project.status}
             </Badge>
             <Badge
-              className={PRIORITY_COLORS[project.priority] ?? ''}
+              className={tone(PRIORITY_TONES, project.priority)}
               variant="secondary"
             >
               {PRIORITY_LABELS[project.priority] ?? project.priority}
             </Badge>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-content-subtle mt-1">
             {TYPE_LABELS[project.type] ?? project.type}
           </p>
         </div>
@@ -302,11 +284,11 @@ export default function ProjectDetailPage() {
             <div className="space-y-4">
               {/* Client (business) */}
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">לקוח:</span>
+                <User className="w-4 h-4 text-content-faint" />
+                <span className="text-sm text-content-muted">לקוח:</span>
                 {project.client ? (
                   <button
-                    className="text-sm font-medium text-blue-600 hover:underline"
+                    className="text-sm font-medium text-link hover:underline"
                     onClick={() => router.push(`/clients/${project.client!.id}`)}
                   >
                     {project.client.name}
@@ -315,7 +297,7 @@ export default function ProjectDetailPage() {
                   <span className="text-sm font-medium">-</span>
                 )}
                 {project.primaryContact && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-content-subtle">
                     · {project.primaryContact.name}
                   </span>
                 )}
@@ -323,23 +305,23 @@ export default function ProjectDetailPage() {
 
               {/* Dates */}
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">תאריך התחלה:</span>
+                <Calendar className="w-4 h-4 text-content-faint" />
+                <span className="text-sm text-content-muted">תאריך התחלה:</span>
                 <span className="text-sm font-medium">
                   {formatDate(project.startDate)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">דדליין:</span>
+                <Calendar className="w-4 h-4 text-content-faint" />
+                <span className="text-sm text-content-muted">דדליין:</span>
                 <span className="text-sm font-medium">
                   {formatDate(project.deadline)}
                 </span>
               </div>
               {project.completedAt && (
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">הושלם:</span>
+                  <Calendar className="w-4 h-4 text-content-faint" />
+                  <span className="text-sm text-content-muted">הושלם:</span>
                   <span className="text-sm font-medium">
                     {formatDate(project.completedAt)}
                   </span>
@@ -350,7 +332,7 @@ export default function ProjectDetailPage() {
             <div className="space-y-4">
               {/* Price */}
               <div>
-                <span className="text-sm text-gray-600">מחיר: </span>
+                <span className="text-sm text-content-muted">מחיר: </span>
                 <span className="text-sm font-bold text-green-700">
                   {formatCurrency(project.price)}
                 </span>
@@ -359,7 +341,7 @@ export default function ProjectDetailPage() {
               {/* Retention */}
               {project.retention != null && Number(project.retention) > 0 && (
                 <div>
-                  <span className="text-sm text-gray-600">ריטיינר: </span>
+                  <span className="text-sm text-content-muted">ריטיינר: </span>
                   <span className="text-sm font-medium">
                     {formatCurrency(project.retention)}{' '}
                     {project.retentionFrequency
@@ -371,7 +353,7 @@ export default function ProjectDetailPage() {
 
               {/* Created */}
               <div>
-                <span className="text-sm text-gray-600">נוצר: </span>
+                <span className="text-sm text-content-muted">נוצר: </span>
                 <span className="text-sm font-medium">
                   {formatDate(project.createdAt)}
                 </span>
@@ -381,7 +363,7 @@ export default function ProjectDetailPage() {
 
           {project.description && (
             <div className="mt-6 pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-1">תיאור:</p>
+              <p className="text-sm text-content-muted mb-1">תיאור:</p>
               <p className="text-sm whitespace-pre-wrap">
                 {project.description}
               </p>
@@ -401,7 +383,7 @@ export default function ProjectDetailPage() {
         </CardHeader>
         <CardContent>
           {project.tasks.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-6">
+            <p className="text-sm text-content-subtle text-center py-6">
               אין משימות עדיין
             </p>
           ) : (
@@ -409,7 +391,7 @@ export default function ProjectDetailPage() {
               {project.tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
                   onClick={() => router.push(`/tasks`)}
                   role="button"
                   tabIndex={0}
@@ -424,28 +406,28 @@ export default function ProjectDetailPage() {
                       className={`w-4 h-4 ${
                         task.status === 'COMPLETED'
                           ? 'text-green-500'
-                          : 'text-gray-400'
+                          : 'text-content-faint'
                       }`}
                     />
                     <span
                       className={`text-sm font-medium ${
                         task.status === 'COMPLETED'
-                          ? 'line-through text-gray-400'
+                          ? 'line-through text-content-faint'
                           : ''
                       }`}
                     >
                       {task.title}
                     </span>
                     <Badge
-                      className={TASK_STATUS_COLORS[task.status] ?? ''}
+                      className={tone(TASK_STATUS_TONES, task.status)}
                       variant="secondary"
                     >
                       {TASK_STATUS_LABELS[task.status] ?? task.status}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <div className="flex items-center gap-3 text-sm text-content-subtle">
                     <Badge
-                      className={PRIORITY_COLORS[task.priority] ?? ''}
+                      className={tone(PRIORITY_TONES, task.priority)}
                       variant="secondary"
                     >
                       {PRIORITY_LABELS[task.priority] ?? task.priority}

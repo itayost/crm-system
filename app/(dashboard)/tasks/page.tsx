@@ -27,19 +27,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TaskForm } from '@/components/forms/task-form'
+import { tone, PRIORITY_TONES, TASK_CATEGORY_TONES, TASK_STATUS_TONES } from '@/lib/design/tones'
 
 const STATUS_LABELS: Record<string, string> = {
   TODO: 'לביצוע',
   IN_PROGRESS: 'בתהליך',
   COMPLETED: 'הושלם',
   CANCELLED: 'בוטל',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  TODO: 'bg-gray-100 text-gray-700',
-  IN_PROGRESS: 'bg-blue-100 text-blue-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
 }
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -49,25 +43,11 @@ const PRIORITY_LABELS: Record<string, string> = {
   URGENT: 'דחוף',
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: 'bg-gray-100 text-gray-700',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  URGENT: 'bg-red-100 text-red-700',
-}
-
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_WORK: 'עבודת לקוח',
   MARKETING: 'שיווק',
   LEAD_FOLLOWUP: 'מעקב לידים',
   ADMIN: 'מנהלה',
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  CLIENT_WORK: 'bg-blue-100 text-blue-700',
-  MARKETING: 'bg-purple-100 text-purple-700',
-  LEAD_FOLLOWUP: 'bg-orange-100 text-orange-700',
-  ADMIN: 'bg-gray-100 text-gray-700',
 }
 
 const STATUS_FILTER_OPTIONS = [
@@ -210,8 +190,8 @@ export default function TasksPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">משימות</h1>
-          <p className="text-sm text-gray-500 mt-1">ניהול ומעקב משימות</p>
+          <h1 className="text-2xl font-bold text-content-strong">משימות</h1>
+          <p className="text-sm text-content-subtle mt-1">ניהול ומעקב משימות</p>
         </div>
         <Button
           onClick={() => {
@@ -271,8 +251,8 @@ export default function TasksPage() {
             onClick={() => setCategoryFilter(tab.value)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               categoryFilter === tab.value
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-link'
+                : 'border-transparent text-content-subtle hover:text-content-body hover:border-border-strong'
             }`}
           >
             {tab.label}
@@ -283,7 +263,7 @@ export default function TasksPage() {
       {/* Filters */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
           <Input
             type="search"
             placeholder="חיפוש משימה..."
@@ -310,7 +290,7 @@ export default function TasksPage() {
             checked={standaloneOnly}
             onCheckedChange={setStandaloneOnly}
           />
-          <Label htmlFor="standalone" className="text-sm text-gray-600">
+          <Label htmlFor="standalone" className="text-sm text-content-muted">
             ללא פרויקט
           </Label>
         </div>
@@ -324,7 +304,7 @@ export default function TasksPage() {
           ))}
         </div>
       ) : tasks.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-content-subtle">
           <p className="text-lg font-medium">אין משימות</p>
           <p className="text-sm mt-1">
             {search || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || standaloneOnly
@@ -361,7 +341,7 @@ export default function TasksPage() {
                       className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                         task.status === 'COMPLETED'
                           ? 'bg-green-500 border-green-500 text-white'
-                          : 'border-gray-300 hover:border-green-400'
+                          : 'border-border-strong hover:border-green-400'
                       }`}
                       disabled={togglingId === task.id}
                       onClick={() => handleToggleComplete(task)}
@@ -380,14 +360,14 @@ export default function TasksPage() {
                     <div
                       className={`font-medium ${
                         task.status === 'COMPLETED'
-                          ? 'line-through text-gray-400'
+                          ? 'line-through text-content-faint'
                           : ''
                       }`}
                     >
                       {task.title}
                     </div>
                     {task.description && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">
+                      <p className="text-xs text-content-faint mt-0.5 truncate max-w-xs">
                         {task.description.length > 60
                           ? `${task.description.slice(0, 60)}...`
                           : task.description}
@@ -396,7 +376,7 @@ export default function TasksPage() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={STATUS_COLORS[task.status] ?? ''}
+                      className={tone(TASK_STATUS_TONES, task.status)}
                       variant="secondary"
                     >
                       {STATUS_LABELS[task.status] ?? task.status}
@@ -404,7 +384,7 @@ export default function TasksPage() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={PRIORITY_COLORS[task.priority] ?? ''}
+                      className={tone(PRIORITY_TONES, task.priority)}
                       variant="secondary"
                     >
                       {PRIORITY_LABELS[task.priority] ?? task.priority}
@@ -424,14 +404,14 @@ export default function TasksPage() {
                   <TableCell>
                     {task.category && (
                       <Badge
-                        className={CATEGORY_COLORS[task.category] ?? ''}
+                        className={tone(TASK_CATEGORY_TONES, task.category)}
                         variant="secondary"
                       >
                         {CATEGORY_LABELS[task.category] ?? task.category}
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-gray-500">
+                  <TableCell className="text-content-subtle">
                     {task.project?.name ?? '-'}
                   </TableCell>
                 </TableRow>

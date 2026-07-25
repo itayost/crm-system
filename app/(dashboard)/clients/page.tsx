@@ -58,8 +58,8 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">לקוחות</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-content-strong">לקוחות</h1>
+          <p className="text-sm text-content-subtle mt-1">
             עסקים, אנשי הקשר שלהם והפרויקטים
           </p>
         </div>
@@ -70,7 +70,7 @@ export default function ClientsPage() {
       </div>
 
       <div className="relative max-w-md">
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
         <Input
           type="search"
           placeholder="חיפוש לפי שם עסק או ח.פ..."
@@ -87,7 +87,7 @@ export default function ClientsPage() {
           ))}
         </div>
       ) : clients.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-content-subtle">
           <p className="text-lg font-medium">אין לקוחות</p>
           <p className="text-sm mt-1">
             {search ? 'לא נמצאו תוצאות לחיפוש' : 'צור לקוח חדש כדי להתחיל'}

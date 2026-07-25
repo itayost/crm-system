@@ -83,9 +83,9 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-content-body">{label}</label>
       {children}
-      {hint && <p className="text-xs text-gray-500">{hint}</p>}
+      {hint && <p className="text-xs text-content-subtle">{hint}</p>}
     </div>
   )
 }
@@ -110,8 +110,8 @@ function TextInput({
       onChange={readOnly ? undefined : (e) => onChange?.(e.target.value)}
       className={`rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
         readOnly
-          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-          : 'bg-white border-gray-300'
+          ? 'bg-surface-muted text-content-subtle cursor-not-allowed'
+          : 'bg-white border-border-strong'
       }`}
     />
   )
@@ -179,8 +179,8 @@ function FormBody({
       </Field>
 
       {/* GitHub fieldset */}
-      <fieldset className="border border-gray-200 rounded p-4 flex flex-col gap-4">
-        <legend className="text-sm font-semibold text-gray-600 px-1">GitHub</legend>
+      <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
+        <legend className="text-sm font-semibold text-content-muted px-1">GitHub</legend>
         <Field label="Owner">
           <TextInput
             value={values.githubOwner}
@@ -205,8 +205,8 @@ function FormBody({
       </fieldset>
 
       {/* Vercel fieldset */}
-      <fieldset className="border border-gray-200 rounded p-4 flex flex-col gap-4">
-        <legend className="text-sm font-semibold text-gray-600 px-1">Vercel</legend>
+      <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
+        <legend className="text-sm font-semibold text-content-muted px-1">Vercel</legend>
         <Field label="Team ID">
           <TextInput
             value={values.vercelTeamId}
@@ -266,7 +266,7 @@ function FormBody({
         <button
           type="button"
           onClick={() => setAdvancedOpen((o) => !o)}
-          className="text-sm text-blue-600 hover:underline"
+          className="text-sm text-link hover:underline"
         >
           {advancedOpen ? 'Hide advanced' : 'Show advanced'}
         </button>
@@ -278,7 +278,7 @@ function FormBody({
                 value={values.safetyConfig}
                 onChange={(e) => onChange({ safetyConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </Field>
             <Field label="Ingestion config (JSON)" hint="Leave blank to clear">
@@ -286,7 +286,7 @@ function FormBody({
                 value={values.ingestionConfig}
                 onChange={(e) => onChange({ ingestionConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </Field>
           </div>
@@ -396,8 +396,8 @@ export function AgentConfigForm({ projectId, initial }: Props) {
   // Empty state — config doesn't exist yet and form hasn't been revealed
   if (isNew && !showForm) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-10 text-center">
-        <p className="text-gray-500 mb-4">
+      <div className="rounded-lg border border-dashed border-border-strong p-10 text-center">
+        <p className="text-content-subtle mb-4">
           This project isn&apos;t being monitored yet.
         </p>
         <button

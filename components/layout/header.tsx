@@ -67,10 +67,10 @@ export function Header() {
         {/* Greeting and Date */}
         <div className="flex items-center gap-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-xl font-semibold text-content-strong">
               {getGreeting()}, {getUserDisplayName()}!
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-content-subtle">
               {hebrewDay}, {formattedDate} &bull; {formattedTime}
             </p>
           </div>
@@ -99,7 +99,7 @@ export function Header() {
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium">{getUserDisplayName()}</p>
-                  <p className="text-xs text-gray-500">{session?.user?.email}</p>
+                  <p className="text-xs text-content-subtle">{session?.user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -129,23 +129,23 @@ export function Header() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center py-1 border-b">
               <span>סגור חלון</span>
-              <kbd className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">Escape</kbd>
+              <kbd className="px-2 py-1 bg-surface-muted rounded text-xs font-mono">Escape</kbd>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
               <span>דשבורד</span>
-              <span className="text-gray-500">/</span>
+              <span className="text-content-subtle">/</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
               <span>אנשי קשר</span>
-              <span className="text-gray-500">/contacts</span>
+              <span className="text-content-subtle">/contacts</span>
             </div>
             <div className="flex justify-between items-center py-1 border-b">
               <span>פרויקטים</span>
-              <span className="text-gray-500">/projects</span>
+              <span className="text-content-subtle">/projects</span>
             </div>
             <div className="flex justify-between items-center py-1">
               <span>משימות</span>
-              <span className="text-gray-500">/tasks</span>
+              <span className="text-content-subtle">/tasks</span>
             </div>
           </div>
         </DialogContent>

@@ -26,8 +26,8 @@ export default async function PublicRequestPage({
     return (
       <main dir="rtl" className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-gray-900">הקישור אינו תקין</h1>
-          <p className="mt-2 text-gray-600">בדקו את הקישור או פנו אלינו ישירות.</p>
+          <h1 className="text-xl font-semibold text-content-strong">הקישור אינו תקין</h1>
+          <p className="mt-2 text-content-muted">בדקו את הקישור או פנו אלינו ישירות.</p>
         </div>
       </main>
     )
@@ -36,8 +36,8 @@ export default async function PublicRequestPage({
   return (
     <main dir="rtl" lang="he" className="mx-auto max-w-lg p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">דיווח תקלה / בקשה — {client.name}</h1>
-        <p className="mt-1 text-sm text-gray-600">מלאו את הטופס ונחזור אליכם בהקדם.</p>
+        <h1 className="text-2xl font-bold text-content-strong">דיווח תקלה / בקשה — {client.name}</h1>
+        <p className="mt-1 text-sm text-content-muted">מלאו את הטופס ונחזור אליכם בהקדם.</p>
       </header>
       <PublicRequestForm token={token} clientName={client.name} projects={client.projects} />
     </main>
