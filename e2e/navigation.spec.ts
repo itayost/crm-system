@@ -16,8 +16,11 @@ test.describe('Navigation', () => {
     for (const link of sidebarLinks) {
       const sidebarLink = page.locator('nav a').filter({ hasText: link.text })
       await sidebarLink.click()
-      await page.waitForLoadState('networkidle')
-      expect(page.url()).toContain(link.href === '/' ? `localhost:${E2E_PORT}` : link.href)
+      // App Router navigation is client-side, so there is no load event to wait
+      // for: assert on the URL settling instead.
+      await page.waitForURL(
+        link.href === '/' ? new RegExp(`localhost:${E2E_PORT}/?$`) : new RegExp(link.href)
+      )
     }
   })
 

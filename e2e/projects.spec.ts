@@ -120,7 +120,7 @@ test.describe('Projects', () => {
     await expect(page.locator('text=5,000 ₪')).toBeVisible()
 
     // Verify contact link
-    await expect(page.locator('text=לקוח פעיל')).toBeVisible()
+    await expect(page.locator('text=לקוח פעיל').first()).toBeVisible()
   })
 
   test('edit: changes project price on detail page', async ({ page }) => {
@@ -161,7 +161,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify ACTIVE status
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'פעיל' })).toBeVisible()
+    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'פעיל' }).first()).toBeVisible()
 
     // Click "סמן כהושלם" (ACTIVE -> COMPLETED)
     await page.locator('button').filter({ hasText: 'סמן כהושלם' }).click()
@@ -169,7 +169,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify COMPLETED status
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'הושלם' })).toBeVisible()
+    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'הושלם' }).first()).toBeVisible()
 
     // Click "הפעל מחדש" (COMPLETED -> ACTIVE)
     await page.locator('button').filter({ hasText: 'הפעל מחדש' }).click()
@@ -177,7 +177,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify back to ACTIVE
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'פעיל' })).toBeVisible()
+    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'פעיל' }).first()).toBeVisible()
   })
 
   test('delete-success: creates and deletes a project with no tasks', async ({ page }) => {
@@ -231,6 +231,6 @@ test.describe('Projects', () => {
     await confirmButton.click()
 
     // Should show error toast
-    await expectToastError(page, 'שגיאה במחיקת פרויקט')
+    await expectToastError(page, 'לא ניתן למחוק פרויקט שיש לו משימות')
   })
 })

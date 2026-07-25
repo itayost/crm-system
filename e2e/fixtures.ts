@@ -19,7 +19,7 @@ export function getTableRow(page: Page, containsText: string) {
 }
 
 export function getStatusBadge(page: Page, text: string) {
-  return page.locator('[class*="badge"]').filter({ hasText: text })
+  return page.locator('[data-slot="badge"]').filter({ hasText: text })
 }
 
 // --- Formatting ---

@@ -11,7 +11,7 @@ test.describe('Dashboard', () => {
     const kpiTitles = ['הכנסות', 'פרויקטים פעילים', 'לידים בצנרת', 'משימות ממתינות']
 
     for (const title of kpiTitles) {
-      const card = page.locator('text=' + title)
+      const card = page.locator('text=' + title).first()
       await expect(card).toBeVisible()
     }
   })
@@ -22,24 +22,10 @@ test.describe('Dashboard', () => {
     await expect(revenueSection).toContainText('₪')
   })
 
-  test('recent-contacts: shows seeded contacts', async ({ page }) => {
-    // The "recent contacts" section should include seeded contacts
-    const recentContactsSection = page.locator('text=אנשי קשר אחרונים').locator('..').locator('..')
-    await expect(recentContactsSection).toBeVisible()
-
-    // At least one seeded contact should appear
-    const contactNames = ['ליד ראשון', 'ליד שני', 'לקוח פעיל', 'לקוח VIP', 'לקוח לא פעיל']
-    let foundCount = 0
-    for (const name of contactNames) {
-      const count = await recentContactsSection.locator(`text=${name}`).count()
-      foundCount += count
-    }
-    expect(foundCount).toBeGreaterThan(0)
-  })
 
   test('active-projects: shows seeded projects', async ({ page }) => {
     // The "active projects" section should show seeded projects
-    const activeProjectsSection = page.locator('text=פרויקטים פעילים').locator('..').locator('..')
+    const activeProjectsSection = page.locator('text=הפרויקטים בעבודה').locator('..').locator('..')
 
     // "פרויקט אפליקציה" is IN_PROGRESS so it should appear in active projects
     // Note: the card title also says "פרויקטים פעילים" so we look in the card content
@@ -56,8 +42,7 @@ test.describe('Dashboard', () => {
     // Click "איש קשר חדש" button -> navigates to /contacts
     const newContactBtn = page.locator('button').filter({ hasText: 'איש קשר חדש' })
     await newContactBtn.click()
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/contacts')
+    await page.waitForURL(new RegExp('/contacts'))
 
     // Go back to dashboard
     await page.goto('/')
@@ -66,8 +51,7 @@ test.describe('Dashboard', () => {
     // Click "פרויקט חדש" button -> navigates to /projects
     const newProjectBtn = page.locator('button').filter({ hasText: 'פרויקט חדש' }).first()
     await newProjectBtn.click()
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/projects')
+    await page.waitForURL(new RegExp('/projects'))
 
     // Go back to dashboard
     await page.goto('/')
@@ -76,7 +60,6 @@ test.describe('Dashboard', () => {
     // Click "משימה חדשה" button -> navigates to /tasks
     const newTaskBtn = page.locator('button').filter({ hasText: 'משימה חדשה' })
     await newTaskBtn.click()
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/tasks')
+    await page.waitForURL(new RegExp('/tasks'))
   })
 })

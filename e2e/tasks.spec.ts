@@ -164,7 +164,7 @@ test.describe('Tasks', () => {
     await page.waitForTimeout(300)
 
     // Verify the status badge changed to COMPLETED
-    const statusBadge = taskRow.locator('[class*="badge"]').filter({ hasText: 'הושלם' })
+    const statusBadge = taskRow.locator('[data-slot="badge"]').filter({ hasText: 'הושלם' })
     await expect(statusBadge).toBeVisible()
 
     // Revert: click again to set back to TODO
@@ -209,7 +209,7 @@ test.describe('Tasks', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify "משימה ראשונה" appears in the tasks section
-    await expect(page.locator('text=משימות')).toBeVisible()
+    await expect(page.locator('text=משימות').first()).toBeVisible()
     await expect(page.locator('text=משימה ראשונה')).toBeVisible()
   })
 })

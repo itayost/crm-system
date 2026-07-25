@@ -29,7 +29,8 @@ export const updateContactSchema = z.object({
   address: z.string().optional(),
   taxId: z.string().optional(),
   notes: z.string().optional(),
-  clientId: z.string().optional(),
+  // null unlinks the contact from its business; undefined leaves it alone
+  clientId: z.string().nullable().optional(),
   role: z.string().optional(),
   isPrimary: z.boolean().optional(),
 })

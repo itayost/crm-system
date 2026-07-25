@@ -16,7 +16,7 @@ test.describe('Contacts', () => {
 
   test('list-shows-data: seeded contacts are visible in the table', async ({ page }) => {
     await expect(page.locator('text=ליד ראשון')).toBeVisible()
-    await expect(page.locator('text=לקוח פעיל')).toBeVisible()
+    await expect(page.locator('text=לקוח פעיל').first()).toBeVisible()
   })
 
   test('filter-leads-tab: clicking leads tab shows only leads', async ({ page }) => {
@@ -118,13 +118,13 @@ test.describe('Contacts', () => {
     await expect(page.locator('h1').filter({ hasText: 'ליד ראשון' })).toBeVisible()
 
     // Verify status badge shows a lead status
-    await expect(page.locator('text=חדש')).toBeVisible()
+    await expect(page.locator('text=חדש').first()).toBeVisible()
 
     // Verify convert button is visible (only for leads)
     await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).toBeVisible()
 
     // Verify projects section is NOT visible (leads don't have it)
-    await expect(page.locator('text=פרויקטים').locator('..').locator('..').locator('button:has-text("פרויקט חדש")')).not.toBeVisible()
+    await expect(page.locator('main').locator('button:has-text("פרויקט חדש")')).not.toBeVisible()
   })
 
   test('view-detail-client: client detail page shows client fields and projects section', async ({ page }) => {
@@ -137,11 +137,11 @@ test.describe('Contacts', () => {
     await expect(page.locator('h1').filter({ hasText: 'לקוח פעיל' })).toBeVisible()
 
     // Verify status badge shows "לקוח"
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
+    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
 
-    // Verify projects section IS visible (clients have projects)
-    const projectsCard = page.locator('text=פרויקטים').locator('..').locator('..')
-    await expect(projectsCard).toBeVisible()
+    // Verify projects section IS visible (clients have projects). Scoped to
+    // main: the sidebar has a "פרויקטים" link too.
+    await expect(page.locator('main').getByText('פרויקטים').first()).toBeVisible()
   })
 
   test('edit: changes contact name on detail page', async ({ page }) => {
@@ -190,16 +190,22 @@ test.describe('Contacts', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify status badge changed to "לקוח"
-    await expect(page.locator('[class*="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
+    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
 
     // Convert button should no longer be visible
     await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).not.toBeVisible()
 
-    // Revert: set back to QUOTED via API
+    // Revert fully. Converting also creates a Client (business) named after the
+    // lead; leaving it behind puts a lead's name in the client dropdown that
+    // projects.spec asserts against later in the same run.
     const id = page.url().split('/contacts/')[1]
+    const before = await (await page.request.get(`/api/contacts/${id}`)).json()
     await page.request.put(`/api/contacts/${id}`, {
-      data: { status: 'QUOTED' },
+      data: { status: 'QUOTED', clientId: null },
     })
+    if (before.clientId) {
+      await page.request.delete(`/api/clients/${before.clientId}`)
+    }
   })
 
   test('delete-success: creates and deletes a throwaway contact', async ({ page }) => {
@@ -247,6 +253,6 @@ test.describe('Contacts', () => {
     await confirmButton.click()
 
     // Should show error toast (business rule prevents deletion)
-    await expectToastError(page, 'שגיאה במחיקת איש קשר')
+    await expectToastError(page, 'לא ניתן למחוק איש קשר ראשי של לקוח שיש לו פרויקטים')
   })
 })

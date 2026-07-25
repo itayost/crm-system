@@ -48,8 +48,10 @@ export function PublicRequestForm({ token, clientName, projects }: Props) {
   if (done) {
     return (
       <div className="rounded-lg bg-green-50 p-6 text-center">
-        <h2 className="text-lg font-semibold text-green-800">תודה{clientName ? `, ${clientName}` : ''}!</h2>
-        <p className="mt-2 text-green-700">הפנייה נשלחה ונטפל בה בהקדם.</p>
+        <h2 className="text-lg font-semibold text-green-800">תודה!</h2>
+        <p className="mt-2 text-green-700">
+          {clientName ? `${clientName}, הפנייה נשלחה ונטפל בה בהקדם.` : 'הפנייה נשלחה ונטפל בה בהקדם.'}
+        </p>
       </div>
     )
   }
