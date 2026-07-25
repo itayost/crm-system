@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { BASE_URL } from './base-url'
 
 // Authenticated context comes from the project's storageState.
 async function createClient(request: import('@playwright/test').APIRequestContext, name: string) {
@@ -48,7 +49,7 @@ test.describe('public request submission', () => {
     const { formToken } = await mintToken(request)
     const title = `תקלה בטופס ${Date.now()}`
 
-    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    const pub = await playwright.request.newContext({ baseURL: BASE_URL })
     const res = await pub.post('/api/public/requests', {
       multipart: { token: formToken, type: 'BUG', title, description: 'הכפתור לא עובד' },
     })
@@ -67,7 +68,7 @@ test.describe('public request submission', () => {
   })
 
   test('rejects an unknown token with 404', async ({ playwright }) => {
-    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    const pub = await playwright.request.newContext({ baseURL: BASE_URL })
     const res = await pub.post('/api/public/requests', {
       multipart: { token: 'does-not-exist', title: 'x', description: 'y' },
     })
@@ -77,7 +78,7 @@ test.describe('public request submission', () => {
 
   test('rejects a disallowed file type with 400', async ({ request, playwright }) => {
     const { formToken } = await mintToken(request)
-    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    const pub = await playwright.request.newContext({ baseURL: BASE_URL })
     const res = await pub.post('/api/public/requests', {
       multipart: {
         token: formToken,
@@ -93,7 +94,7 @@ test.describe('public request submission', () => {
   test('honeypot submissions are silently dropped', async ({ request, playwright }) => {
     const { formToken } = await mintToken(request)
     const title = `ספאם ${Date.now()}`
-    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    const pub = await playwright.request.newContext({ baseURL: BASE_URL })
     const res = await pub.post('/api/public/requests', {
       multipart: { token: formToken, title, description: 'spam', website: 'http://spam' },
     })
@@ -113,7 +114,7 @@ test.describe('requests dashboard shows form tickets', () => {
     const { formToken } = await tokRes.json()
     const title = `פנייה ללוח ${Date.now()}`
 
-    const pub = await playwright.request.newContext({ baseURL: 'http://localhost:3000' })
+    const pub = await playwright.request.newContext({ baseURL: BASE_URL })
     await pub.post('/api/public/requests', {
       multipart: { token: formToken, type: 'BUG', title, description: 'בדיקה' },
     })

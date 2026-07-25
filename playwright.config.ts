@@ -1,5 +1,9 @@
 import { defineConfig } from '@playwright/test'
 
+// Overridable so the suite can run while another project holds port 3000.
+const PORT = process.env.E2E_PORT ?? '3000'
+const BASE_URL = `http://localhost:${PORT}`
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -10,7 +14,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   globalTeardown: './e2e/global-teardown.ts',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     storageState: './e2e/.auth/storageState.json',
@@ -19,7 +23,9 @@ export default defineConfig({
     {
       name: 'auth',
       testMatch: /auth\.spec\.ts/,
-      use: { storageState: undefined },
+      // An explicit empty state, not `undefined`: undefined merges as "unset",
+      // so the top-level storageState would still log these tests in.
+      use: { storageState: { cookies: [], origins: [] } },
     },
     {
       name: 'main',
@@ -28,8 +34,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: `npm run dev -- --port ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
