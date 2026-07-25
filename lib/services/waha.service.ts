@@ -1,6 +1,15 @@
 const WAHA_API_URL = process.env.WAHA_API_URL ?? ''
 const WAHA_API_KEY = process.env.WAHA_API_KEY ?? ''
-const WAHA_BOT_SESSION = process.env.WAHA_BOT_SESSION ?? 'bot'
+
+/** Interactive session: owner agent and (from slice 2) the client support agent. */
+export function botSessionName(): string {
+  return process.env.WAHA_BOT_SESSION ?? 'bot'
+}
+
+/** Passive session: archives Itay's personal-number conversations. */
+export function personalSessionName(): string {
+  return process.env.WAHA_PERSONAL_SESSION ?? 'personal'
+}
 
 interface SendMessageParams {
   chatId: string
@@ -34,7 +43,7 @@ export class WahaService {
       body: JSON.stringify({
         chatId,
         text,
-        session: session ?? WAHA_BOT_SESSION,
+        session: session ?? botSessionName(),
       }),
     })
   }
