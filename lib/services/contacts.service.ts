@@ -78,7 +78,28 @@ export class ContactsService {
     return contact
   }
 
+  /**
+   * A caller-supplied clientId is a foreign key into another aggregate, so it is
+   * only accepted when that Client belongs to the same owner. Without this a
+   * contact could be attached to someone else's business and then read back
+   * together with that business's projects and tasks.
+   */
+  private static async assertOwnsClient(userId: string, clientId?: string | null) {
+    if (!clientId) return
+
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, userId },
+      select: { id: true },
+    })
+
+    if (!client) {
+      throw new Error('לקוח לא נמצא')
+    }
+  }
+
   static async create(userId: string, data: CreateContactInput) {
+    await this.assertOwnsClient(userId, data.clientId)
+
     return prisma.contact.create({
       data: {
         ...data,
@@ -99,6 +120,8 @@ export class ContactsService {
     if (!contact) {
       throw new Error('איש קשר לא נמצא')
     }
+
+    await this.assertOwnsClient(userId, data.clientId)
 
     if (data.status === 'INACTIVE') {
       const hasActiveProjects =

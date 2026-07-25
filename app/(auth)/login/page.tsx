@@ -104,16 +104,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          
-          
-          {/* Demo credentials for development */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 text-center mb-2">לבדיקה:</p>
-            <p className="text-xs text-gray-700 text-center" dir="ltr">
-              Email: test@example.com<br />
-              Password: password123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,6 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db/prisma'
+import { getCurrentUser } from '@/lib/auth/auth'
 import { AgentConfigForm } from './_components/AgentConfigForm'
 
 interface PageProps {
@@ -8,8 +9,15 @@ interface PageProps {
 
 export default async function AgentConfigPage({ params }: PageProps) {
   const { id } = await params
-  const project = await prisma.project.findUnique({
-    where: { id },
+
+  // This page serializes the whole agent config (GitHub, Vercel and Supabase
+  // identifiers) into the client payload, so the lookup has to be scoped to the
+  // signed-in owner rather than trusting the id in the URL.
+  const user = await getCurrentUser()
+  if (!user?.id) redirect('/login')
+
+  const project = await prisma.project.findFirst({
+    where: { id, userId: user.id },
     include: { agentConfig: true },
   })
   if (!project) notFound()
