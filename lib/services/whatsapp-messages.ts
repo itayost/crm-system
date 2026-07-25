@@ -11,6 +11,13 @@ export const UNKNOWN_SENDER_HOLD_MESSAGE =
 
 export const PROCESSING_ERROR_MESSAGE = 'שגיאה בעיבוד ההודעה. נסה שוב.'
 
+/** Stands in for a media-only message when only text makes sense. */
+export const MEDIA_ONLY_PLACEHOLDER = '[הודעת מדיה ללא טקסט]'
+
+/** The owner agent is text-only; say so rather than going quiet. */
+export const OWNER_MEDIA_UNSUPPORTED_MESSAGE =
+  'אני עדיין לא יודע לקרוא הודעות קוליות או קבצים בערוץ הזה. כתוב לי בטקסט.'
+
 interface FiledRequestNoticeParams {
   clientName: string
   contactName: string

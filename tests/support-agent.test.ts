@@ -76,6 +76,20 @@ const prismaMock = {
   project: { findMany: vi.fn(), findFirst: vi.fn() },
   request: { findMany: vi.fn(), create: vi.fn() },
   $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
+  // Stands in for the atomic jsonb append: UPDATE ... SET pendingMedia =
+  // pendingMedia || $1 WHERE userId = $2 AND chatId = $3 AND length < $4
+  $executeRaw: vi.fn(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+    const [json, userId, chatId, max] = values as [string, string, string, number]
+    const key = `${userId}:${chatId}`
+    const row = conversations.get(key)
+    if (!row) return 0
+
+    const current = Array.isArray(row.pendingMedia) ? (row.pendingMedia as unknown[]) : []
+    if (current.length >= max) return 0
+
+    conversations.set(key, { ...row, pendingMedia: [...current, ...JSON.parse(json)] })
+    return 1
+  }),
 }
 
 const wahaMock = { sendMessage: vi.fn() }
@@ -108,6 +122,7 @@ function storedConversation() {
   return conversations.get(`${input.userId}:${CHAT_ID}`) as {
     messages: Array<{ role: string; content: string }>
     pendingDraft: Record<string, unknown> | null
+    pendingMedia?: Array<Record<string, unknown>>
   }
 }
 
@@ -348,6 +363,74 @@ describe('support agent', () => {
     const stored = storedConversation().messages
     expect(stored).toHaveLength(20)
     expect(stored[stored.length - 1]).toEqual({ role: 'assistant', content: 'ראיתי 21 הודעות' })
+  })
+
+  it('attaches the conversation media to the filed request and flags what was not transcribed', async () => {
+    driver = async () => ({ text: 'מה בדיוק לא עובד?' })
+    await SupportAgentService.handleMessage({
+      ...input,
+      media: { path: 'client-1/uuid/audio.ogg', mimeType: 'audio/ogg', transcribed: true },
+    })
+    await SupportAgentService.handleMessage({
+      ...input,
+      text: 'הנה גם סרטון',
+      media: { path: 'client-1/uuid/screen.mp4', mimeType: 'video/mp4', transcribed: false },
+    })
+
+    await proposeInOwnTurn()
+
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    const created = createdRequestData()
+    expect(created.attachments).toEqual([
+      'client-1/uuid/audio.ogg',
+      'client-1/uuid/screen.mp4',
+    ])
+    expect(created.aiNote).toContain('1 קבצי מדיה לא תומללו')
+    // Filing clears the media so the next request does not inherit it.
+    expect(storedConversation().pendingMedia).toEqual([])
+  })
+
+  it('notes media that never made it to storage without attaching it', async () => {
+    driver = async () => ({ text: 'תוכל לכתוב לי מה קרה?' })
+    await SupportAgentService.handleMessage({
+      ...input,
+      media: { path: null, mimeType: 'video/mp4', transcribed: false },
+    })
+
+    await proposeInOwnTurn()
+
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    const created = createdRequestData()
+    expect(created.attachments).toEqual([])
+    expect(created.aiNote).toContain('1 קבצי מדיה לא תומללו')
+  })
+
+  it('ignores an attachment path outside the writing client folder', async () => {
+    driver = async () => ({ text: 'קיבלתי' })
+    await SupportAgentService.handleMessage({
+      ...input,
+      media: { path: 'client-9/uuid/other.png', mimeType: 'image/png', transcribed: true },
+    })
+
+    await proposeInOwnTurn()
+
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(createdRequestData().attachments).toEqual([])
   })
 
   it('keeps conversations for the same chat id separate per owner', async () => {

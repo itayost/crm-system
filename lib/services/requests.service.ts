@@ -227,6 +227,7 @@ export class RequestsService {
             isAiGenerated: true,
             aiConfidence: d.aiConfidence,
             aiNote: d.aiNote,
+            attachments: d.attachments ?? [],
             sourceMessageId: d.sourceMessageId,
             clientId: d.clientId,
             contactId: d.contactId || undefined,

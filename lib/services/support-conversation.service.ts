@@ -28,6 +28,19 @@ const pendingDraftSchema = z.object({
   sourceMessageId: z.string().nullable(),
 })
 
+const pendingMediaSchema = z.object({
+  /** Null when the file could not be stored; it is still recorded so the ticket says so. */
+  path: z.string().nullable(),
+  mimeType: z.string(),
+  transcribed: z.boolean(),
+})
+
+/** Cap on media carried by one unfiled request, so a chatty chat cannot grow without bound. */
+const MAX_PENDING_MEDIA = 10
+
+/** Media received in this conversation that the next filed request should carry. */
+export type PendingMedia = z.infer<typeof pendingMediaSchema>
+
 export type SupportMessage = z.infer<typeof supportMessageSchema>
 
 /** A request summary the client has been asked to confirm, but has not yet confirmed. */
@@ -66,7 +79,12 @@ export class SupportConversationService {
         contactId: context.contactId,
         lastActiveAt: new Date(),
         ...(writerChanged
-          ? { pendingDraft: Prisma.DbNull, confirmationAskedAt: null, remindersSent: 0 }
+          ? {
+              pendingDraft: Prisma.DbNull,
+              confirmationAskedAt: null,
+              remindersSent: 0,
+              pendingMedia: [],
+            }
           : {}),
       },
       create: {
@@ -116,8 +134,33 @@ export class SupportConversationService {
         pendingDraft: Prisma.DbNull,
         confirmationAskedAt: null,
         remindersSent: 0,
+        // The media went out with the ticket; the next request starts clean.
+        pendingMedia: [],
       },
     })
+  }
+
+  static async getPendingMedia(context: SupportConversationContext): Promise<PendingMedia[]> {
+    const conversation = await prisma.supportConversation.findUnique({
+      where: identity(context),
+      select: { pendingMedia: true },
+    })
+
+    return readPendingMedia(conversation?.pendingMedia ?? null)
+  }
+
+  /**
+   * Append, atomically. A client sending three screenshots at once produces three
+   * concurrent webhook deliveries, and a read-modify-write would lose two of them.
+   */
+  static async addPendingMedia(context: SupportConversationContext, media: PendingMedia) {
+    await prisma.$executeRaw`
+      UPDATE "SupportConversation"
+      SET "pendingMedia" = "pendingMedia" || ${JSON.stringify([media])}::jsonb
+      WHERE "userId" = ${context.userId}
+        AND "chatId" = ${context.chatId}
+        AND jsonb_array_length("pendingMedia") < ${MAX_PENDING_MEDIA}
+    `
   }
 
   static async saveHistory(context: SupportConversationContext, messages: SupportMessage[]) {
@@ -148,4 +191,9 @@ function readHistory(value: Prisma.JsonValue): SupportMessage[] {
 function readPendingDraft(value: Prisma.JsonValue | null): PendingDraft | null {
   const parsed = pendingDraftSchema.safeParse(value)
   return parsed.success ? parsed.data : null
+}
+
+function readPendingMedia(value: Prisma.JsonValue | null): PendingMedia[] {
+  const parsed = z.array(pendingMediaSchema).safeParse(value)
+  return parsed.success ? parsed.data : []
 }

@@ -22,6 +22,10 @@ const supportMock = {
   handleMessage: vi.fn(),
 }
 
+const mediaMock = {
+  processIncomingMedia: vi.fn(),
+}
+
 const CLIENT_CONTACT = {
   id: 'contact-1',
   name: 'דנה',
@@ -39,6 +43,9 @@ vi.mock('@/lib/services/waha.service', () => ({
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
 vi.mock('@/lib/services/support-agent.service', () => ({ SupportAgentService: supportMock }))
+vi.mock('@/lib/services/support-media.service', () => ({
+  processIncomingMedia: (...args: unknown[]) => mediaMock.processIncomingMedia(...args),
+}))
 
 const { POST } = await import('@/app/api/whatsapp/webhook/route')
 const { CLIENT_ACK_MESSAGE, UNKNOWN_SENDER_HOLD_MESSAGE } = await import(
@@ -86,6 +93,7 @@ describe('bot webhook identity routing', () => {
     agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
     agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
     supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
+    mediaMock.processIncomingMedia.mockResolvedValue(null)
     wahaMock.sendMessage.mockResolvedValue(undefined)
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)
   })
@@ -119,6 +127,7 @@ describe('bot webhook identity routing', () => {
       contactName: 'דנה',
       sourceMessageId: 'msg-1',
       text: 'יש באג באתר',
+      media: null,
     })
     expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: 'תשובת התמיכה' }])
   })
@@ -144,6 +153,47 @@ describe('bot webhook identity routing', () => {
       where: { id: 'contact-1' },
       data: { lastContactedAt: expect.any(Date) },
     })
+  })
+
+  it('transcribes a client voice note and archives the transcript with the media', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    mediaMock.processIncomingMedia.mockResolvedValue({
+      path: 'client-1/uuid/audio.ogg',
+      mimeType: 'audio/ogg',
+      transcript: 'הכפתור לא עובד',
+      transcribed: true,
+      agentText: '[הודעה קולית מהלקוח, תומללה אוטומטית]: הכפתור לא עובד',
+      failure: null,
+    })
+
+    await POST(
+      webhookRequest({
+        from: 'client-chat@lid',
+        fromMe: false,
+        timestamp: 1700000000,
+        media: { url: 'http://waha.local/files/a.oga', mimetype: 'audio/ogg', filename: null },
+      })
+    )
+
+    expect(mediaMock.processIncomingMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'client-1' })
+    )
+
+    const archived = prismaMock.whatsAppMessage.create.mock.calls[0][0].data
+    expect(archived).toMatchObject({
+      mediaPath: 'client-1/uuid/audio.ogg',
+      mediaMimeType: 'audio/ogg',
+      transcript: 'הכפתור לא עובד',
+      content: '[הודעה קולית מהלקוח, תומללה אוטומטית]: הכפתור לא עובד',
+    })
+
+    expect(supportMock.handleMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '[הודעה קולית מהלקוח, תומללה אוטומטית]: הכפתור לא עובד',
+        media: { path: 'client-1/uuid/audio.ogg', mimeType: 'audio/ogg', transcribed: true },
+      })
+    )
   })
 
   it('still answers the client when the support agent fails', async () => {

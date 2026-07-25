@@ -44,6 +44,7 @@ export const draftRequestSchema = z.object({
   sourceMessageId: z.string().optional(),
   aiConfidence: z.number().min(0).max(1).optional(),
   aiNote: z.string().optional(),
+  attachments: z.array(z.string()).optional(),
 })
 
 export const bulkDraftRequestsSchema = z.array(draftRequestSchema)

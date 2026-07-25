@@ -161,6 +161,12 @@ export function createSupportTools(context: SupportToolContext) {
         }
 
         const { draft } = pending
+        const media = await SupportConversationService.getPendingMedia(context)
+        const untranscribed = media.filter((item) => !item.transcribed).length
+        // Only this client's own storage folder can ever end up on the ticket.
+        const attachments = media
+          .map((item) => item.path)
+          .filter((path): path is string => !!path && path.startsWith(`${context.clientId}/`))
         // Re-verify the project against the writing client: the draft may predate
         // anything that changed since it was proposed.
         const projectId = draft.projectId
@@ -178,7 +184,15 @@ export function createSupportTools(context: SupportToolContext) {
             projectId,
             sourceMessageId: draft.sourceMessageId ?? undefined,
             aiConfidence: 1,
-            aiNote: 'נפתח על ידי סוכן התמיכה בוואטסאפ לאחר אישור הלקוח',
+            aiNote: [
+              'נפתח על ידי סוכן התמיכה בוואטסאפ לאחר אישור הלקוח',
+              untranscribed > 0
+                ? `שים לב: ${untranscribed} קבצי מדיה לא תומללו - צריך לפתוח אותם ידנית`
+                : null,
+            ]
+              .filter(Boolean)
+              .join('. '),
+            attachments,
           },
         ])
 

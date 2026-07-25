@@ -12,10 +12,13 @@ export async function POST(req: Request) {
 
   try {
     const message = parseWahaMessageEvent(await req.json())
-    if (!message) {
+    // Text-only archive: media on the personal session stays out of scope, so a
+    // bare voice note is skipped here exactly as it was before.
+    if (!message?.body) {
       return NextResponse.json({ ok: true })
     }
 
+    const content = message.body
     const rawChatId = message.fromMe ? message.to : message.from
     if (!rawChatId) {
       return NextResponse.json({ ok: true })
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
         phoneNumber,
         rawChatId,
         direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
-        content: message.body,
+        content,
         contactId: contact?.id ?? null,
         clientId: contact?.clientId ?? null,
         sessionName: session,

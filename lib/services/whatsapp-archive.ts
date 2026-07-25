@@ -17,6 +17,9 @@ interface ArchiveBotMessageParams {
   clientId: string
   /** Unix seconds from the WAHA payload. */
   timestamp: number
+  mediaPath?: string | null
+  mediaMimeType?: string | null
+  transcript?: string | null
 }
 
 export async function archiveBotMessage({
@@ -26,6 +29,9 @@ export async function archiveBotMessage({
   contactId,
   clientId,
   timestamp,
+  mediaPath,
+  mediaMimeType,
+  transcript,
 }: ArchiveBotMessageParams): Promise<string> {
   const message = await prisma.whatsAppMessage.create({
     data: {
@@ -38,6 +44,9 @@ export async function archiveBotMessage({
       sessionName: botSessionName(),
       timestamp: new Date(timestamp * 1000),
       processedAt: new Date(),
+      mediaPath: mediaPath ?? null,
+      mediaMimeType: mediaMimeType ?? null,
+      transcript: transcript ?? null,
     },
     select: { id: true },
   })

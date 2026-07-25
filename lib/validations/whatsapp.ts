@@ -10,14 +10,26 @@ export const wahaEventSchema = z.object({
   payload: z.unknown().optional(),
 })
 
-export const wahaMessageSchema = z.object({
-  from: z.string().min(1),
-  to: z.string().min(1).optional(),
-  body: z.string().min(1),
-  fromMe: z.boolean().optional(),
-  /** Unix seconds. */
-  timestamp: z.number().int().nonnegative(),
+export const wahaMediaSchema = z.object({
+  url: z.string().min(1),
+  mimetype: z.string().min(1),
+  filename: z.string().nullable().optional(),
 })
+
+export const wahaMessageSchema = z
+  .object({
+    from: z.string().min(1),
+    to: z.string().min(1).optional(),
+    /** Empty for a bare voice note, so media alone is enough to accept the message. */
+    body: z.string().optional(),
+    fromMe: z.boolean().optional(),
+    /** Unix seconds. */
+    timestamp: z.number().int().nonnegative(),
+    media: wahaMediaSchema.nullable().optional(),
+  })
+  .refine((message) => !!message.body || !!message.media, {
+    message: 'message must carry text or media',
+  })
 
 export type WahaMessage = z.infer<typeof wahaMessageSchema>
 

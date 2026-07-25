@@ -11,6 +11,31 @@ export function personalSessionName(): string {
   return process.env.WAHA_PERSONAL_SESSION ?? 'personal'
 }
 
+const MEDIA_DOWNLOAD_TIMEOUT_MS = 30_000
+
+/** Reads the body incrementally so an oversized file is dropped, not buffered whole. */
+async function readCapped(response: Response, maxBytes: number): Promise<Buffer> {
+  const reader = response.body?.getReader()
+  if (!reader) return Buffer.from(await response.arrayBuffer())
+
+  const chunks: Buffer[] = []
+  let total = 0
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    total += value.length
+    if (total > maxBytes) {
+      await reader.cancel()
+      throw new Error(`Media too large: over ${maxBytes} bytes`)
+    }
+    chunks.push(Buffer.from(value))
+  }
+
+  return Buffer.concat(chunks)
+}
+
 interface SendMessageParams {
   chatId: string
   text: string
@@ -46,6 +71,53 @@ export class WahaService {
         session: session ?? botSessionName(),
       }),
     })
+  }
+
+  /**
+   * Download a media file WAHA saved for an incoming message.
+   *
+   * The URL arrives inside a webhook payload, so it is treated as untrusted: it
+   * is only fetched when it points at the configured WAHA host, because the
+   * request carries the WAHA API key. Anything larger than maxBytes or slower
+   * than the timeout is abandoned rather than buffered.
+   */
+  static async downloadMedia(
+    url: string,
+    { maxBytes, timeoutMs = MEDIA_DOWNLOAD_TIMEOUT_MS }: { maxBytes: number; timeoutMs?: number }
+  ): Promise<{ bytes: Buffer; contentType: string }> {
+    if (!this.isOwnMediaUrl(url)) {
+      throw new Error('Media URL does not belong to the configured WAHA host')
+    }
+
+    const response = await fetch(url, {
+      headers: { 'X-Api-Key': WAHA_API_KEY },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    if (!response.ok) {
+      throw new Error(`WAHA media download failed ${response.status}`)
+    }
+
+    const declaredLength = Number(response.headers.get('content-length'))
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      throw new Error(`Media too large: ${declaredLength} bytes`)
+    }
+
+    const bytes = await readCapped(response, maxBytes)
+    const contentType = response.headers.get('content-type') ?? 'application/octet-stream'
+
+    return { bytes, contentType }
+  }
+
+  /** True only for URLs served by the configured WAHA instance. */
+  static isOwnMediaUrl(url: string): boolean {
+    if (!WAHA_API_URL) return false
+
+    try {
+      return new URL(url).origin === new URL(WAHA_API_URL).origin
+    } catch {
+      return false
+    }
   }
 
   static formatChatId(phoneNumber: string): string {

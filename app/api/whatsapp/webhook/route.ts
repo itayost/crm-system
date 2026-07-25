@@ -6,8 +6,11 @@ import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 import { identifySender, type WhatsAppSender } from '@/lib/services/whatsapp-identity'
 import { SupportAgentService } from '@/lib/services/support-agent.service'
 import { archiveBotMessage, releaseArchivedMessage } from '@/lib/services/whatsapp-archive'
+import { processIncomingMedia } from '@/lib/services/support-media.service'
 import {
   CLIENT_ACK_MESSAGE,
+  MEDIA_ONLY_PLACEHOLDER,
+  OWNER_MEDIA_UNSUPPORTED_MESSAGE,
   PROCESSING_ERROR_MESSAGE,
   UNKNOWN_SENDER_HOLD_MESSAGE,
   unknownSenderOwnerNotice,
@@ -36,7 +39,15 @@ export async function POST(req: Request) {
     })
 
     if (sender.kind === 'OWNER') {
-      await handleOwnerMessage(sender.chatId, message.body)
+      // The owner agent is text-only; a voice note from Itay is not this slice.
+      if (message.body) {
+        await handleOwnerMessage(sender.chatId, message.body)
+      } else {
+        await WahaService.sendMessage({
+          chatId: sender.chatId,
+          text: OWNER_MEDIA_UNSUPPORTED_MESSAGE,
+        })
+      }
       return NextResponse.json({ ok: true })
     }
 
@@ -45,7 +56,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    await handleUnknownSender(sender, message.body)
+    await handleUnknownSender(sender, message.body ?? MEDIA_ONLY_PLACEHOLDER)
 
     return NextResponse.json({ ok: true })
   } catch (error) {
@@ -93,15 +104,38 @@ async function handleClientMessage(
 ) {
   const { contact } = sender
 
+  // Voice notes, screen recordings, and screenshots become text the agent can
+  // reason about before anything else happens.
+  const media = message.media
+    ? await processIncomingMedia({
+        clientId: contact.clientId,
+        media: {
+          url: message.media.url,
+          mimeType: message.media.mimetype,
+          filename: message.media.filename,
+        },
+        caption: message.body,
+      })
+    : null
+
+  if (media?.failure) {
+    console.warn(`Support media unusable for client ${contact.clientId}: ${media.failure}`)
+  }
+
+  const agentText = media ? media.agentText : (message.body ?? '')
+
   // Archived first, and already marked processed, so the batch extraction never
   // drafts a second ticket for a message the support agent is handling live.
   const sourceMessageId = await archiveBotMessage({
     chatId: sender.chatId,
     phone: sender.phone,
-    content: message.body,
+    content: message.body || agentText,
     contactId: contact.id,
     clientId: contact.clientId,
     timestamp: message.timestamp,
+    mediaPath: media?.path,
+    mediaMimeType: media?.path ? media.mimeType : null,
+    transcript: media?.transcript,
   })
 
   await prisma.contact.update({
@@ -119,7 +153,12 @@ async function handleClientMessage(
       contactId: contact.id,
       contactName: contact.name,
       sourceMessageId,
-      text: message.body,
+      text: agentText,
+      // Recorded even when it could not be stored, so the ticket can say a file
+      // arrived that nobody managed to read.
+      media: media
+        ? { path: media.path, mimeType: media.mimeType, transcribed: media.transcribed }
+        : null,
     })
   } catch (error) {
     console.error('Support agent error:', error)

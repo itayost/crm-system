@@ -2,6 +2,7 @@ import { generateText, stepCountIs } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import {
   SupportConversationService,
+  type PendingMedia,
   type SupportMessage,
 } from './support-conversation.service'
 import { createSupportTools } from './support-tools'
@@ -28,6 +29,8 @@ export interface SupportAgentInput {
   contactName: string
   sourceMessageId: string | null
   text: string
+  /** Stored media that came with this message, to be attached to the filed request. */
+  media?: PendingMedia | null
 }
 
 export class SupportAgentService {
@@ -40,6 +43,10 @@ export class SupportAgentService {
     }
 
     const conversation = await SupportConversationService.open(conversationContext)
+
+    if (input.media) {
+      await SupportConversationService.addPendingMedia(conversationContext, input.media)
+    }
 
     const messages: SupportMessage[] = [
       ...conversation.history,

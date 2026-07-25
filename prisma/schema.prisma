@@ -227,6 +227,12 @@ model WhatsAppMessage {
   sessionName String
   timestamp   DateTime
   processedAt DateTime?
+
+  /// Stored original of a voice note, video, or image sent with this message.
+  mediaPath     String?
+  mediaMimeType String?
+  /// What the media said or showed, as understood by the transcription model.
+  transcript String? @db.Text
   createdAt   DateTime         @default(now())
 
   requests    Request[]
@@ -266,6 +272,9 @@ model SupportConversation {
   pendingDraft        Json?
   confirmationAskedAt DateTime?
   remindersSent       Int       @default(0)
+  /// Media sent in this conversation that the next filed request should carry:
+  /// [{ path, mimeType, transcribed }]
+  pendingMedia Json @default("[]")
 
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())
