@@ -346,6 +346,9 @@ model Request {
   aiConfidence  Float?
   aiNote        String? @db.Text
   attachments   String[] @default([])
+  /// Structured intake gathered by the support agent:
+  /// { where, whatHappened, expected, frequency, workedBefore, blocking, goal, today, suggestedType }
+  intake Json?
 
   sourceMessageId String?
   sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)

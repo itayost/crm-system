@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { SupportConversationService, type PendingDraft } from './support-conversation.service'
 import { fileDraftAsRequest } from './support-filing'
 import { priority, requestType } from '@/lib/validations/request'
+import { intakeFrequency } from '@/lib/validations/intake'
 
 /**
  * Tools for the client-facing support agent.
@@ -93,14 +94,31 @@ export function createSupportTools(context: SupportToolContext) {
       inputSchema: z.object({
         title: z.string().min(1).max(120).describe('Short actionable title, in the client language'),
         description: z.string().min(1).describe('What the client asked for, in their own terms'),
-        type: requestType.describe('BUG for something broken, IMPROVEMENT/REQUEST for a change'),
+        suggestedType: requestType.describe(
+          'Your internal read only - Itay decides the real type on review. Never ask the client.'
+        ),
         priority: priority.describe('URGENT only if the client said it is urgent or broken in production'),
         projectName: z
           .string()
           .optional()
-          .describe('Name of the project this concerns, exactly as listed by listMyProjects'),
+          .describe('Name of the project this concerns, exactly as listed for this client'),
+        where: z.string().nullable().optional().describe('Screen or page, in the client wording'),
+        whatHappened: z.string().nullable().optional(),
+        expected: z.string().nullable().optional(),
+        frequency: intakeFrequency.nullable().optional(),
+        workedBefore: z.boolean().nullable().optional(),
+        blocking: z.boolean().nullable().optional(),
+        goal: z.string().nullable().optional().describe('For a change: the outcome wanted'),
+        today: z.string().nullable().optional().describe('For a change: how they manage today'),
       }),
-      execute: async ({ title, description, type, priority: requestPriority, projectName }) => {
+      execute: async ({
+        title,
+        description,
+        suggestedType,
+        priority: requestPriority,
+        projectName,
+        ...fields
+      }) => {
         const projectId = await resolveProjectId(context, projectName)
 
         if (projectName && !projectId) {
@@ -114,10 +132,23 @@ export function createSupportTools(context: SupportToolContext) {
         const draft: PendingDraft = {
           title,
           description,
-          type,
+          // Left at the schema default when the ticket is filed: the type is
+          // Itay's call at review, and suggestedType is only a hint for him.
+          type: 'OTHER',
           priority: requestPriority,
           projectId,
           sourceMessageId: context.sourceMessageId,
+          intake: {
+            where: fields.where ?? null,
+            whatHappened: fields.whatHappened ?? null,
+            expected: fields.expected ?? null,
+            frequency: fields.frequency ?? null,
+            workedBefore: fields.workedBefore ?? null,
+            blocking: fields.blocking ?? null,
+            goal: fields.goal ?? null,
+            today: fields.today ?? null,
+            suggestedType,
+          },
         }
 
         await SupportConversationService.setPendingDraft(context, draft)

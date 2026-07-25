@@ -11,6 +11,10 @@ const API_ROOT = 'https://api.github.com'
 const REQUEST_TIMEOUT_MS = 10_000
 
 export const MAX_TREE_ENTRIES = 300
+export const MAX_ROUTE_FILES = 200
+
+/** Next.js App Router pages, and the Pages Router layout as a fallback. */
+const ROUTE_FILE = /(^|\/)page\.(tsx|ts|jsx|js)$|^(src\/)?pages\/(?!api\/)[^/]+.*\.(tsx|jsx)$/
 export const MAX_SEARCH_RESULTS = 20
 export const MAX_FILE_CHARS = 8_000
 
@@ -105,6 +109,32 @@ export class GitHubService {
         truncated: result.data.truncated || matching.length > MAX_TREE_ENTRIES,
       },
     }
+  }
+
+  /**
+   * The repository's user-facing routes.
+   *
+   * Deliberately not built on listTree: that caps at MAX_TREE_ENTRIES *before*
+   * anything is filtered, so in a repo of any size the route files fall outside
+   * the window and the answer is silently empty. Here the filter runs first.
+   */
+  static async listRoutes({
+    owner,
+    repo,
+    branch,
+  }: RepoRef): Promise<RepoResult<{ routes: string[]; truncated: boolean }>> {
+    const result = await request<{ tree: TreeEntry[]; truncated: boolean }>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`
+    )
+
+    if (!result.ok) return result
+
+    const routes = result.data.tree
+      .filter((entry) => entry.type === 'blob' && ROUTE_FILE.test(entry.path))
+      .map((entry) => entry.path)
+      .slice(0, MAX_ROUTE_FILES)
+
+    return { ok: true, data: { routes, truncated: result.data.truncated } }
   }
 
   static async searchCode(

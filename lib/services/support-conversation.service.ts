@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { priority, requestType } from '@/lib/validations/request'
+import { intakeSchema } from '@/lib/validations/intake'
 
 /**
  * Persistence for the client-facing support conversation: one row per WhatsApp
@@ -26,6 +27,8 @@ const pendingDraftSchema = z.object({
   priority,
   projectId: z.string().nullable(),
   sourceMessageId: z.string().nullable(),
+  /** Optional so drafts written before the intake existed still parse. */
+  intake: intakeSchema.nullable().optional(),
 })
 
 const pendingMediaSchema = z.object({

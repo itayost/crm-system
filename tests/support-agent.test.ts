@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma } from '@prisma/client'
+import { EMPTY_INTAKE } from '@/lib/validations/intake'
 
 /**
  * Drives the real support agent (persona loop + tools + persistence) with the AI
@@ -128,6 +129,8 @@ const prismaMock = {
 const wahaMock = { sendMessage: vi.fn() }
 const agentMock = { resolveOwnerChatId: vi.fn() }
 const githubMock = { listTree: vi.fn(), searchCode: vi.fn(), readFile: vi.fn() }
+const extractMock = vi.fn()
+const screensMock = vi.fn()
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/services/waha.service', () => ({
@@ -136,6 +139,12 @@ vi.mock('@/lib/services/waha.service', () => ({
   personalSessionName: () => 'personal',
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
+vi.mock('@/lib/services/intake-extraction.service', () => ({
+  IntakeExtractionService: { extract: (...args: unknown[]) => extractMock(...args) },
+}))
+vi.mock('@/lib/services/project-screens.service', () => ({
+  projectScreens: (...args: unknown[]) => screensMock(...args),
+}))
 vi.mock('@/lib/services/github.service', async () => {
   const actual = await vi.importActual<typeof import('@/lib/services/github.service')>(
     '@/lib/services/github.service'
@@ -175,7 +184,7 @@ async function proposeInOwnTurn(overrides: Record<string, unknown> = {}) {
     await tools.proposeSummary.execute({
       title: 'תיקון כפתור בעמוד הבית',
       description: 'הכפתור בעמוד הבית לא מגיב בלחיצה',
-      type: 'BUG',
+      suggestedType: 'BUG',
       priority: 'HIGH',
       projectName: 'האתר',
       ...overrides,
@@ -204,6 +213,8 @@ describe('support agent', () => {
     prismaMock.request.create.mockResolvedValue({ id: 'request-1' })
     agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
     wahaMock.sendMessage.mockResolvedValue(undefined)
+    extractMock.mockResolvedValue(EMPTY_INTAKE)
+    screensMock.mockResolvedValue([])
 
     driver = async () => ({ text: 'שלום' })
   })
@@ -227,9 +238,12 @@ describe('support agent', () => {
     expect(prismaMock.request.create).not.toHaveBeenCalled()
     expect(storedConversation().pendingDraft).toMatchObject({
       title: 'תיקון כפתור בעמוד הבית',
-      type: 'BUG',
       projectId: 'project-1',
       sourceMessageId: 'msg-1',
+      // The agent's read is a hint on the intake, not a decision on the ticket:
+      // the type Itay sees stays the default until he sets it himself.
+      type: 'OTHER',
+      intake: { suggestedType: 'BUG' },
     })
   })
 
@@ -239,7 +253,7 @@ describe('support agent', () => {
       await tools.proposeSummary.execute({
         title: 'תיקון כפתור',
         description: 'לא מגיב',
-        type: 'BUG',
+        suggestedType: 'BUG',
         priority: 'HIGH',
       })
       toolResult = await tools.fileRequest.execute({})
@@ -313,7 +327,7 @@ describe('support agent', () => {
       toolResult = await tools.proposeSummary.execute({
         title: 'שינוי',
         description: 'משהו',
-        type: 'REQUEST',
+        suggestedType: 'REQUEST',
         priority: 'MEDIUM',
         projectName: 'פרויקט שלא קיים',
       })
@@ -476,6 +490,98 @@ describe('support agent', () => {
     expect(createdRequestData().attachments).toEqual([])
   })
 
+  it('asks for nothing when the voice note already answered everything', async () => {
+    extractMock.mockResolvedValue({
+      ...EMPTY_INTAKE,
+      suggestedType: 'BUG',
+      where: 'עמוד הבית',
+      whatHappened: 'התמונה יוצאת מהמסגרת',
+      expected: 'שתישאר בתוך המסגרת',
+    })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'סיכמתי' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('כלום. אפשר לסכם.')
+    expect(systemPrompt).toContain('איפה: עמוד הבית')
+  })
+
+  it('names exactly the field the client left out', async () => {
+    extractMock.mockResolvedValue({
+      ...EMPTY_INTAKE,
+      suggestedType: 'BUG',
+      whatHappened: 'התמונה יוצאת מהמסגרת',
+      expected: 'שתישאר בתוך המסגרת',
+    })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'באיזה עמוד?' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    const missingBlock = systemPrompt.split('מה חסר וצריך לשאול עליו:')[1].split('איך לשאול')[0]
+    expect(missingBlock).toContain('איפה')
+    expect(missingBlock).not.toContain('מה קרה')
+  })
+
+  it('offers the project real screens when there is one repo-backed project', async () => {
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
+      where.agentConfig
+        ? [
+            {
+              id: 'project-1',
+              name: 'האתר',
+              agentConfig: { githubOwner: 'itayost', githubRepo: 'site', githubBranch: 'main' },
+            },
+          ]
+        : [{ id: 'project-1', name: 'האתר', status: 'ACTIVE', type: 'WEBSITE' }]
+    )
+    screensMock.mockResolvedValue(['עמוד הבית', 'צור קשר', 'שירותים'])
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'באיזה עמוד?' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(screensMock).toHaveBeenCalledWith('project-1')
+    expect(systemPrompt).toContain('המסכים של הפרויקט')
+    expect(systemPrompt).toContain('- צור קשר')
+  })
+
+  it('never asks the client to classify the request', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('לעולם אל תשאל את הלקוח לאיזה סוג הפנייה שייכת')
+  })
+
+  it('asks a change request what it is for, and never how often', async () => {
+    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'IMPROVEMENT' })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'מה תרצי שיקרה?' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    const missingBlock = systemPrompt.split('מה חסר וצריך לשאול עליו:')[1].split('איך לשאול')[0]
+    expect(missingBlock).toContain('מה רוצים להשיג')
+    expect(systemPrompt).not.toContain('תדירות — שאל רק אם')
+  })
+
   it('tells the agent which projects exist and what kind each one is', async () => {
     prismaMock.project.findMany.mockResolvedValue([
       { id: 'project-1', name: 'itayost.com', status: 'ACTIVE', type: 'WEBSITE' },
@@ -496,17 +602,6 @@ describe('support agent', () => {
     expect(systemPrompt).toContain('אם רק פרויקט אחד מהרשימה מתאים')
   })
 
-  it('forbids the open-ended clarifying question', async () => {
-    let systemPrompt = ''
-    driver = async ({ system }) => {
-      systemPrompt = system
-      return { text: 'שלום' }
-    }
-    await SupportAgentService.handleMessage(input)
-
-    expect(systemPrompt).toContain('לעולם אל תשאל "מה בדיוק לא עובד?"')
-    expect(systemPrompt).toContain('2-4 אפשרויות קונקרטיות')
-  })
 
   it('offers no repository tools when the client has no configured project', async () => {
     let toolNames: string[] = []

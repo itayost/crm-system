@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { StorageService } from './storage.service'
 import { WahaService, botSessionName } from './waha.service'
+import { INTAKE_FIELD_LABELS, INTAKE_FREQUENCY_LABELS, readIntake, type Intake } from '@/lib/validations/intake'
 import { approvedRequestClientNotice } from './whatsapp-messages'
 import type {
   CreateRequestInput,
@@ -51,6 +52,32 @@ async function notifyClientOfApproval(userId: string, requestId: string) {
     // The approval already happened; a WhatsApp hiccup must not undo it.
     console.error('Failed to notify client about an approved request:', error)
   }
+}
+
+/** The request's own words first, then the fields the agent collected. */
+function taskDescription(description: string | null, intake: Intake): string | null {
+  const lines: string[] = []
+
+  const add = (label: string, value: string | null | undefined) => {
+    if (value) lines.push(`${label}: ${value}`)
+  }
+
+  add(INTAKE_FIELD_LABELS.where, intake.where)
+  add(INTAKE_FIELD_LABELS.whatHappened, intake.whatHappened)
+  add(INTAKE_FIELD_LABELS.expected, intake.expected)
+  add(
+    INTAKE_FIELD_LABELS.frequency,
+    intake.frequency ? INTAKE_FREQUENCY_LABELS[intake.frequency] : null
+  )
+  if (intake.workedBefore !== null) {
+    add(INTAKE_FIELD_LABELS.workedBefore, intake.workedBefore ? 'כן' : 'לא')
+  }
+  add(INTAKE_FIELD_LABELS.goal, intake.goal)
+  add(INTAKE_FIELD_LABELS.today, intake.today)
+
+  if (lines.length === 0) return description
+
+  return [description, lines.join('\n')].filter(Boolean).join('\n\n')
 }
 
 export class RequestsService {
@@ -260,6 +287,7 @@ export class RequestsService {
         priority: true,
         projectId: true,
         taskId: true,
+        intake: true,
       },
     })
 
@@ -269,7 +297,9 @@ export class RequestsService {
       const task = await tx.task.create({
         data: {
           title: request.title,
-          description: request.description,
+          // The intake is what makes the work item actionable a week later:
+          // which screen, what happened, what was expected.
+          description: taskDescription(request.description, readIntake(request.intake)),
           priority: request.priority,
           category: 'CLIENT_WORK',
           projectId: request.projectId,
@@ -332,6 +362,7 @@ export class RequestsService {
             aiConfidence: d.aiConfidence,
             aiNote: d.aiNote,
             attachments: d.attachments ?? [],
+            intake: (d.intake ?? undefined) as Prisma.InputJsonValue | undefined,
             sourceMessageId: d.sourceMessageId,
             clientId: d.clientId,
             contactId: d.contactId || undefined,

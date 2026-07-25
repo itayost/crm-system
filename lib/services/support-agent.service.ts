@@ -7,6 +7,16 @@ import {
 } from './support-conversation.service'
 import { clientProjects, createSupportTools } from './support-tools'
 import { configuredProjects, createRepoTools } from './support-repo-tools'
+import { IntakeExtractionService } from './intake-extraction.service'
+import { projectScreens } from './project-screens.service'
+import {
+  INTAKE_FIELD_LABELS,
+  intakeKind,
+  mergeIntake,
+  missingIntakeFields,
+  readIntake,
+  type Intake,
+} from '@/lib/validations/intake'
 
 /**
  * The client-facing support agent: one persona, one WhatsApp chat at a time.
@@ -74,10 +84,21 @@ export class SupportAgentService {
     // The client's projects go into the prompt itself. Asking "which project?"
     // when only one of them could possibly be meant is the kind of question that
     // makes the agent feel like a form.
-    const [repoProjects, projects] = await Promise.all([
+    // Pull the form fields out of what the client just said before deciding what
+    // to ask. A voice note usually answers most of them, and asking for something
+    // already said is the fastest way to look like a form.
+    const [repoProjects, projects, extracted] = await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
+      IntakeExtractionService.extract(input.text),
     ])
+
+    const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), extracted)
+
+    // Screens for the project the client is most likely talking about, so a
+    // question about "where" can offer real places instead of asking them to
+    // describe one.
+    const screens = await screensForConversation(projects, intake, repoProjects)
     const tools = {
       ...createSupportTools(toolContext),
       ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects) : {}),
@@ -90,6 +111,8 @@ export class SupportAgentService {
         hasPendingSummary: !!conversation.pendingDraft,
         hasRepoTools: repoProjects.length > 0,
         projects,
+        intake,
+        screens,
       }),
       messages,
       tools,
@@ -104,6 +127,29 @@ export class SupportAgentService {
     ])
 
     return reply
+  }
+}
+
+/**
+ * Screens are only useful when we know which project is meant. With one project
+ * it is unambiguous; with several, the intake's own "where" is not enough to
+ * pick one, so we stay quiet rather than offer the wrong site's pages.
+ */
+async function screensForConversation(
+  projects: Array<{ id: string; name: string; type: string }>,
+  intake: Intake,
+  repoProjects: Array<{ id: string }>
+): Promise<string[]> {
+  const configured = projects.filter((project) =>
+    repoProjects.some((repoProject) => repoProject.id === project.id)
+  )
+  if (configured.length !== 1) return []
+
+  try {
+    return await projectScreens(configured[0].id)
+  } catch (error) {
+    console.error('Could not load project screens:', error)
+    return []
   }
 }
 
@@ -122,6 +168,8 @@ interface SystemPromptParams {
   hasPendingSummary: boolean
   hasRepoTools: boolean
   projects: Array<{ name: string; type: string; status: string }>
+  intake: Intake
+  screens: string[]
 }
 
 function buildSystemPrompt({
@@ -129,6 +177,8 @@ function buildSystemPrompt({
   hasPendingSummary,
   hasRepoTools,
   projects,
+  intake,
+  screens,
 }: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
   // the client dictated, and anything interpolated into a system prompt is read
@@ -150,6 +200,47 @@ function buildSystemPrompt({
         .join('\n')
     : '- (אין פרויקטים רשומים)'
 
+  const known = (Object.keys(INTAKE_FIELD_LABELS) as Array<keyof Intake>)
+    .filter((field) => field !== 'suggestedType' && intake[field] !== null)
+    .map((field) => `- ${INTAKE_FIELD_LABELS[field]}: ${String(intake[field])}`)
+
+  const skipWhere = projects.length === 1 && projects[0].type === 'CONSULTATION'
+  const missing = missingIntakeFields(intake, { skipWhere })
+    .map((field) => INTAKE_FIELD_LABELS[field])
+
+  const kind = intakeKind(intake)
+  const optional =
+    kind === 'broken'
+      ? [
+          'האם זה עבד קודם — שאל רק אם מדובר במשהו שהתנהג אחרת פעם, ולא על תקלה ויזואלית.',
+          'תדירות — שאל רק אם הניסוח מרמז שזה לא קורה תמיד ("לפעמים", "פתאום", "מדי פעם").',
+          'האם זה חוסם אותו עכשיו — שאלה קצרה שקובעת עדיפות. אל תבטיח לוח זמנים.',
+        ]
+      : []
+
+  const intakeBlock = `
+מה כבר ידוע לך על הפנייה:
+${known.length ? known.join('\n') : '- (עדיין כלום)'}
+
+מה חסר וצריך לשאול עליו:
+${missing.length ? missing.map((label) => `- ${label}`).join('\n') : '- כלום. אפשר לסכם.'}
+
+איך לשאול:
+- שאל רק על מה שברשימת החסרים. אל תשאל על משהו שהלקוח כבר אמר, גם לא כדי לוודא.
+- אם חסרים כמה דברים — אחד הודעה אחת, לא הודעה לכל שאלה.
+- אחרי שתי הודעות של שאלות לכל היותר, סכם עם מה שיש ותן ללקוח לתקן.
+- לעולם אל תשאל את הלקוח לאיזה סוג הפנייה שייכת (תקלה / שיפור / שאלה). זו החלטה של איתי.
+- אל תבקש צילום מסך אם הלקוח כבר שלח קובץ, הקלטה או תמונה.${
+    optional.length ? `\n${optional.map((line) => `- ${line}`).join('\n')}` : ''
+  }${
+    screens.length
+      ? `\n\nהמסכים של הפרויקט (השתמש בשמות האלה כשאתה שואל "איפה"):\n${screens
+          .map((screen) => `- ${screen}`)
+          .join('\n')}`
+      : ''
+  }
+`
+
   return `אתה עוזר התמיכה של איתי אוסטרייך, פרילנסר שבונה אתרים, אפליקציות ומערכות.
 אתה מדבר עם ${input.contactName} מהעסק "${input.clientName}" בוואטסאפ.
 
@@ -169,15 +260,11 @@ ${projectLines}
 - אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
 - שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.
 
-שאלות הבהרה — תמיד קונקרטיות:
-- לעולם אל תשאל "מה בדיוק לא עובד?" או "תוכל לפרט?". זו שאלה שמעבירה את העבודה ללקוח.
-- שאל שאלה אחת עם 2-4 אפשרויות קונקרטיות שהלקוח יכול פשוט לבחור מהן: "זה בעמוד הבית, בעמוד יצירת קשר, או בתפריט העליון?"
-- הצע גם מה בדיוק שבור כשזה רלוונטי: "הכפתור לא מגיב, הטופס לא נשלח, או שהעיצוב נראה שבור?"
-- אם יש לך גישה לקוד של הפרויקט — בדוק אילו עמודים ואזורים קיימים בו והצע אותם בשמות שהלקוח מכיר.
+${intakeBlock}
 
 תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
 1. הבן את הבקשה, שאל אם צריך.
-2. קרא ל-proposeSummary עם הסיכום.
+2. קרא ל-proposeSummary עם הסיכום ועם כל השדות שמילאת (איפה, מה קרה, מה ציפה, וכו').
 3. הצג את הסיכום ללקוח בהודעה ובקש אישור מפורש ("זה מדויק?").
 4. רק אחרי שהלקוח אישר — קרא ל-fileRequest, ואז עדכן אותו שהפנייה נקלטה ושאיתי יעבור עליה.
 לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.

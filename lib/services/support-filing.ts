@@ -55,6 +55,9 @@ export async function fileDraftAsRequest(
       {
         title: draft.title,
         description: draft.description,
+        // Deliberately whatever the draft carries, which is the schema default:
+        // Itay classifies the ticket when he reviews it. The agent's read rides
+        // along in the intake as a hint he can ignore.
         type: draft.type,
         priority: draft.priority,
         clientId: context.clientId,
@@ -62,6 +65,7 @@ export async function fileDraftAsRequest(
         projectId: project?.id,
         sourceMessageId: draft.sourceMessageId ?? undefined,
         aiConfidence: unconfirmed ? 0.6 : 1,
+        intake: draft.intake ?? undefined,
         aiNote: [
           unconfirmed ? UNCONFIRMED_NOTE : FILED_NOTE,
           untranscribed > 0
