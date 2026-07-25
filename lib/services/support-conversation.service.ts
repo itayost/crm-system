@@ -151,6 +151,29 @@ export class SupportConversationService {
     return claimed.count > 0
   }
 
+  /**
+   * Put a claimed draft back after a failed filing.
+   *
+   * Claiming nulls confirmationAskedAt, and the follow-up sweep only looks at
+   * rows where that is set, so the clock has to be restarted or the restored
+   * draft would sit there forever. Only restores if nothing else has claimed
+   * the slot in the meantime.
+   */
+  static async restorePendingDraft(context: SupportConversationContext, draft: PendingDraft) {
+    await prisma.supportConversation.updateMany({
+      where: {
+        userId: context.userId,
+        chatId: context.chatId,
+        pendingDraft: { equals: Prisma.DbNull },
+      },
+      data: {
+        pendingDraft: draft as unknown as Prisma.JsonObject,
+        confirmationAskedAt: new Date(),
+        remindersSent: 0,
+      },
+    })
+  }
+
   static async clearPendingDraft(context: SupportConversationContext) {
     await prisma.supportConversation.update({
       where: identity(context),

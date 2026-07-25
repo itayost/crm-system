@@ -140,10 +140,17 @@ export class RequestExtractionService {
       return { messagesProcessed: 0, requestsDrafted: 0 }
     }
 
+    const validMessageIds = new Set(messages.map((m) => m.id))
+
     const drafts: DraftRequestInput[] = []
     for (const item of object.requests) {
       if (item.confidence < MIN_CONFIDENCE) continue
       if (!validContactIds.has(item.contactId)) continue
+      // A hallucinated message id would violate the foreign key and throw out of
+      // this loop, leaving the whole batch unprocessed and retried on every run.
+      // A *valid* id from another chat would silently file the ticket against
+      // someone else's conversation.
+      if (!validMessageIds.has(item.sourceMessageId)) continue
 
       // Dedup: skip if a request already exists for this source message.
       const already = await prisma.request.findFirst({

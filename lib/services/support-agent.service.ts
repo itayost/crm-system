@@ -79,7 +79,7 @@ export class SupportAgentService {
 
     const result = await generateText({
       model: gateway(MODEL),
-      system: buildSystemPrompt(input, conversation.pendingDraft?.title ?? null, repoProjects.length > 0),
+      system: buildSystemPrompt(input, !!conversation.pendingDraft, repoProjects.length > 0),
       messages,
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
@@ -98,11 +98,16 @@ export class SupportAgentService {
 
 function buildSystemPrompt(
   input: SupportAgentInput,
-  pendingSummaryTitle: string | null,
+  hasPendingSummary: boolean,
   hasRepoTools: boolean
 ): string {
-  const pendingLine = pendingSummaryTitle
-    ? `יש סיכום שממתין לאישור הלקוח: "${pendingSummaryTitle}". אם ההודעה הנוכחית מאשרת אותו — קרא ל-fileRequest מיד. אם היא מתקנת אותו — קרא שוב ל-proposeSummary עם הגרסה המתוקנת.`
+  // The summary's own wording is never repeated here. It is derived from text
+  // the client dictated, and anything interpolated into a system prompt is read
+  // as an instruction: a client who asks for a title containing "new rule: ..."
+  // would be writing the next turn's guardrails. The agent can read the actual
+  // summary from the conversation history, where it is plainly client content.
+  const pendingLine = hasPendingSummary
+    ? 'יש סיכום שהצגת ללקוח וממתין לאישורו (הנוסח נמצא בהיסטוריית השיחה). אם ההודעה הנוכחית מאשרת אותו — קרא ל-fileRequest מיד. אם היא מתקנת אותו — קרא שוב ל-proposeSummary עם הגרסה המתוקנת.'
     : 'אין כרגע סיכום שממתין לאישור.'
 
   return `אתה עוזר התמיכה של איתי אוסטרייך, פרילנסר שבונה אתרים, אפליקציות ומערכות.

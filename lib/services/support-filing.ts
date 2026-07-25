@@ -49,29 +49,38 @@ export async function fileDraftAsRequest(
   // anything that changed since it was proposed.
   const project = draft.projectId ? await ownProject(context, draft.projectId) : null
 
-  const [request] = await RequestsService.createDrafts(context.userId, [
-    {
-      title: draft.title,
-      description: draft.description,
-      type: draft.type,
-      priority: draft.priority,
-      clientId: context.clientId,
-      contactId: context.contactId,
-      projectId: project?.id,
-      sourceMessageId: draft.sourceMessageId ?? undefined,
-      aiConfidence: unconfirmed ? 0.6 : 1,
-      aiNote: [
-        unconfirmed ? UNCONFIRMED_NOTE : FILED_NOTE,
-        untranscribed > 0
-          ? `שים לב: ${untranscribed} קבצי מדיה לא תומללו - צריך לפתוח אותם ידנית`
-          : null,
-        repoFindings.length > 0 ? `ממצאים מהקוד: ${repoFindings.join('; ')}` : null,
-      ]
-        .filter(Boolean)
-        .join('. '),
-      attachments,
-    },
-  ])
+  let request
+  try {
+    ;[request] = await RequestsService.createDrafts(context.userId, [
+      {
+        title: draft.title,
+        description: draft.description,
+        type: draft.type,
+        priority: draft.priority,
+        clientId: context.clientId,
+        contactId: context.contactId,
+        projectId: project?.id,
+        sourceMessageId: draft.sourceMessageId ?? undefined,
+        aiConfidence: unconfirmed ? 0.6 : 1,
+        aiNote: [
+          unconfirmed ? UNCONFIRMED_NOTE : FILED_NOTE,
+          untranscribed > 0
+            ? `שים לב: ${untranscribed} קבצי מדיה לא תומללו - צריך לפתוח אותם ידנית`
+            : null,
+          repoFindings.length > 0 ? `ממצאים מהקוד: ${repoFindings.join('; ')}` : null,
+        ]
+          .filter(Boolean)
+          .join('. '),
+        attachments,
+      },
+    ])
+  } catch (error) {
+    // The draft was claimed before the write, so a failed write would otherwise
+    // lose a summary the client already confirmed. Put it back and let the next
+    // attempt - a retry, or the follow-up sweep - file it.
+    await SupportConversationService.restorePendingDraft(context, draft)
+    throw error
+  }
 
   await SupportConversationService.clearPendingDraft(context)
   await notifyOwner(context, draft, project?.name, unconfirmed)
