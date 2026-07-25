@@ -22,6 +22,8 @@ model User {
   projects Project[]
   tasks    Task[]
   requests Request[]
+
+  supportConversations SupportConversation[]
 }
 
 model Contact {
@@ -52,6 +54,8 @@ model Contact {
   projects         Project[]          @relation("ProjectPrimaryContact")
   whatsappMessages WhatsAppMessage[]
   requests         Request[]
+
+  supportConversations SupportConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -132,6 +136,8 @@ model Client {
   contacts Contact[]
   projects Project[]
   requests Request[]
+
+  supportConversations SupportConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -240,6 +246,34 @@ model BotConversation {
   lastActiveAt DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/// One live support conversation per WhatsApp chat on the bot session.
+model SupportConversation {
+  id     String @id @default(cuid())
+  chatId String
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  /// Trimmed rolling history: [{ role, content }]
+  messages Json @default("[]")
+  /// The request summary awaiting the client's confirmation, if any.
+  pendingDraft        Json?
+  confirmationAskedAt DateTime?
+  remindersSent       Int       @default(0)
+
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, chatId])
+  @@index([clientId])
+  @@index([confirmationAskedAt])
 }
 
 model AgentProjectConfig {

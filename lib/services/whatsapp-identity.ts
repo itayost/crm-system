@@ -28,8 +28,15 @@ export interface MatchedContact {
   clientId: string | null
 }
 
-export interface ClientContact extends MatchedContact {
+/** A contact resolved for routing: carries the tenant and business it belongs to. */
+export interface IdentifiedContact extends MatchedContact {
+  userId: string
+  clientName: string | null
+}
+
+export interface ClientContact extends IdentifiedContact {
   clientId: string
+  clientName: string
 }
 
 export type WhatsAppSender =
@@ -78,20 +85,33 @@ export async function findContactByPhone(phone: string): Promise<MatchedContact 
  * Strict match used for routing: the stored number must normalize to the same
  * digits as the sender, so a shared 7-digit suffix is never enough.
  */
-export async function findContactByExactPhone(phone: string): Promise<MatchedContact | null> {
+export async function findContactByExactPhone(phone: string): Promise<IdentifiedContact | null> {
   const normalized = normalizePhone(phone)
   if (normalized.length < MIN_MATCHABLE_DIGITS) return null
 
   const candidates = await prisma.contact.findMany({
     where: phoneCandidateFilter(normalized),
-    select: { id: true, name: true, clientId: true, phone: true },
+    select: {
+      id: true,
+      name: true,
+      clientId: true,
+      phone: true,
+      userId: true,
+      client: { select: { name: true } },
+    },
     take: MAX_EXACT_CANDIDATES,
   })
 
   const exact = candidates.find((candidate) => normalizePhone(candidate.phone) === normalized)
   if (!exact) return null
 
-  return { id: exact.id, name: exact.name, clientId: exact.clientId }
+  return {
+    id: exact.id,
+    name: exact.name,
+    clientId: exact.clientId,
+    userId: exact.userId,
+    clientName: exact.client?.name ?? null,
+  }
 }
 
 interface IdentifySenderParams {
@@ -112,7 +132,16 @@ export async function identifySender({
   const contact = await findContactByExactPhone(phone)
 
   if (contact?.clientId) {
-    return { kind: 'CLIENT', chatId, phone, contact: { ...contact, clientId: contact.clientId } }
+    return {
+      kind: 'CLIENT',
+      chatId,
+      phone,
+      contact: {
+        ...contact,
+        clientId: contact.clientId,
+        clientName: contact.clientName ?? 'הלקוח',
+      },
+    }
   }
 
   return { kind: 'UNKNOWN', chatId, phone, contact }

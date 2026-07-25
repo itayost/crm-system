@@ -65,13 +65,22 @@ describe('findContactByExactPhone', () => {
 
   it('accepts a stored number written in a different format', async () => {
     prismaMock.contact.findMany.mockResolvedValue([
-      { id: 'contact-1', name: 'דנה', clientId: 'client-1', phone: '052-123-4567' },
+      {
+        id: 'contact-1',
+        name: 'דנה',
+        clientId: 'client-1',
+        phone: '052-123-4567',
+        userId: 'user-1',
+        client: { name: 'מסעדת הגן' },
+      },
     ])
 
     await expect(findContactByExactPhone('0521234567')).resolves.toEqual({
       id: 'contact-1',
       name: 'דנה',
       clientId: 'client-1',
+      userId: 'user-1',
+      clientName: 'מסעדת הגן',
     })
   })
 

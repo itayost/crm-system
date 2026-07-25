@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = {
   user: { findFirst: vi.fn() },
-  contact: { findMany: vi.fn() },
+  contact: { findMany: vi.fn(), update: vi.fn() },
+  whatsAppMessage: { create: vi.fn(), update: vi.fn() },
 }
 
 const wahaMock = {
@@ -17,6 +18,19 @@ const agentMock = {
   resolveOwnerChatId: vi.fn(),
 }
 
+const supportMock = {
+  handleMessage: vi.fn(),
+}
+
+const CLIENT_CONTACT = {
+  id: 'contact-1',
+  name: 'דנה',
+  clientId: 'client-1',
+  phone: '052-1234567',
+  userId: 'user-1',
+  client: { name: 'מסעדת הגן' },
+}
+
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/services/waha.service', () => ({
   WahaService: wahaMock,
@@ -24,6 +38,7 @@ vi.mock('@/lib/services/waha.service', () => ({
   personalSessionName: () => 'personal',
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
+vi.mock('@/lib/services/support-agent.service', () => ({ SupportAgentService: supportMock }))
 
 const { POST } = await import('@/app/api/whatsapp/webhook/route')
 const { CLIENT_ACK_MESSAGE, UNKNOWN_SENDER_HOLD_MESSAGE } = await import(
@@ -65,8 +80,12 @@ describe('bot webhook identity routing', () => {
 
     prismaMock.user.findFirst.mockResolvedValue({ id: 'user-1' })
     prismaMock.contact.findMany.mockResolvedValue([])
+    prismaMock.contact.update.mockResolvedValue({ id: 'contact-1' })
+    prismaMock.whatsAppMessage.create.mockResolvedValue({ id: 'msg-1' })
+    prismaMock.whatsAppMessage.update.mockResolvedValue({ id: 'msg-1' })
     agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
     agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
+    supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
     wahaMock.sendMessage.mockResolvedValue(undefined)
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)
   })
@@ -83,23 +102,70 @@ describe('bot webhook identity routing', () => {
     expect(agentMock.saveOwnerChatId).toHaveBeenCalledWith(OWNER_CHAT_ID)
   })
 
-  it('acknowledges a client contact without reaching the owner agent', async () => {
+  it('routes a client contact to the support agent, never the owner agent', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
-    prismaMock.contact.findMany.mockResolvedValue([
-      { id: 'contact-1', name: 'דנה', clientId: 'client-1', phone: '052-1234567' },
-    ])
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
 
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
 
     expect(agentMock.processMessage).not.toHaveBeenCalled()
     expect(agentMock.saveOwnerChatId).not.toHaveBeenCalled()
+    expect(supportMock.handleMessage).toHaveBeenCalledWith({
+      userId: 'user-1',
+      chatId: 'client-chat@lid',
+      clientId: 'client-1',
+      clientName: 'מסעדת הגן',
+      contactId: 'contact-1',
+      contactName: 'דנה',
+      sourceMessageId: 'msg-1',
+      text: 'יש באג באתר',
+    })
+    expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: 'תשובת התמיכה' }])
+  })
+
+  it('archives the client message as already processed so batch extraction skips it', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+
+    const archived = prismaMock.whatsAppMessage.create.mock.calls[0][0].data
+    expect(archived).toMatchObject({
+      phoneNumber: '0521234567',
+      rawChatId: 'client-chat@lid',
+      direction: 'INCOMING',
+      content: 'יש באג באתר',
+      contactId: 'contact-1',
+      clientId: 'client-1',
+      sessionName: 'bot',
+    })
+    expect(archived.processedAt).toBeInstanceOf(Date)
+    expect(prismaMock.contact.update).toHaveBeenCalledWith({
+      where: { id: 'contact-1' },
+      data: { lastContactedAt: expect.any(Date) },
+    })
+  })
+
+  it('still answers the client when the support agent fails', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    supportMock.handleMessage.mockRejectedValue(new Error('gateway down'))
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+
     expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE }])
+    expect(prismaMock.whatsAppMessage.create).toHaveBeenCalled()
+    // Handed back to the batch extraction so the request is not lost by both paths.
+    expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
+      where: { id: 'msg-1' },
+      data: { processedAt: null },
+    })
   })
 
   it('does not treat a mere suffix match as a client', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0541234567')
     prismaMock.contact.findMany.mockResolvedValue([
-      { id: 'contact-1', name: 'דנה', clientId: 'client-1', phone: '0521234567' },
+      { ...CLIENT_CONTACT, phone: '0521234567' },
     ])
 
     await POST(webhookRequest(incoming('lookalike@lid', 'היי')))
@@ -125,7 +191,7 @@ describe('bot webhook identity routing', () => {
   it('treats a lead (contact without a client) like an unknown sender', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0541234567')
     prismaMock.contact.findMany.mockResolvedValue([
-      { id: 'contact-2', name: 'יוסי', clientId: null, phone: '0541234567' },
+      { id: 'contact-2', name: 'יוסי', clientId: null, phone: '0541234567', userId: 'user-1', client: null },
     ])
 
     await POST(webhookRequest(incoming('lead-chat@lid', 'רוצה אתר')))

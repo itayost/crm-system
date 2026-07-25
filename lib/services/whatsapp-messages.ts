@@ -11,6 +11,60 @@ export const UNKNOWN_SENDER_HOLD_MESSAGE =
 
 export const PROCESSING_ERROR_MESSAGE = 'שגיאה בעיבוד ההודעה. נסה שוב.'
 
+interface FiledRequestNoticeParams {
+  clientName: string
+  contactName: string
+  projectName?: string | null
+  title: string
+  description?: string | null
+  type: string
+  priority: string
+}
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  REQUEST: 'בקשה',
+  BUG: 'תקלה',
+  IMPROVEMENT: 'שיפור',
+  QUESTION: 'שאלה',
+  OTHER: 'אחר',
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  LOW: 'נמוכה',
+  MEDIUM: 'רגילה',
+  HIGH: 'גבוהה',
+  URGENT: 'דחופה',
+}
+
+export function filedRequestOwnerNotice({
+  clientName,
+  contactName,
+  projectName,
+  title,
+  description,
+  type,
+  priority,
+}: FiledRequestNoticeParams): string {
+  const lines = [
+    '*בקשה חדשה ממתינה לאישור*',
+    '',
+    `*לקוח:* ${clientName} (${contactName})`,
+  ]
+
+  if (projectName) lines.push(`*פרויקט:* ${projectName}`)
+
+  lines.push(
+    `*סוג:* ${REQUEST_TYPE_LABELS[type] ?? type}`,
+    `*עדיפות:* ${PRIORITY_LABELS[priority] ?? priority}`,
+    '',
+    `*${title}*`
+  )
+
+  if (description) lines.push(description)
+
+  return lines.join('\n')
+}
+
 interface UnknownSenderNoticeParams {
   phone: string | null
   chatId: string

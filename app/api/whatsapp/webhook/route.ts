@@ -4,13 +4,15 @@ import { isWebhookAuthorized } from '@/lib/api/webhook-auth'
 import { WahaService, botSessionName } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 import { identifySender, type WhatsAppSender } from '@/lib/services/whatsapp-identity'
+import { SupportAgentService } from '@/lib/services/support-agent.service'
+import { archiveBotMessage, releaseArchivedMessage } from '@/lib/services/whatsapp-archive'
 import {
   CLIENT_ACK_MESSAGE,
   PROCESSING_ERROR_MESSAGE,
   UNKNOWN_SENDER_HOLD_MESSAGE,
   unknownSenderOwnerNotice,
 } from '@/lib/services/whatsapp-messages'
-import { parseWahaMessageEvent } from '@/lib/validations/whatsapp'
+import { parseWahaMessageEvent, type WahaMessage } from '@/lib/validations/whatsapp'
 
 /**
  * Bot-session webhook. Every sender is classified before anything happens:
@@ -39,8 +41,7 @@ export async function POST(req: Request) {
     }
 
     if (sender.kind === 'CLIENT') {
-      // Placeholder until slice 2 puts the support agent behind this branch.
-      await WahaService.sendMessage({ chatId: sender.chatId, text: CLIENT_ACK_MESSAGE })
+      await handleClientMessage(sender, message)
       return NextResponse.json({ ok: true })
     }
 
@@ -84,6 +85,53 @@ async function handleOwnerMessage(chatId: string, text: string) {
   const reply = await WhatsAppAgentService.processMessage(user.id, text)
 
   await WahaService.sendMessage({ chatId, text: reply })
+}
+
+async function handleClientMessage(
+  sender: Extract<WhatsAppSender, { kind: 'CLIENT' }>,
+  message: WahaMessage
+) {
+  const { contact } = sender
+
+  // Archived first, and already marked processed, so the batch extraction never
+  // drafts a second ticket for a message the support agent is handling live.
+  const sourceMessageId = await archiveBotMessage({
+    chatId: sender.chatId,
+    phone: sender.phone,
+    content: message.body,
+    contactId: contact.id,
+    clientId: contact.clientId,
+    timestamp: message.timestamp,
+  })
+
+  await prisma.contact.update({
+    where: { id: contact.id },
+    data: { lastContactedAt: new Date() },
+  })
+
+  let reply: string
+  try {
+    reply = await SupportAgentService.handleMessage({
+      userId: contact.userId,
+      chatId: sender.chatId,
+      clientId: contact.clientId,
+      clientName: contact.clientName,
+      contactId: contact.id,
+      contactName: contact.name,
+      sourceMessageId,
+      text: message.body,
+    })
+  } catch (error) {
+    console.error('Support agent error:', error)
+    // Hand the message back to the batch extraction, which skips anything already
+    // marked processed - otherwise a gateway outage would lose the request entirely.
+    await releaseArchivedMessage(sourceMessageId).catch((releaseError) => {
+      console.error('Failed to release archived message for extraction:', releaseError)
+    })
+    reply = CLIENT_ACK_MESSAGE
+  }
+
+  await WahaService.sendMessage({ chatId: sender.chatId, text: reply })
 }
 
 async function handleUnknownSender(

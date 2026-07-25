@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const requestType = z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER'])
+export const requestType = z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER'])
 const requestStatus = z.enum([
   'PENDING_REVIEW',
   'OPEN',
@@ -8,7 +8,7 @@ const requestStatus = z.enum([
   'RESOLVED',
   'DISMISSED',
 ])
-const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+export const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])
 
 export const createRequestSchema = z.object({
