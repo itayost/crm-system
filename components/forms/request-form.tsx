@@ -95,17 +95,26 @@ export function RequestForm({
   const [projects, setProjects] = useState<Option[]>([])
   const isEditing = !!request
 
+  const buildDefaults = (): RequestFormValues => ({
+    title: request?.title ?? '',
+    description: request?.description ?? '',
+    type: (request?.type as RequestFormValues['type']) ?? 'REQUEST',
+    priority: (request?.priority as RequestFormValues['priority']) ?? 'MEDIUM',
+    clientId: request?.clientId ?? defaultClientId ?? '',
+    projectId: request?.projectId ?? NO_PROJECT,
+  })
+
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestFormSchema),
-    defaultValues: {
-      title: request?.title ?? '',
-      description: request?.description ?? '',
-      type: (request?.type as RequestFormValues['type']) ?? 'REQUEST',
-      priority: (request?.priority as RequestFormValues['priority']) ?? 'MEDIUM',
-      clientId: request?.clientId ?? defaultClientId ?? '',
-      projectId: request?.projectId ?? NO_PROJECT,
-    },
+    defaultValues: buildDefaults(),
   })
+
+  // The dialog stays mounted, so useForm's defaults are only read once.
+  // Without this, opening it for a different row shows the previous one.
+  useEffect(() => {
+    if (open) form.reset(buildDefaults())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, request])
 
   const selectedClientId = form.watch('clientId')
 
@@ -166,7 +175,7 @@ export function RequestForm({
 
       onSuccess()
       onOpenChange(false)
-      form.reset()
+      form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת בקשה')

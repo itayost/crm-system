@@ -25,24 +25,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 
-const STATUS_LABELS: Record<string, string> = {
-  NEW: 'חדש',
-  CONTACTED: 'נוצר קשר',
-  QUOTED: 'הוצעה הצעה',
-  NEGOTIATING: 'במשא ומתן',
-  CLIENT: 'לקוח',
-  INACTIVE: 'לא פעיל',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  NEW: 'bg-blue-100 text-blue-800',
-  CONTACTED: 'bg-yellow-100 text-yellow-800',
-  QUOTED: 'bg-purple-100 text-purple-800',
-  NEGOTIATING: 'bg-orange-100 text-orange-800',
-  CLIENT: 'bg-green-100 text-green-800',
-  INACTIVE: 'bg-gray-100 text-gray-600',
-}
-
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
   COMPLETED: 'הושלם',
@@ -110,7 +92,6 @@ interface DashboardData {
     pendingReview: number
     open: number
   }
-  recentContacts: unknown[]
   activeProjects: ActiveProject[]
   pendingTasks: PendingTask[]
 }
@@ -260,8 +241,21 @@ export default function DashboardPage() {
           return (
             <Card
               key={kpi.title}
-              className={kpi.href ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+              className={
+                kpi.href
+                  ? 'cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  : ''
+              }
+              role={kpi.href ? 'link' : undefined}
+              tabIndex={kpi.href ? 0 : undefined}
               onClick={() => kpi.href && router.push(kpi.href)}
+              onKeyDown={(e) => {
+                if (!kpi.href) return
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  router.push(kpi.href)
+                }
+              }}
             >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -291,7 +285,7 @@ export default function DashboardPage() {
         {/* Pending Tasks */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">משימות ממתינות</CardTitle>
+            <CardTitle className="text-lg">המשימות הקרובות</CardTitle>
             <Button
               variant="ghost"
               size="sm"
@@ -369,7 +363,7 @@ export default function DashboardPage() {
         {/* Active Projects */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">פרויקטים פעילים</CardTitle>
+            <CardTitle className="text-lg">הפרויקטים בעבודה</CardTitle>
             <Button
               variant="ghost"
               size="sm"

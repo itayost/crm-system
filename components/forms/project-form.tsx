@@ -129,24 +129,33 @@ export function ProjectForm({
     }
   }
 
+  const buildDefaults = (): ProjectFormValues => ({
+    name: project?.name ?? '',
+    description: project?.description ?? '',
+    type: (project?.type as ProjectFormValues['type']) ?? 'WEBSITE',
+    priority: (project?.priority as ProjectFormValues['priority']) ?? 'MEDIUM',
+    startDate: toDateInputValue(project?.startDate),
+    deadline: toDateInputValue(project?.deadline),
+    price: project?.price != null ? String(project.price) : '',
+    retention: project?.retention != null ? String(project.retention) : '',
+    retentionFrequency:
+      (project?.retentionFrequency as ProjectFormValues['retentionFrequency']) ??
+      undefined,
+    clientId: project?.clientId ?? defaultClientId ?? '',
+    primaryContactId: project?.primaryContactId ?? undefined,
+  })
+
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
-    defaultValues: {
-      name: project?.name ?? '',
-      description: project?.description ?? '',
-      type: (project?.type as ProjectFormValues['type']) ?? 'WEBSITE',
-      priority: (project?.priority as ProjectFormValues['priority']) ?? 'MEDIUM',
-      startDate: toDateInputValue(project?.startDate),
-      deadline: toDateInputValue(project?.deadline),
-      price: project?.price != null ? String(project.price) : '',
-      retention: project?.retention != null ? String(project.retention) : '',
-      retentionFrequency:
-        (project?.retentionFrequency as ProjectFormValues['retentionFrequency']) ??
-        undefined,
-      clientId: project?.clientId ?? defaultClientId ?? '',
-      primaryContactId: project?.primaryContactId ?? undefined,
-    },
+    defaultValues: buildDefaults(),
   })
+
+  // The dialog stays mounted, so useForm's defaults are only read once.
+  // Without this, opening it for a different row shows the previous one.
+  useEffect(() => {
+    if (open) form.reset(buildDefaults())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, project])
 
   const retentionValue = form.watch('retention')
   const hasRetention = retentionValue != null && retentionValue !== '' && retentionValue !== '0'
@@ -222,7 +231,7 @@ export function ProjectForm({
 
       onSuccess()
       onOpenChange(false)
-      form.reset()
+      form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(

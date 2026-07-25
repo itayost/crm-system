@@ -109,24 +109,33 @@ export function ContactForm({
   const [clients, setClients] = useState<ClientOption[]>([])
   const isEditing = !!contact
 
+  const buildDefaults = (): ContactFormValues => ({
+    name: contact?.name ?? '',
+    phone: contact?.phone ?? '',
+    email: contact?.email ?? '',
+    company: contact?.company ?? '',
+    source: (contact?.source as ContactFormValues['source']) ?? 'PHONE',
+    estimatedBudget: contact?.estimatedBudget != null
+      ? String(contact.estimatedBudget)
+      : '',
+    projectType: contact?.projectType ?? '',
+    notes: contact?.notes ?? '',
+    clientId: contact?.clientId ?? defaultClientId ?? NO_CLIENT,
+    role: contact?.role ?? '',
+    isPrimary: contact?.isPrimary ?? false,
+  })
+
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
-    defaultValues: {
-      name: contact?.name ?? '',
-      phone: contact?.phone ?? '',
-      email: contact?.email ?? '',
-      company: contact?.company ?? '',
-      source: (contact?.source as ContactFormValues['source']) ?? 'PHONE',
-      estimatedBudget: contact?.estimatedBudget != null
-        ? String(contact.estimatedBudget)
-        : '',
-      projectType: contact?.projectType ?? '',
-      notes: contact?.notes ?? '',
-      clientId: contact?.clientId ?? defaultClientId ?? NO_CLIENT,
-      role: contact?.role ?? '',
-      isPrimary: contact?.isPrimary ?? false,
-    },
+    defaultValues: buildDefaults(),
   })
+
+  // The dialog stays mounted, so useForm's defaults are only read once.
+  // Without this, opening it for a different row shows the previous one.
+  useEffect(() => {
+    if (open) form.reset(buildDefaults())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, contact])
 
   const selectedClientId = form.watch('clientId')
   const hasClient = !!selectedClientId && selectedClientId !== NO_CLIENT
@@ -173,7 +182,7 @@ export function ContactForm({
 
       onSuccess()
       onOpenChange(false)
-      form.reset()
+      form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת איש קשר')

@@ -61,6 +61,7 @@ model Contact {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([userId, status])
   @@index([createdAt])
   @@index([clientId])
 }
@@ -93,8 +94,10 @@ model Project {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([userId, status])
   @@index([deadline])
   @@index([clientId])
+  @@index([primaryContactId])
 }
 
 model Task {
@@ -120,6 +123,7 @@ model Task {
 
   @@index([projectId])
   @@index([status])
+  @@index([userId, status])
   @@index([category])
 }
 
@@ -290,6 +294,7 @@ model SupportConversation {
 
   @@unique([userId, chatId])
   @@index([clientId])
+  @@index([contactId])
   @@index([confirmationAskedAt])
 }
 
@@ -368,6 +373,8 @@ model Request {
   @@index([type])
   @@index([userId, status])
   @@index([sourceMessageId])
+  @@index([contactId])
+  @@index([projectId])
 }
 
 enum RequestType {

@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import {
@@ -63,17 +63,26 @@ export function ClientForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isEditing = !!client
 
+  const buildDefaults = (): ClientFormValues => ({
+    name: client?.name ?? '',
+    isVip: client?.isVip ?? false,
+    address: client?.address ?? '',
+    taxId: client?.taxId ?? '',
+    notes: client?.notes ?? '',
+    isInternal: client?.isInternal ?? false,
+  })
+
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      name: client?.name ?? '',
-      isVip: client?.isVip ?? false,
-      address: client?.address ?? '',
-      taxId: client?.taxId ?? '',
-      notes: client?.notes ?? '',
-      isInternal: client?.isInternal ?? false,
-    },
+    defaultValues: buildDefaults(),
   })
+
+  // The dialog stays mounted, so useForm's defaults are only read once.
+  // Without this, opening it for a different row shows the previous one.
+  useEffect(() => {
+    if (open) form.reset(buildDefaults())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, client])
 
   const handleSubmit = async (values: ClientFormValues) => {
     setIsSubmitting(true)
@@ -95,7 +104,7 @@ export function ClientForm({
 
       onSuccess()
       onOpenChange(false)
-      form.reset()
+      form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת לקוח')

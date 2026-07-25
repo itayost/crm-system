@@ -46,6 +46,8 @@ const CATEGORY_OPTIONS = [
   { value: 'ADMIN', label: 'מנהלה' },
 ] as const
 
+const NO_PROJECT = 'none'
+
 const taskFormSchema = z.object({
   title: z.string().min(1, 'כותרת משימה חובה'),
   description: z.string().optional(),
@@ -101,17 +103,26 @@ export function TaskForm({
     }
   }
 
+  const buildDefaults = (): TaskFormValues => ({
+    title: task?.title ?? '',
+    description: task?.description ?? '',
+    priority: (task?.priority as TaskFormValues['priority']) ?? 'MEDIUM',
+    category: (task?.category as TaskFormValues['category']) ?? 'CLIENT_WORK',
+    dueDate: toDateInputValue(task?.dueDate),
+    projectId: task?.projectId ?? defaultProjectId ?? NO_PROJECT,
+  })
+
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
-    defaultValues: {
-      title: task?.title ?? '',
-      description: task?.description ?? '',
-      priority: (task?.priority as TaskFormValues['priority']) ?? 'MEDIUM',
-      category: (task?.category as TaskFormValues['category']) ?? 'CLIENT_WORK',
-      dueDate: toDateInputValue(task?.dueDate),
-      projectId: task?.projectId ?? defaultProjectId ?? '',
-    },
+    defaultValues: buildDefaults(),
   })
+
+  // The dialog stays mounted, so useForm's defaults are only read once.
+  // Without this, opening it for a different row shows the previous one.
+  useEffect(() => {
+    if (open) form.reset(buildDefaults())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, task])
 
   // Fetch projects for the select
   useEffect(() => {
@@ -145,7 +156,10 @@ export function TaskForm({
         dueDate: values.dueDate
           ? new Date(values.dueDate).toISOString()
           : undefined,
-        projectId: values.projectId || undefined,
+        projectId:
+          values.projectId && values.projectId !== NO_PROJECT
+            ? values.projectId
+            : undefined,
       }
 
       if (isEditing) {
@@ -158,7 +172,7 @@ export function TaskForm({
 
       onSuccess()
       onOpenChange(false)
-      form.reset()
+      form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(
@@ -231,7 +245,7 @@ export function TaskForm({
                   <FormLabel>קטגוריה</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -306,7 +320,7 @@ export function TaskForm({
                   <FormLabel>פרויקט (אופציונלי)</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value ?? NO_PROJECT}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -318,7 +332,7 @@ export function TaskForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="none">ללא פרויקט</SelectItem>
+                      <SelectItem value={NO_PROJECT}>ללא פרויקט</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}

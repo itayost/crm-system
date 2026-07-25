@@ -14,7 +14,6 @@ export class DashboardService {
       overdueTaskCount,
       pendingReviewRequestCount,
       openRequestCount,
-      recentContacts,
       activeProjects,
       pendingTasks,
     ] = await Promise.all([
@@ -49,18 +48,6 @@ export class DashboardService {
       }),
       prisma.request.count({
         where: { userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
-      }),
-      prisma.contact.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          source: true,
-          createdAt: true,
-        },
       }),
       prisma.project.findMany({
         where: { userId, status: 'ACTIVE' },
@@ -109,7 +96,6 @@ export class DashboardService {
         pendingReview: pendingReviewRequestCount,
         open: openRequestCount,
       },
-      recentContacts,
       activeProjects,
       pendingTasks,
     }

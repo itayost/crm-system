@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
-import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -72,12 +71,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">סיסמה</Label>
-                <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                  שכחת סיסמה?
-                </Link>
-              </div>
+              {/* No reset link: there is no password-reset flow, and the route
+                  it pointed at does not exist. */}
+              <Label htmlFor="password">סיסמה</Label>
               <Input
                 id="password"
                 name="password"

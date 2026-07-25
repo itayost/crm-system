@@ -18,7 +18,6 @@ npm run lint         # Run ESLint for code quality checks
 # Database (Prisma)
 npm run db:push      # Push schema changes to database without migrations
 npm run db:migrate   # Apply migrations to the database
-npm run db:seed      # Seed the database with initial data
 npm run db:studio    # Open Prisma Studio for database management
 
 # Testing
@@ -179,8 +178,7 @@ e2e/
   global-teardown.ts         # Playwright global teardown
 
 prisma/
-  schema.prisma              # Database schema (4 models, 8 enums)
-  seed.ts                    # Database seeding script
+  schema.prisma              # Database schema
 ```
 
 ### Key Files

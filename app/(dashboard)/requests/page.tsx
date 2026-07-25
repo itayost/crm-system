@@ -146,6 +146,7 @@ export default function RequestsPage() {
   const [clientFilter, setClientFilter] = useState('ALL')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<RequestRecord | undefined>(undefined)
+  const [actingOn, setActingOn] = useState<string | null>(null)
 
   const fetchPending = useCallback(async () => {
     try {
@@ -200,6 +201,10 @@ export default function RequestsPage() {
   }
 
   const handleAction = async (id: string, action: 'approve' | 'dismiss') => {
+    // Approving twice is not free: it is the operation that creates the task and
+    // messages the client, so a double click must not fire two requests.
+    if (actingOn) return
+    setActingOn(id)
     try {
       await api.post(`/requests/${id}/action`, { action })
       toast.success(action === 'approve' ? 'הבקשה אושרה' : 'הבקשה נדחתה')
@@ -207,6 +212,8 @@ export default function RequestsPage() {
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       toast.error(axiosError.response?.data?.error ?? 'שגיאה בעדכון בקשה')
+    } finally {
+      setActingOn(null)
     }
   }
 
@@ -303,6 +310,7 @@ export default function RequestsPage() {
                   <div className="flex gap-2 shrink-0">
                     <Button
                       size="sm"
+                      disabled={actingOn === request.id}
                       onClick={() => handleAction(request.id, 'approve')}
                     >
                       <Check className="w-4 h-4 ml-1" />
@@ -311,6 +319,7 @@ export default function RequestsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={actingOn === request.id}
                       onClick={() => handleAction(request.id, 'dismiss')}
                     >
                       <X className="w-4 h-4 ml-1" />
