@@ -18,6 +18,11 @@ export const MEDIA_ONLY_PLACEHOLDER = '[הודעת מדיה ללא טקסט]'
 export const OWNER_MEDIA_UNSUPPORTED_MESSAGE =
   'אני עדיין לא יודע לקרוא הודעות קוליות או קבצים בערוץ הזה. כתוב לי בטקסט.'
 
+/** Sent to the client when Itay approves what they asked for. Dismissals stay silent. */
+export function approvedRequestClientNotice(title: string): string {
+  return `הבקשה שלך אושרה ונכנסה לתוכנית העבודה:\n*${title}*\n\nנעדכן אותך כשהיא תטופל.`
+}
+
 interface FiledRequestNoticeParams {
   clientName: string
   contactName: string

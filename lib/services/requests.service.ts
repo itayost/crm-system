@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { StorageService } from './storage.service'
+import { WahaService, botSessionName } from './waha.service'
+import { approvedRequestClientNotice } from './whatsapp-messages'
 import type {
   CreateRequestInput,
   UpdateRequestInput,
@@ -21,6 +23,35 @@ const REQUEST_INCLUDE = {
   contact: { select: { id: true, name: true } },
   project: { select: { id: true, name: true } },
 } satisfies Prisma.RequestInclude
+
+/**
+ * Tell the client their request was approved - but only a client who asked
+ * through the support agent. A batch-extracted request from Itay's personal
+ * number was never a conversation with the bot, so answering it would come out
+ * of nowhere. The source message's session is the exact signal.
+ */
+async function notifyClientOfApproval(userId: string, requestId: string) {
+  try {
+    const request = await prisma.request.findFirst({
+      where: { id: requestId, userId },
+      select: {
+        title: true,
+        sourceMessage: { select: { sessionName: true, rawChatId: true } },
+      },
+    })
+
+    const source = request?.sourceMessage
+    if (!source || source.sessionName !== botSessionName() || !source.rawChatId) return
+
+    await WahaService.sendMessage({
+      chatId: source.rawChatId,
+      text: approvedRequestClientNotice(request.title),
+    })
+  } catch (error) {
+    // The approval already happened; a WhatsApp hiccup must not undo it.
+    console.error('Failed to notify client about an approved request:', error)
+  }
+}
 
 export class RequestsService {
   static async getAll(userId: string, filters?: RequestFilters) {
@@ -185,8 +216,81 @@ export class RequestsService {
     })
   }
 
+  /**
+   * Approval is the single moment a client ticket becomes Itay's work item:
+   * the Request goes OPEN, a linked client-work Task is created, and a client
+   * who asked through WhatsApp is told. Shared by the dashboard route and the
+   * owner agent's review tool so neither path can drift from the other.
+   */
   static async approve(userId: string, id: string) {
-    return this.update(userId, id, { status: 'OPEN' })
+    const existing = await prisma.request.findFirst({
+      where: { id, userId },
+      select: { id: true, status: true },
+    })
+    if (!existing) {
+      throw new Error('בקשה לא נמצאה')
+    }
+
+    // Approving something already approved must not drag an in-progress or
+    // resolved ticket back to OPEN.
+    const wasPending = existing.status === 'PENDING_REVIEW'
+    const request = wasPending
+      ? await this.update(userId, id, { status: 'OPEN' })
+      : await this.getById(userId, id)
+
+    const task = await this.ensureTask(userId, request.id)
+
+    // Exactly one caller ever creates the task, so exactly one client message
+    // goes out however many times approve is pressed.
+    if (wasPending && task) {
+      await notifyClientOfApproval(userId, request.id)
+    }
+
+    return { ...request, taskId: task?.id ?? request.taskId }
+  }
+
+  /** Idempotent: a request that already produced a Task never produces a second. */
+  private static async ensureTask(userId: string, requestId: string) {
+    const request = await prisma.request.findFirst({
+      where: { id: requestId, userId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        priority: true,
+        projectId: true,
+        taskId: true,
+      },
+    })
+
+    if (!request || request.taskId) return null
+
+    return prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          title: request.title,
+          description: request.description,
+          priority: request.priority,
+          category: 'CLIENT_WORK',
+          projectId: request.projectId,
+          userId,
+        },
+      })
+
+      // Conditional on taskId still being null, so two concurrent approvals
+      // cannot both claim the link.
+      const linked = await tx.request.updateMany({
+        where: { id: request.id, taskId: null },
+        data: { taskId: task.id },
+      })
+
+      if (linked.count === 0) {
+        await tx.task.delete({ where: { id: task.id } })
+        return null
+      }
+
+      return task
+    })
   }
 
   static async dismiss(userId: string, id: string) {

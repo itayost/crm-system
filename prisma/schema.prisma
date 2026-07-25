@@ -112,6 +112,9 @@ model Task {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
+  /// Set when this task was created by approving a client request.
+  request Request?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -338,6 +341,10 @@ model Request {
 
   sourceMessageId String?
   sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+
+  /// The work item this request became when it was approved. One Task per Request.
+  taskId String? @unique
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
