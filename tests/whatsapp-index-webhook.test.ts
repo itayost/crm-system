@@ -22,7 +22,7 @@ const WEBHOOK_SECRET = 'test-secret'
 
 function indexRequest(
   payload: Record<string, unknown>,
-  { secret = WEBHOOK_SECRET }: { secret?: string | null } = {}
+  { secret = WEBHOOK_SECRET, event = 'message.any' }: { secret?: string | null; event?: string } = {}
 ) {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   if (secret !== null) headers['x-webhook-secret'] = secret
@@ -30,7 +30,7 @@ function indexRequest(
   return new Request('http://localhost/api/whatsapp/index', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ event: 'message', payload }),
+    body: JSON.stringify({ event, payload }),
   })
 }
 
@@ -134,6 +134,19 @@ describe('personal-session indexing', () => {
       rawChatId: '33333@lid',
       direction: 'OUTGOING',
     })
+  })
+
+  it('accepts both message and message.any, and ignores other events', async () => {
+    // The personal session subscribes to message.any so outgoing messages are
+    // archived too; the bot session uses plain message.
+    const base = { from: '11111@lid', body: 'היי', fromMe: false, timestamp: 1700000000, to: null }
+
+    await POST(indexRequest(base, { event: 'message' }))
+    await POST(indexRequest({ ...base }, { event: 'message.any' }))
+    expect(prismaMock.whatsAppMessage.create).toHaveBeenCalledTimes(2)
+
+    await POST(indexRequest(base, { event: 'session.status' }))
+    expect(prismaMock.whatsAppMessage.create).toHaveBeenCalledTimes(2)
   })
 
   it('ignores a payload that does not parse as a message', async () => {

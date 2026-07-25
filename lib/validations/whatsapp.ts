@@ -40,10 +40,18 @@ export const wahaMessageSchema = z
 
 export type WahaMessage = z.infer<typeof wahaMessageSchema>
 
-/** Returns the message payload of a `message` event, or null for anything else. */
+/**
+ * WAHA emits `message` for incoming only and `message.any` for both directions.
+ * The personal session subscribes to `message.any` so the archive keeps Itay's
+ * own replies, so both names have to be accepted here - matching only `message`
+ * silently discarded every event that session ever sent.
+ */
+const MESSAGE_EVENTS = new Set(['message', 'message.any'])
+
+/** Returns the message payload of a message event, or null for anything else. */
 export function parseWahaMessageEvent(body: unknown): WahaMessage | null {
   const event = wahaEventSchema.safeParse(body)
-  if (!event.success || event.data.event !== 'message') return null
+  if (!event.success || !MESSAGE_EVENTS.has(event.data.event)) return null
 
   const message = wahaMessageSchema.safeParse(event.data.payload)
   return message.success ? message.data : null
