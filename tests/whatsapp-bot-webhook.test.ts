@@ -99,6 +99,36 @@ describe('bot webhook identity routing', () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)
   })
 
+  // Captured verbatim from the GOWS engine. Every optional field it does not
+  // populate arrives as null, not as an absent key, and an earlier schema that
+  // merely marked them optional rejected the whole payload - so the route
+  // answered 200 and silently did nothing to every real message.
+  const GOWS_PAYLOAD = {
+    id: 'false_212669667753986@lid_2A151BEFE19E404A4599',
+    timestamp: 1784974364,
+    from: '212669667753986@lid',
+    fromMe: false,
+    source: 'app',
+    body: 'מה יש היום?',
+    to: null,
+    participant: null,
+    hasMedia: false,
+    media: null,
+    ack: 2,
+    location: null,
+    vCards: null,
+    replyTo: null,
+  }
+
+  it('accepts the payload shape the GOWS engine actually sends', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue(OWNER_LOCAL_PHONE)
+
+    await POST(webhookRequest(GOWS_PAYLOAD))
+
+    expect(agentMock.processMessage).toHaveBeenCalledWith('user-1', 'מה יש היום?')
+    expect(sentTexts()).toEqual([{ chatId: '212669667753986@lid', text: 'תשובת הסוכן' }])
+  })
+
   it('routes the owner to the owner agent and replies with its answer', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue(OWNER_LOCAL_PHONE)
 

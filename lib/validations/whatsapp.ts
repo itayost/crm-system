@@ -19,12 +19,17 @@ export const wahaMediaSchema = z.object({
 export const wahaMessageSchema = z
   .object({
     /** WAHA's message id, used to recognise a redelivered webhook. */
-    id: z.string().min(1).optional(),
+    id: z.string().min(1).nullable().optional(),
     from: z.string().min(1),
-    to: z.string().min(1).optional(),
+    /**
+     * Null on every incoming message under the GOWS engine, so this must accept
+     * null and not merely be optional. Rejecting it here silently dropped every
+     * inbound message: the route parsed nothing, answered 200, and did no work.
+     */
+    to: z.string().min(1).nullable().optional(),
     /** Empty for a bare voice note, so media alone is enough to accept the message. */
-    body: z.string().optional(),
-    fromMe: z.boolean().optional(),
+    body: z.string().nullable().optional(),
+    fromMe: z.boolean().nullable().optional(),
     /** Unix seconds. */
     timestamp: z.number().int().nonnegative(),
     media: wahaMediaSchema.nullable().optional(),

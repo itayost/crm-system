@@ -50,6 +50,26 @@ describe('personal-session indexing', () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)
   })
 
+  it('archives an incoming message whose optional fields are null', async () => {
+    // The personal session sees the same GOWS shape: to, media and participant
+    // all arrive as null on an inbound message.
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0544994417')
+
+    await POST(
+      indexRequest({
+        id: 'false_212669667753986@lid_2A151BEF',
+        from: '212669667753986@lid',
+        to: null,
+        fromMe: false,
+        body: 'שלום',
+        media: null,
+        timestamp: 1784974364,
+      })
+    )
+
+    expect(createdMessage()).toMatchObject({ content: 'שלום', direction: 'INCOMING' })
+  })
+
   it('attributes a message to a matched contact and touches lastContactedAt', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
     prismaMock.contact.findFirst.mockResolvedValue({ id: 'contact-1', clientId: 'client-1' })

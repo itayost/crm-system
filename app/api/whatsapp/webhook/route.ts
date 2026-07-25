@@ -117,7 +117,7 @@ async function handleClientMessage(
           mimeType: message.media.mimetype,
           filename: message.media.filename,
         },
-        caption: message.body,
+        caption: message.body ?? undefined,
       })
     : null
 
