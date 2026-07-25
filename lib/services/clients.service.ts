@@ -83,12 +83,16 @@ export class ClientsService {
       throw new Error('לא ניתן למחוק לקוח שיש לו פרויקטים')
     }
 
-    await prisma.contact.updateMany({
-      where: { clientId: id },
-      data: { clientId: null, isPrimary: false },
-    })
+    // One transaction: a failure between the two writes would leave the contacts
+    // detached from a business that still exists, with primary status lost.
+    return prisma.$transaction(async (tx) => {
+      await tx.contact.updateMany({
+        where: { clientId: id },
+        data: { clientId: null, isPrimary: false },
+      })
 
-    return prisma.client.delete({ where: { id } })
+      return tx.client.delete({ where: { id } })
+    })
   }
 
   /**

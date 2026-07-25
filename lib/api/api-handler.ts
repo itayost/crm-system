@@ -31,21 +31,29 @@ export function withAuth(handler: Handler) {
         )
       }
 
-      if (error instanceof Error) {
-        console.error('API Error:', error.message)
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        )
+      // Services raise their own Hebrew messages for things the user can act on
+      // ("איש קשר לא נמצא"). Anything else - a Prisma fault, a null dereference -
+      // would otherwise echo model and column names back to the caller as a 400.
+      if (error instanceof Error && isUserFacingError(error)) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
       }
 
       console.error('API Error:', error)
       return NextResponse.json(
-        { error: 'Internal server error' },
+        { error: 'שגיאת שרת. נסה שוב.' },
         { status: 500 }
       )
     }
   }
+}
+
+/**
+ * Errors the services raise on purpose are written in Hebrew and are safe to
+ * show. Everything else is an internal fault and must not reach the client.
+ */
+function isUserFacingError(error: Error): boolean {
+  if (error.name !== 'Error') return false
+  return /[֐-׿]/.test(error.message)
 }
 
 export function createResponse(data: unknown, status = 200) {

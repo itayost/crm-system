@@ -18,6 +18,8 @@ export const wahaMediaSchema = z.object({
 
 export const wahaMessageSchema = z
   .object({
+    /** WAHA's message id, used to recognise a redelivered webhook. */
+    id: z.string().min(1).optional(),
     from: z.string().min(1),
     to: z.string().min(1).optional(),
     /** Empty for a bare voice note, so media alone is enough to accept the message. */

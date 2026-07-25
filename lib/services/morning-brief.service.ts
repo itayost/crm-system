@@ -4,10 +4,46 @@ import { prisma } from '@/lib/db/prisma'
 
 const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
 
+const BRIEF_TIME_ZONE = process.env.BRIEF_TIME_ZONE ?? 'Asia/Jerusalem'
+
+/**
+ * Midnight in Israel, expressed as a UTC instant. Derived from the zone rather
+ * than a fixed offset so it stays correct across daylight saving.
+ */
+export function startOfIsraelDay(now: Date): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BRIEF_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0)
+  const localMidnightAsUtc = Date.UTC(get('year'), get('month') - 1, get('day'))
+  const localNowAsUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour') % 24,
+    get('minute'),
+    get('second')
+  )
+
+  // now - (elapsed since local midnight) = the instant local midnight happened.
+  return new Date(now.getTime() - (localNowAsUtc - localMidnightAsUtc))
+}
+
 export class MorningBriefService {
   static async generateBrief(userId: string): Promise<string> {
     const now = new Date()
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    // The brief is read over breakfast in Israel but runs on a UTC server, so
+    // local-time boundaries would put "today" at 03:00-03:00 and report this
+    // morning's tasks as overdue.
+    const todayStart = startOfIsraelDay(now)
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
     const weekEnd = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000)
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
@@ -46,7 +82,13 @@ export class MorningBriefService {
         where: {
           userId,
           status: 'CLIENT',
-          lastContactedAt: { lt: sevenDaysAgo },
+          // A NULL lastContactedAt is the worst case, not an exemption: Prisma
+          // treats `lt` as excluding NULL, so never-contacted clients were the
+          // only ones the brief never mentioned.
+          OR: [
+            { lastContactedAt: { lt: sevenDaysAgo } },
+            { lastContactedAt: null, createdAt: { lt: sevenDaysAgo } },
+          ],
         },
         select: { name: true, lastContactedAt: true },
       }),

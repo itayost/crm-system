@@ -152,9 +152,11 @@ export class RequestExtractionService {
       // someone else's conversation.
       if (!validMessageIds.has(item.sourceMessageId)) continue
 
-      // Dedup: skip if a request already exists for this source message.
+      // Dedup: skip if a request already exists for this source message. Scoped
+      // to the owner, or another tenant's ticket on the same message would
+      // suppress a legitimate draft here.
       const already = await prisma.request.findFirst({
-        where: { sourceMessageId: item.sourceMessageId },
+        where: { sourceMessageId: item.sourceMessageId, userId },
         select: { id: true },
       })
       if (already) continue

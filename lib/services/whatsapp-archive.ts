@@ -17,9 +17,17 @@ interface ArchiveBotMessageParams {
   clientId: string
   /** Unix seconds from the WAHA payload. */
   timestamp: number
+  /** WAHA's message id, when the payload carried one. */
+  externalId?: string | null
   mediaPath?: string | null
   mediaMimeType?: string | null
   transcript?: string | null
+}
+
+export interface ArchivedMessage {
+  id: string
+  /** True when this exact WAHA message was already archived and answered. */
+  alreadySeen: boolean
 }
 
 export async function archiveBotMessage({
@@ -29,12 +37,24 @@ export async function archiveBotMessage({
   contactId,
   clientId,
   timestamp,
+  externalId,
   mediaPath,
   mediaMimeType,
   transcript,
-}: ArchiveBotMessageParams): Promise<string> {
+}: ArchiveBotMessageParams): Promise<ArchivedMessage> {
+  // WAHA retries a webhook it thinks failed. Without this the client gets a
+  // second reply and a second run of the agent for one message they sent once.
+  if (externalId) {
+    const seen = await prisma.whatsAppMessage.findUnique({
+      where: { externalId },
+      select: { id: true },
+    })
+    if (seen) return { id: seen.id, alreadySeen: true }
+  }
+
   const message = await prisma.whatsAppMessage.create({
     data: {
+      externalId: externalId ?? null,
       phoneNumber: phone ?? chatId,
       rawChatId: chatId,
       direction: 'INCOMING',
@@ -51,7 +71,7 @@ export async function archiveBotMessage({
     select: { id: true },
   })
 
-  return message.id
+  return { id: message.id, alreadySeen: false }
 }
 
 /**

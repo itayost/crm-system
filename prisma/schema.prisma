@@ -219,7 +219,10 @@ enum MessageDirection {
 }
 
 model WhatsAppMessage {
-  id          String           @id @default(cuid())
+  id String @id @default(cuid())
+  /// WAHA's own message id. Lets a redelivered webhook be recognised rather
+  /// than archived and answered twice.
+  externalId  String?          @unique
   phoneNumber String
   rawChatId   String?
   direction   MessageDirection

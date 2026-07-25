@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SupportFollowupsService } from '@/lib/services/support-followups.service'
+import { isCronAuthorized } from '@/lib/api/cron-auth'
 
 /**
  * Hourly sweep over support conversations whose confirmation went unanswered:
  * two reminders, then file the draft flagged as unconfirmed.
  */
 export async function GET(req: NextRequest) {
-  // Fail closed: a missing CRON_SECRET is a misconfiguration, not "auth off".
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = req.headers.get('authorization')
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

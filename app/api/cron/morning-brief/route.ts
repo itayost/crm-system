@@ -3,12 +3,10 @@ import { prisma } from '@/lib/db/prisma'
 import { MorningBriefService } from '@/lib/services/morning-brief.service'
 import { WahaService } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
+import { isCronAuthorized } from '@/lib/api/cron-auth'
 
 export async function GET(req: NextRequest) {
-  // Fail closed: a missing CRON_SECRET is a misconfiguration, not "auth off".
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = req.headers.get('authorization')
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

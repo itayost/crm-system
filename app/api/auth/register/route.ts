@@ -35,6 +35,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validatedData = registerSchema.parse(body)
 
+    // Only the OWNER may mint privileged accounts. Without this an ADMIN can
+    // create further ADMINs and the role is effectively self-propagating.
+    if (validatedData.role === 'ADMIN' && session.user.role !== 'OWNER') {
+      return NextResponse.json(
+        { message: 'לא מורשה - רק בעלים יכול ליצור מנהלים' },
+        { status: 403 }
+      )
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const prismaMock = {
   user: { findFirst: vi.fn() },
   contact: { findMany: vi.fn(), update: vi.fn() },
-  whatsAppMessage: { create: vi.fn(), update: vi.fn() },
+  whatsAppMessage: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
 }
 
 const wahaMock = {
@@ -90,6 +90,7 @@ describe('bot webhook identity routing', () => {
     prismaMock.contact.update.mockResolvedValue({ id: 'contact-1' })
     prismaMock.whatsAppMessage.create.mockResolvedValue({ id: 'msg-1' })
     prismaMock.whatsAppMessage.update.mockResolvedValue({ id: 'msg-1' })
+    prismaMock.whatsAppMessage.findUnique.mockResolvedValue(null)
     agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
     agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
     supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
@@ -194,6 +195,40 @@ describe('bot webhook identity routing', () => {
         media: { path: 'client-1/uuid/audio.ogg', mimeType: 'audio/ogg', transcribed: true },
       })
     )
+  })
+
+  it('answers a redelivered message only once', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    const payload = { ...incoming('client-chat@lid', 'יש באג באתר'), id: 'waha-msg-77' }
+
+    await POST(webhookRequest(payload))
+
+    // WAHA retries a webhook it believes failed; the same message comes back.
+    prismaMock.whatsAppMessage.findUnique.mockResolvedValue({ id: 'msg-1' })
+    await POST(webhookRequest(payload))
+
+    expect(prismaMock.whatsAppMessage.findUnique).toHaveBeenCalledWith({
+      where: { externalId: 'waha-msg-77' },
+      select: { id: true },
+    })
+    expect(prismaMock.whatsAppMessage.create).toHaveBeenCalledTimes(1)
+    expect(supportMock.handleMessage).toHaveBeenCalledTimes(1)
+    expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: 'תשובת התמיכה' }])
+  })
+
+  it('hands the message back when the reply cannot be delivered', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    wahaMock.sendMessage.mockRejectedValue(new Error('waha down'))
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+
+    // The agent may have answered, but nobody saw it: let the batch pass file it.
+    expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
+      where: { id: 'msg-1' },
+      data: { processedAt: null },
+    })
   })
 
   it('still answers the client when the support agent fails', async () => {

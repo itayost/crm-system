@@ -122,6 +122,10 @@ export class TasksService {
 
     if (data.status === 'COMPLETED' && !task.completedAt) {
       updateData.completedAt = new Date()
+    } else if (data.status && data.status !== 'COMPLETED' && task.completedAt) {
+      // Reopening a task must drop the completion stamp, or it reads as finished
+      // in every report while sitting in the TODO column.
+      updateData.completedAt = null
     }
 
     return prisma.task.update({

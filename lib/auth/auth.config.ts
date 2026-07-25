@@ -45,14 +45,15 @@ export const authOptions: NextAuthOptions = {
           })
           
           if (!user || !user.password) {
-            console.error('User not found:', email)
+            // No email in the log: it would be an account-enumeration list.
+            console.warn('Login failed: unknown account')
             return null
           }
           
           const passwordsMatch = await bcrypt.compare(password, user.password)
           
           if (!passwordsMatch) {
-            console.error('Password mismatch for:', email)
+            console.warn('Login failed: bad password')
             return null
           }
           

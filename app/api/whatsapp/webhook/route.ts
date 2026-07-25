@@ -26,8 +26,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Parsed once and kept: the error path needs the sender, and req.clone()
+  // cannot help after the body has been read.
+  let message: WahaMessage | null = null
+
   try {
-    const message = parseWahaMessageEvent(await req.json())
+    message = parseWahaMessageEvent(await req.json())
 
     if (!message || message.fromMe) {
       return NextResponse.json({ ok: true })
@@ -62,17 +66,16 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('WhatsApp bot webhook error:', error)
 
-    // Try to send error message back
-    try {
-      const body = await req.clone().json()
-      if (body.payload?.from) {
+    // Whoever wrote in is left waiting otherwise.
+    if (message?.from) {
+      try {
         await WahaService.sendMessage({
-          chatId: body.payload.from,
+          chatId: message.from,
           text: PROCESSING_ERROR_MESSAGE,
         })
+      } catch (sendError) {
+        console.error('Failed to send the processing-error reply:', sendError)
       }
-    } catch {
-      // Ignore error sending error message
     }
 
     return NextResponse.json({ ok: true })
@@ -126,17 +129,23 @@ async function handleClientMessage(
 
   // Archived first, and already marked processed, so the batch extraction never
   // drafts a second ticket for a message the support agent is handling live.
-  const sourceMessageId = await archiveBotMessage({
+  const { id: sourceMessageId, alreadySeen } = await archiveBotMessage({
     chatId: sender.chatId,
     phone: sender.phone,
     content: message.body || agentText,
     contactId: contact.id,
     clientId: contact.clientId,
     timestamp: message.timestamp,
+    externalId: message.id,
     mediaPath: media?.path,
     mediaMimeType: media?.path ? media.mimeType : null,
     transcript: media?.transcript,
   })
+
+  if (alreadySeen) {
+    console.warn(`Ignoring redelivered WhatsApp message ${message.id}`)
+    return
+  }
 
   await prisma.contact.update({
     where: { id: contact.id },
@@ -170,7 +179,16 @@ async function handleClientMessage(
     reply = CLIENT_ACK_MESSAGE
   }
 
-  await WahaService.sendMessage({ chatId: sender.chatId, text: reply })
+  try {
+    await WahaService.sendMessage({ chatId: sender.chatId, text: reply })
+  } catch (error) {
+    // The agent may have answered, but the client never saw it. Hand the message
+    // back so the batch pass still turns it into a ticket rather than losing it
+    // to a processed marker nobody acted on.
+    console.error('Failed to deliver the support reply:', error)
+    await releaseArchivedMessage(sourceMessageId).catch(() => {})
+    throw error
+  }
 }
 
 async function handleUnknownSender(
