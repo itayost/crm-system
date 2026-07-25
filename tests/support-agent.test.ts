@@ -72,6 +72,31 @@ const prismaMock = {
         return row
       }
     ),
+    updateMany: vi.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: {
+          userId: string
+          chatId: string
+          pendingDraft?: unknown
+          remindersSent?: { lt: number }
+        }
+        data: Record<string, unknown>
+      }) => {
+        const key = `${where.userId}:${where.chatId}`
+        const row = conversations.get(key)
+        if (!row) return { count: 0 }
+        if (where.pendingDraft && !row.pendingDraft) return { count: 0 }
+        if (where.remindersSent && ((row.remindersSent as number) ?? 0) >= where.remindersSent.lt) {
+          return { count: 0 }
+        }
+
+        conversations.set(key, applyUpdate(row, data))
+        return { count: 1 }
+      }
+    ),
   },
   project: { findMany: vi.fn(), findFirst: vi.fn() },
   request: { findMany: vi.fn(), create: vi.fn() },
@@ -112,6 +137,7 @@ vi.mock('@/lib/services/github.service', async () => {
 })
 
 const { SupportAgentService } = await import('@/lib/services/support-agent.service')
+const { fileDraftAsRequest } = await import('@/lib/services/support-filing')
 
 const CHAT_ID = 'client-chat@lid'
 
@@ -131,6 +157,8 @@ function storedConversation() {
     messages: Array<{ role: string; content: string }>
     pendingDraft: Record<string, unknown> | null
     pendingMedia?: Array<Record<string, unknown>>
+    confirmationAskedAt?: Date
+    remindersSent?: number
   }
 }
 
@@ -499,6 +527,25 @@ describe('support agent', () => {
     expect(createdRequestData().aiNote).toContain('ממצאים מהקוד')
   })
 
+  it('restarts the confirmation clock when the client writes again', async () => {
+    await proposeInOwnTurn()
+    const asked = storedConversation().confirmationAskedAt as Date
+    conversations.set(`${input.userId}:${CHAT_ID}`, {
+      ...storedConversation(),
+      confirmationAskedAt: new Date(asked.getTime() - 10 * 60 * 60 * 1000),
+      remindersSent: 2,
+    })
+
+    driver = async () => ({ text: 'תודה, אבדוק' })
+    await SupportAgentService.handleMessage({ ...input, text: 'רגע, אני בודק' })
+
+    const conversation = storedConversation()
+    expect(conversation.remindersSent).toBe(0)
+    expect((conversation.confirmationAskedAt as Date).getTime()).toBeGreaterThan(
+      asked.getTime() - 10 * 60 * 60 * 1000
+    )
+  })
+
   it('keeps conversations for the same chat id separate per owner', async () => {
     driver = async ({ messages }) => ({ text: `היסטוריה: ${messages.length}` })
 
@@ -539,6 +586,67 @@ describe('support agent', () => {
 
     expect(toolResult).toMatchObject({ success: false, reason: 'no_pending_summary' })
     expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('files a draft nobody confirmed as a flagged ticket', async () => {
+    await proposeInOwnTurn()
+
+    const { skipped } = await fileDraftAsRequest(
+      {
+        chatId: CHAT_ID,
+        userId: input.userId,
+        clientId: input.clientId,
+        contactId: input.contactId,
+        clientName: input.clientName,
+        contactName: input.contactName,
+      },
+      {
+        title: 'תיקון כפתור בעמוד הבית',
+        description: 'הכפתור לא מגיב',
+        type: 'BUG',
+        priority: 'HIGH',
+        projectId: null,
+        sourceMessageId: 'msg-1',
+      },
+      { unconfirmed: true }
+    )
+
+    expect(skipped).toBeUndefined()
+    const created = createdRequestData()
+    expect(created).toMatchObject({ status: 'PENDING_REVIEW', source: 'WHATSAPP', aiConfidence: 0.6 })
+    expect(created.aiNote).toContain('ללא אישור הלקוח')
+    expect(storedConversation().pendingDraft).toBeNull()
+
+    const notice = wahaMock.sendMessage.mock.calls[0][0] as { text: string }
+    expect(notice.text).toContain('הלקוח לא אישר')
+  })
+
+  it('files a claimed draft only once, however many callers try', async () => {
+    await proposeInOwnTurn()
+
+    const filingContext = {
+      chatId: CHAT_ID,
+      userId: input.userId,
+      clientId: input.clientId,
+      contactId: input.contactId,
+      clientName: input.clientName,
+      contactName: input.contactName,
+    }
+    const draft = {
+      title: 'תיקון כפתור בעמוד הבית',
+      description: 'הכפתור לא מגיב',
+      type: 'BUG' as const,
+      priority: 'HIGH' as const,
+      projectId: null,
+      sourceMessageId: 'msg-1',
+    }
+
+    await fileDraftAsRequest(filingContext, draft)
+    const second = await fileDraftAsRequest(filingContext, draft)
+
+    expect(second).toEqual({ requestId: undefined, skipped: true })
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
+    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
   })
 
   it('falls back to a safe reply when the model returns nothing', async () => {

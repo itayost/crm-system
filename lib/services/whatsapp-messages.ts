@@ -31,6 +31,18 @@ interface FiledRequestNoticeParams {
   description?: string | null
   type: string
   priority: string
+  /** Filed after the reminder window expired, without the client ever agreeing. */
+  unconfirmed?: boolean
+}
+
+/** First nudge after a few hours of silence on a summary awaiting confirmation. */
+export function firstConfirmationReminder(title: string): string {
+  return `היי, רק מוודא: רשמתי את הבקשה שלך כ*${title}*.\nזה מדויק? אשמח לאישור כדי להעביר את זה לאיתי.`
+}
+
+/** Second and last nudge, a day later. */
+export function secondConfirmationReminder(title: string): string {
+  return `תזכורת אחרונה בנוגע לבקשה *${title}*.\nאם זה מדויק, כתוב לי "כן" ואעביר את זה לאיתי. אם לא, ספר לי מה לתקן.`
 }
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -56,9 +68,10 @@ export function filedRequestOwnerNotice({
   description,
   type,
   priority,
+  unconfirmed = false,
 }: FiledRequestNoticeParams): string {
   const lines = [
-    '*בקשה חדשה ממתינה לאישור*',
+    unconfirmed ? '*בקשה חדשה - הלקוח לא אישר את הסיכום*' : '*בקשה חדשה ממתינה לאישור*',
     '',
     `*לקוח:* ${clientName} (${contactName})`,
   ]

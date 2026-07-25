@@ -131,6 +131,26 @@ export class SupportConversationService {
     })
   }
 
+  /**
+   * Take the pending draft off the conversation, once.
+   *
+   * Filing is not idempotent - two callers would create two tickets - so the
+   * draft is claimed with a conditional update first and only the winner files.
+   * Media and findings stay put: the winner still needs them for the ticket.
+   */
+  static async claimPendingDraft(context: SupportConversationContext): Promise<boolean> {
+    const claimed = await prisma.supportConversation.updateMany({
+      where: {
+        userId: context.userId,
+        chatId: context.chatId,
+        pendingDraft: { not: Prisma.DbNull },
+      },
+      data: { pendingDraft: Prisma.DbNull, confirmationAskedAt: null, remindersSent: 0 },
+    })
+
+    return claimed.count > 0
+  }
+
   static async clearPendingDraft(context: SupportConversationContext) {
     await prisma.supportConversation.update({
       where: identity(context),
@@ -143,6 +163,38 @@ export class SupportConversationService {
         pendingMedia: [],
         repoFindings: [],
       },
+    })
+  }
+
+  /**
+   * Only advances the counter, so two overlapping sweeps cannot send the same
+   * reminder twice.
+   */
+  static async markReminderSent(context: SupportConversationContext, reminderNumber: number) {
+    const updated = await prisma.supportConversation.updateMany({
+      where: {
+        userId: context.userId,
+        chatId: context.chatId,
+        remindersSent: { lt: reminderNumber },
+      },
+      data: { remindersSent: reminderNumber },
+    })
+
+    return updated.count > 0
+  }
+
+  /**
+   * The client wrote something, so the confirmation clock restarts: reminders
+   * measure silence, and a client who is talking is not silent.
+   */
+  static async touchPendingConfirmation(context: SupportConversationContext) {
+    await prisma.supportConversation.updateMany({
+      where: {
+        userId: context.userId,
+        chatId: context.chatId,
+        pendingDraft: { not: Prisma.DbNull },
+      },
+      data: { confirmationAskedAt: new Date(), remindersSent: 0 },
     })
   }
 

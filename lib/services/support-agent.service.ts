@@ -49,6 +49,11 @@ export class SupportAgentService {
       await SupportConversationService.addPendingMedia(conversationContext, input.media)
     }
 
+    // The client wrote, so any summary awaiting confirmation restarts its
+    // reminder clock. Done before the model runs: a gateway failure must not
+    // leave a responsive client on an escalation path.
+    await SupportConversationService.touchPendingConfirmation(conversationContext)
+
     const messages: SupportMessage[] = [
       ...conversation.history,
       { role: 'user', content: input.text },
