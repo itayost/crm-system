@@ -476,6 +476,38 @@ describe('support agent', () => {
     expect(createdRequestData().attachments).toEqual([])
   })
 
+  it('tells the agent which projects exist and what kind each one is', async () => {
+    prismaMock.project.findMany.mockResolvedValue([
+      { id: 'project-1', name: 'itayost.com', status: 'ACTIVE', type: 'WEBSITE' },
+      { id: 'project-2', name: 'CRM System', status: 'ACTIVE', type: 'MANAGEMENT_SYSTEM' },
+    ])
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    // Without the type, "לתקן את האתר" cannot be resolved to the website rather
+    // than the management system, and the agent falls back to asking.
+    expect(systemPrompt).toContain('itayost.com (אתר)')
+    expect(systemPrompt).toContain('CRM System (מערכת ניהול)')
+    expect(systemPrompt).toContain('אם רק פרויקט אחד מהרשימה מתאים')
+  })
+
+  it('forbids the open-ended clarifying question', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('לעולם אל תשאל "מה בדיוק לא עובד?"')
+    expect(systemPrompt).toContain('2-4 אפשרויות קונקרטיות')
+  })
+
   it('offers no repository tools when the client has no configured project', async () => {
     let toolNames: string[] = []
     driver = async ({ tools }) => {

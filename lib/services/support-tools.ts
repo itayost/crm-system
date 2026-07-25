@@ -177,10 +177,13 @@ export function createSupportTools(context: SupportToolContext) {
   }
 }
 
-async function clientProjects(context: SupportToolContext) {
+/** The writing client's own projects. Shared with the agent loop, which puts
+ *  them in the system prompt so the model can infer the right one without a
+ *  round trip. */
+export async function clientProjects(context: Pick<SupportToolContext, 'clientId' | 'userId'>) {
   return prisma.project.findMany({
     where: { clientId: context.clientId, userId: context.userId },
-    select: { id: true, name: true, status: true },
+    select: { id: true, name: true, status: true, type: true },
     orderBy: { createdAt: 'desc' },
   })
 }

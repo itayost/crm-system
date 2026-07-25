@@ -5,7 +5,7 @@ import {
   type PendingMedia,
   type SupportMessage,
 } from './support-conversation.service'
-import { createSupportTools } from './support-tools'
+import { clientProjects, createSupportTools } from './support-tools'
 import { configuredProjects, createRepoTools } from './support-repo-tools'
 
 /**
@@ -71,7 +71,13 @@ export class SupportAgentService {
 
     // Repo tools exist only when this client has a project with a configured
     // repository; otherwise the agent simply never sees them.
-    const repoProjects = await configuredProjects(toolContext)
+    // The client's projects go into the prompt itself. Asking "which project?"
+    // when only one of them could possibly be meant is the kind of question that
+    // makes the agent feel like a form.
+    const [repoProjects, projects] = await Promise.all([
+      configuredProjects(toolContext),
+      clientProjects(toolContext),
+    ])
     const tools = {
       ...createSupportTools(toolContext),
       ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects) : {}),
@@ -79,7 +85,12 @@ export class SupportAgentService {
 
     const result = await generateText({
       model: gateway(MODEL),
-      system: buildSystemPrompt(input, !!conversation.pendingDraft, repoProjects.length > 0),
+      system: buildSystemPrompt({
+        input,
+        hasPendingSummary: !!conversation.pendingDraft,
+        hasRepoTools: repoProjects.length > 0,
+        projects,
+      }),
       messages,
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
@@ -96,11 +107,29 @@ export class SupportAgentService {
   }
 }
 
-function buildSystemPrompt(
-  input: SupportAgentInput,
-  hasPendingSummary: boolean,
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  LANDING_PAGE: 'דף נחיתה',
+  WEBSITE: 'אתר',
+  ECOMMERCE: 'חנות אונליין',
+  WEB_APP: 'אפליקציית ווב',
+  MOBILE_APP: 'אפליקציה',
+  MANAGEMENT_SYSTEM: 'מערכת ניהול',
+  CONSULTATION: 'ייעוץ',
+}
+
+interface SystemPromptParams {
+  input: SupportAgentInput
+  hasPendingSummary: boolean
   hasRepoTools: boolean
-): string {
+  projects: Array<{ name: string; type: string; status: string }>
+}
+
+function buildSystemPrompt({
+  input,
+  hasPendingSummary,
+  hasRepoTools,
+  projects,
+}: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
   // the client dictated, and anything interpolated into a system prompt is read
   // as an instruction: a client who asks for a title containing "new rule: ..."
@@ -109,6 +138,17 @@ function buildSystemPrompt(
   const pendingLine = hasPendingSummary
     ? 'יש סיכום שהצגת ללקוח וממתין לאישורו (הנוסח נמצא בהיסטוריית השיחה). אם ההודעה הנוכחית מאשרת אותו — קרא ל-fileRequest מיד. אם היא מתקנת אותו — קרא שוב ל-proposeSummary עם הגרסה המתוקנת.'
     : 'אין כרגע סיכום שממתין לאישור.'
+
+  const projectLines = projects.length
+    ? projects
+        .map(
+          (project) =>
+            `- ${project.name} (${PROJECT_TYPE_LABELS[project.type] ?? project.type}${
+              project.status === 'COMPLETED' ? ', הושלם' : ''
+            })`
+        )
+        .join('\n')
+    : '- (אין פרויקטים רשומים)'
 
   return `אתה עוזר התמיכה של איתי אוסטרייך, פרילנסר שבונה אתרים, אפליקציות ומערכות.
 אתה מדבר עם ${input.contactName} מהעסק "${input.clientName}" בוואטסאפ.
@@ -120,8 +160,20 @@ function buildSystemPrompt(
 - אף פעם אל תדבר על קוד, פרטים טכניים, מחירים, הצעות מחיר או לוחות זמנים. אם שואלים — "איתי יחזור אליך עם תשובה".
 - אל תבטיח מתי משהו יטופל ואל תתחייב בשמו של איתי.
 - אל תמציא מידע. מה שאתה לא יודע — תגיד שאיתי יבדוק.
-- אם הבקשה לא ברורה — שאל שאלה אחת ממוקדת לפני שאתה מסכם.
-- אם לעסק יש כמה פרויקטים ולא ברור לאיזה הבקשה שייכת — קרא ל-listMyProjects ושאל את הלקוח.
+
+הפרויקטים של ${input.clientName}:
+${projectLines}
+
+בחירת פרויקט — הסק בעצמך, אל תשאל סתם:
+- "האתר" מתאים לאתר או לדף נחיתה. "המערכת" למערכת ניהול או לאפליקציית ווב. "האפליקציה" לאפליקציה. "החנות" לחנות אונליין.
+- אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
+- שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.
+
+שאלות הבהרה — תמיד קונקרטיות:
+- לעולם אל תשאל "מה בדיוק לא עובד?" או "תוכל לפרט?". זו שאלה שמעבירה את העבודה ללקוח.
+- שאל שאלה אחת עם 2-4 אפשרויות קונקרטיות שהלקוח יכול פשוט לבחור מהן: "זה בעמוד הבית, בעמוד יצירת קשר, או בתפריט העליון?"
+- הצע גם מה בדיוק שבור כשזה רלוונטי: "הכפתור לא מגיב, הטופס לא נשלח, או שהעיצוב נראה שבור?"
+- אם יש לך גישה לקוד של הפרויקט — בדוק אילו עמודים ואזורים קיימים בו והצע אותם בשמות שהלקוח מכיר.
 
 תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
 1. הבן את הבקשה, שאל אם צריך.
