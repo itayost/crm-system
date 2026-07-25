@@ -808,7 +808,29 @@ describe('support agent', () => {
     await SupportAgentService.handleMessage({ ...input, text: 'איפה רואים הערות של מאמן?' })
 
     expect(systemPrompt).toContain('הלקוח שאל שאלה')
-    expect(systemPrompt).toContain('נסה לענות')
+    // A question is the first sign of a bug or a feature request, so the repo is
+    // consulted to decide which of the three it actually is.
+    expect(systemPrompt).toContain('קודם כל חפש בקוד')
+    expect(systemPrompt).toContain('suggestedType=BUG')
+    expect(systemPrompt).toContain('suggestedType=REQUEST')
+  })
+
+  it('does not let the agent guess what exists when it cannot read the repo', async () => {
+    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'QUESTION' })
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
+      where.agentConfig ? [] : [{ id: 'project-1', name: 'האתר', status: 'ACTIVE', type: 'WEBSITE' }]
+    )
+
+    let systemPrompt = ''
+    driver = async ({ system, tools }) => {
+      systemPrompt = system
+      expect(Object.keys(tools)).not.toContain('searchProjectCode')
+      return { text: 'אבדוק' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'איפה רואים הערות?' })
+
+    expect(systemPrompt).toContain('אל תנחש אם משהו קיים או לא')
+    expect(systemPrompt).not.toContain('קודם כל חפש בקוד')
   })
 
   it('files a draft nobody confirmed as a flagged ticket', async () => {
