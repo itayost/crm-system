@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 process.env.WAHA_API_URL = 'http://waha.local:3001'
 process.env.WAHA_API_KEY = 'waha-secret'
 
-const { WahaService } = await import('@/lib/services/waha.service')
+const { WahaService, withTyping } = await import('@/lib/services/waha.service')
 const { validateAttachment } = await import('@/lib/services/storage.service')
 
 const MAX_BYTES = 1024
@@ -74,5 +74,50 @@ describe('form attachment validation', () => {
     expect(validateAttachment({ size: 1000, type: 'audio/ogg' }).ok).toBe(false)
     expect(validateAttachment({ size: 1000, type: 'video/mp4' }).ok).toBe(false)
     expect(validateAttachment({ size: 1000, type: 'image/png' }).ok).toBe(true)
+  })
+})
+
+describe('typing indicator', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps typing alive across a long turn and always closes it', async () => {
+    // WhatsApp drops the typing state after ~25s, so one call is not enough for
+    // a repo search; the helper re-sends it on a heartbeat.
+    const start = vi.spyOn(WahaService, 'startTyping').mockResolvedValue(undefined)
+    const stop = vi.spyOn(WahaService, 'stopTyping').mockResolvedValue(undefined)
+
+    let finish: () => void = () => {}
+    const work = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+
+    const pending = withTyping('chat@lid', () => work)
+    await vi.advanceTimersByTimeAsync(25_000)
+    finish()
+    await pending
+
+    expect(start.mock.calls.length).toBeGreaterThan(1)
+    expect(stop).toHaveBeenCalledWith('chat@lid')
+  })
+
+  it('stops typing when the work throws', async () => {
+    vi.spyOn(WahaService, 'startTyping').mockResolvedValue(undefined)
+    const stop = vi.spyOn(WahaService, 'stopTyping').mockResolvedValue(undefined)
+
+    await expect(
+      withTyping('chat@lid', async () => {
+        throw new Error('gateway down')
+      })
+    ).rejects.toThrow('gateway down')
+
+    expect(stop).toHaveBeenCalledWith('chat@lid')
   })
 })

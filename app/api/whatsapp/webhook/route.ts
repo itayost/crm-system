@@ -1,14 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isWebhookAuthorized } from '@/lib/api/webhook-auth'
-import { WahaService, botSessionName } from '@/lib/services/waha.service'
+import { WahaService, botSessionName, withTyping } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 import { identifySender, type WhatsAppSender } from '@/lib/services/whatsapp-identity'
 import { SupportAgentService } from '@/lib/services/support-agent.service'
 import { archiveBotMessage, releaseArchivedMessage } from '@/lib/services/whatsapp-archive'
 import { processIncomingMedia } from '@/lib/services/support-media.service'
+import { SupportConversationService } from '@/lib/services/support-conversation.service'
 import {
+  CHECKING_MESSAGE,
   CLIENT_ACK_MESSAGE,
+  greetingMessage,
   MEDIA_ONLY_PLACEHOLDER,
   OWNER_MEDIA_UNSUPPORTED_MESSAGE,
   PROCESSING_ERROR_MESSAGE,
@@ -16,6 +19,10 @@ import {
   unknownSenderOwnerNotice,
 } from '@/lib/services/whatsapp-messages'
 import { parseWahaMessageEvent, type WahaMessage } from '@/lib/validations/whatsapp'
+
+// The agent can spend half a minute on a repo search, and that now happens
+// after the response rather than inside it.
+export const maxDuration = 120
 
 /**
  * Bot-session webhook. Every sender is classified before anything happens:
@@ -56,7 +63,21 @@ export async function POST(req: Request) {
     }
 
     if (sender.kind === 'CLIENT') {
-      await handleClientMessage(sender, message)
+      // Answer WAHA now and do the work afterwards. Holding the webhook open for
+      // the whole turn invites a delivery timeout and a retry, and leaves the
+      // client with no sign anything is happening.
+      const clientMessage = message
+      after(async () => {
+        try {
+          await handleClientMessage(sender, clientMessage)
+        } catch (error) {
+          console.error('Support turn failed:', error)
+          await WahaService.sendMessage({
+            chatId: sender.chatId,
+            text: PROCESSING_ERROR_MESSAGE,
+          }).catch(() => {})
+        }
+      })
       return NextResponse.json({ ok: true })
     }
 
@@ -104,6 +125,44 @@ async function handleOwnerMessage(chatId: string, text: string) {
 async function handleClientMessage(
   sender: Extract<WhatsAppSender, { kind: 'CLIENT' }>,
   message: WahaMessage
+) {
+  const { contact } = sender
+  const conversationContext = {
+    chatId: sender.chatId,
+    clientId: contact.clientId,
+    contactId: contact.id,
+    userId: contact.userId,
+  }
+
+  // Blue ticks first: the cheapest possible "your message arrived".
+  await WahaService.sendSeen(sender.chatId)
+
+  // At most one filler message per turn, whoever decides it is needed.
+  let acknowledged = false
+  const acknowledge = async (text: string) => {
+    if (acknowledged) return
+    acknowledged = true
+    await WahaService.sendMessage({ chatId: sender.chatId, text }).catch((error) => {
+      console.error('Failed to send the acknowledgement:', error)
+    })
+  }
+
+  // A client writing for the first time has no reason to believe anyone is
+  // there, so they get a greeting by name before any of the slow work starts.
+  if (!(await SupportConversationService.exists(conversationContext))) {
+    await acknowledge(greetingMessage(contact.name))
+  } else if (message.media) {
+    // Transcription is the slowest single step and it runs before the agent.
+    await acknowledge(CHECKING_MESSAGE)
+  }
+
+  await withTyping(sender.chatId, () => runSupportTurn(sender, message, acknowledge))
+}
+
+async function runSupportTurn(
+  sender: Extract<WhatsAppSender, { kind: 'CLIENT' }>,
+  message: WahaMessage,
+  acknowledge: (text: string) => Promise<void>
 ) {
   const { contact } = sender
 
@@ -168,6 +227,9 @@ async function handleClientMessage(
       media: media
         ? { path: media.path, mimeType: media.mimeType, transcribed: media.transcribed }
         : null,
+      // The agent knows before it calls the model whether this turn means a repo
+      // search. If it already greeted, this is a no-op.
+      onAcknowledge: () => acknowledge(CHECKING_MESSAGE),
     })
   } catch (error) {
     console.error('Support agent error:', error)

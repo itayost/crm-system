@@ -10,6 +10,9 @@ const wahaMock = {
   sendMessage: vi.fn(),
   getPhoneFromChatId: vi.fn(),
   formatChatId: vi.fn(),
+  sendSeen: vi.fn(),
+  startTyping: vi.fn(),
+  stopTyping: vi.fn(),
 }
 
 const agentMock = {
@@ -26,6 +29,17 @@ const mediaMock = {
   processIncomingMedia: vi.fn(),
 }
 
+const conversationMock = { exists: vi.fn() }
+
+/**
+ * The client turn now runs in after(), so the route answers the webhook before
+ * the work happens. Tests capture those tasks and await them explicitly.
+ */
+const afterTasks: Array<Promise<unknown>> = []
+async function flushAfter() {
+  await Promise.all(afterTasks.splice(0))
+}
+
 const CLIENT_CONTACT = {
   id: 'contact-1',
   name: 'דנה',
@@ -40,9 +54,31 @@ vi.mock('@/lib/services/waha.service', () => ({
   WahaService: wahaMock,
   botSessionName: () => 'bot',
   personalSessionName: () => 'personal',
+  // Mirrors the real helper: typing opens before the work and closes after it,
+  // whatever the work does.
+  withTyping: async (chatId: string, work: () => Promise<unknown>) => {
+    await wahaMock.startTyping(chatId)
+    try {
+      return await work()
+    } finally {
+      await wahaMock.stopTyping(chatId)
+    }
+  },
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
 vi.mock('@/lib/services/support-agent.service', () => ({ SupportAgentService: supportMock }))
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual<typeof import('next/server')>('next/server')
+  return {
+    ...actual,
+    after: (task: () => Promise<unknown>) => {
+      afterTasks.push(task())
+    },
+  }
+})
+vi.mock('@/lib/services/support-conversation.service', () => ({
+  SupportConversationService: conversationMock,
+}))
 vi.mock('@/lib/services/support-media.service', () => ({
   processIncomingMedia: (...args: unknown[]) => mediaMock.processIncomingMedia(...args),
 }))
@@ -95,6 +131,12 @@ describe('bot webhook identity routing', () => {
     agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
     supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
     mediaMock.processIncomingMedia.mockResolvedValue(null)
+    // Existing conversation by default, so only the tests that care about the
+    // greeting have to think about it.
+    conversationMock.exists.mockResolvedValue(true)
+    wahaMock.sendSeen.mockResolvedValue(undefined)
+    wahaMock.startTyping.mockResolvedValue(undefined)
+    wahaMock.stopTyping.mockResolvedValue(undefined)
     wahaMock.sendMessage.mockResolvedValue(undefined)
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)
   })
@@ -146,20 +188,23 @@ describe('bot webhook identity routing', () => {
     prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
 
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
 
     expect(agentMock.processMessage).not.toHaveBeenCalled()
     expect(agentMock.saveOwnerChatId).not.toHaveBeenCalled()
-    expect(supportMock.handleMessage).toHaveBeenCalledWith({
-      userId: 'user-1',
-      chatId: 'client-chat@lid',
-      clientId: 'client-1',
-      clientName: 'מסעדת הגן',
-      contactId: 'contact-1',
-      contactName: 'דנה',
-      sourceMessageId: 'msg-1',
-      text: 'יש באג באתר',
-      media: null,
-    })
+    expect(supportMock.handleMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        chatId: 'client-chat@lid',
+        clientId: 'client-1',
+        clientName: 'מסעדת הגן',
+        contactId: 'contact-1',
+        contactName: 'דנה',
+        sourceMessageId: 'msg-1',
+        text: 'יש באג באתר',
+        media: null,
+      })
+    )
     expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: 'תשובת התמיכה' }])
   })
 
@@ -168,6 +213,7 @@ describe('bot webhook identity routing', () => {
     prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
 
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
 
     const archived = prismaMock.whatsAppMessage.create.mock.calls[0][0].data
     expect(archived).toMatchObject({
@@ -206,6 +252,7 @@ describe('bot webhook identity routing', () => {
         media: { url: 'http://waha.local/files/a.oga', mimetype: 'audio/ogg', filename: null },
       })
     )
+    await flushAfter()
 
     expect(mediaMock.processIncomingMedia).toHaveBeenCalledWith(
       expect.objectContaining({ clientId: 'client-1' })
@@ -227,16 +274,98 @@ describe('bot webhook identity routing', () => {
     )
   })
 
+
+  it('greets a client writing for the first time, before doing any slow work', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    conversationMock.exists.mockResolvedValue(false)
+
+    let greetedBeforeAgent = false
+    supportMock.handleMessage.mockImplementation(async () => {
+      greetedBeforeAgent = wahaMock.sendMessage.mock.calls.length === 1
+      return 'תשובת התמיכה'
+    })
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
+
+    const texts = sentTexts()
+    expect(texts[0].text).toContain('היי דנה')
+    expect(greetedBeforeAgent).toBe(true)
+    expect(texts[1]).toEqual({ chatId: 'client-chat@lid', text: 'תשובת התמיכה' })
+    expect(wahaMock.sendSeen).toHaveBeenCalledWith('client-chat@lid')
+  })
+
+  it('does not greet again inside an existing conversation', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'כן')))
+    await flushAfter()
+
+    expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: 'תשובת התמיכה' }])
+  })
+
+  it('warns before transcribing media, and only once per turn', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    mediaMock.processIncomingMedia.mockImplementation(async () => {
+      // The client has already been told before the slow step begins.
+      expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
+      return {
+        path: null,
+        mimeType: 'audio/ogg',
+        transcript: null,
+        transcribed: false,
+        agentText: '[הודעה קולית]',
+        failure: null,
+      }
+    })
+    // The agent asks to acknowledge too; it must not produce a second message.
+    supportMock.handleMessage.mockImplementation(async ({ onAcknowledge }: { onAcknowledge?: () => Promise<void> }) => {
+      await onAcknowledge?.()
+      return 'תשובת התמיכה'
+    })
+
+    await POST(
+      webhookRequest({
+        from: 'client-chat@lid',
+        fromMe: false,
+        timestamp: 1700000000,
+        media: { url: 'http://waha.local/a.oga', mimetype: 'audio/ogg', filename: null },
+      })
+    )
+    await flushAfter()
+
+    const texts = sentTexts()
+    expect(texts).toHaveLength(2)
+    expect(texts[0].text).toBe('רגע, בודק את זה ואחזור אליך.')
+  })
+
+  it('shows typing for the whole turn, and stops even when the agent throws', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    supportMock.handleMessage.mockRejectedValue(new Error('gateway down'))
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג')))
+    await flushAfter()
+
+    expect(wahaMock.startTyping).toHaveBeenCalledWith('client-chat@lid')
+    expect(wahaMock.stopTyping).toHaveBeenCalledWith('client-chat@lid')
+  })
+
   it('answers a redelivered message only once', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
     prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
     const payload = { ...incoming('client-chat@lid', 'יש באג באתר'), id: 'waha-msg-77' }
 
     await POST(webhookRequest(payload))
+    await flushAfter()
 
     // WAHA retries a webhook it believes failed; the same message comes back.
     prismaMock.whatsAppMessage.findUnique.mockResolvedValue({ id: 'msg-1' })
     await POST(webhookRequest(payload))
+    await flushAfter()
 
     expect(prismaMock.whatsAppMessage.findUnique).toHaveBeenCalledWith({
       where: { externalId: 'waha-msg-77' },
@@ -253,6 +382,7 @@ describe('bot webhook identity routing', () => {
     wahaMock.sendMessage.mockRejectedValue(new Error('waha down'))
 
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
 
     // The agent may have answered, but nobody saw it: let the batch pass file it.
     expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
@@ -267,6 +397,7 @@ describe('bot webhook identity routing', () => {
     supportMock.handleMessage.mockRejectedValue(new Error('gateway down'))
 
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
 
     expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE }])
     expect(prismaMock.whatsAppMessage.create).toHaveBeenCalled()
@@ -284,6 +415,7 @@ describe('bot webhook identity routing', () => {
     ])
 
     await POST(webhookRequest(incoming('lookalike@lid', 'היי')))
+    await flushAfter()
 
     expect(sentTexts()[0]).toEqual({ chatId: 'lookalike@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE })
   })

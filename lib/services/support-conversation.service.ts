@@ -111,6 +111,15 @@ export class SupportConversationService {
     }
   }
 
+  /** Whether this chat has ever been answered before. Cheap enough to run first. */
+  static async exists(context: SupportConversationContext): Promise<boolean> {
+    const found = await prisma.supportConversation.findUnique({
+      where: identity(context),
+      select: { id: true },
+    })
+    return !!found
+  }
+
   static async getPendingDraft(context: SupportConversationContext): Promise<StoredDraft | null> {
     const conversation = await prisma.supportConversation.findUnique({
       where: identity(context),

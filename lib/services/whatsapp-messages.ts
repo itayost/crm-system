@@ -11,6 +11,19 @@ export const UNKNOWN_SENDER_HOLD_MESSAGE =
 
 export const PROCESSING_ERROR_MESSAGE = 'שגיאה בעיבוד ההודעה. נסה שוב.'
 
+/**
+ * First contact in a conversation. The client has just written to a number that
+ * has never answered them before, and the next thing they see may be half a
+ * minute of nothing while the agent reads the repo.
+ */
+export function greetingMessage(contactName: string): string {
+  const firstName = contactName.trim().split(/\s+/)[0]
+  return `היי ${firstName}! קיבלתי את ההודעה שלך, בודק את זה ואחזור אליך עוד רגע 🙏`
+}
+
+/** Mid-conversation, when this particular turn is going to take a while. */
+export const CHECKING_MESSAGE = 'רגע, בודק את זה ואחזור אליך.'
+
 /** Stands in for a media-only message when only text makes sense. */
 export const MEDIA_ONLY_PLACEHOLDER = '[הודעת מדיה ללא טקסט]'
 

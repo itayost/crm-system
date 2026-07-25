@@ -42,6 +42,12 @@ export interface SupportAgentInput {
   text: string
   /** Stored media that came with this message, to be attached to the filed request. */
   media?: PendingMedia | null
+  /**
+   * Called before the model runs when this turn is going to take a while, so the
+   * client is told rather than left watching nothing. The caller decides whether
+   * anything is actually sent - it may already have greeted.
+   */
+  onAcknowledge?: () => Promise<void>
 }
 
 export class SupportAgentService {
@@ -102,6 +108,12 @@ export class SupportAgentService {
     // question about "where" can offer real places instead of asking them to
     // describe one.
     const screens = await screensForConversation(projects, intake, repoProjects)
+    // A question with repo access means a code search before a single word gets
+    // written. That is the turn worth warning the client about.
+    if (intakeKind(intake) === 'question' && repoProjects.length > 0) {
+      await input.onAcknowledge?.()
+    }
+
     const tools = {
       ...createSupportTools(toolContext),
       ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects) : {}),

@@ -120,6 +120,34 @@ export class WahaService {
     }
   }
 
+  /**
+   * Presence signals. Every one is best-effort: a client waiting on an answer
+   * must never lose it because a typing indicator failed.
+   */
+  private static async presence(path: string, chatId: string, session?: string) {
+    try {
+      await this.request(path, {
+        method: 'POST',
+        body: JSON.stringify({ chatId, session: session ?? botSessionName() }),
+      })
+    } catch (error) {
+      console.warn(`WAHA ${path} failed:`, error)
+    }
+  }
+
+  /** Blue ticks, so the client knows the message landed. */
+  static async sendSeen(chatId: string, session?: string) {
+    await this.presence('/api/sendSeen', chatId, session)
+  }
+
+  static async startTyping(chatId: string, session?: string) {
+    await this.presence('/api/startTyping', chatId, session)
+  }
+
+  static async stopTyping(chatId: string, session?: string) {
+    await this.presence('/api/stopTyping', chatId, session)
+  }
+
   static formatChatId(phoneNumber: string): string {
     const cleaned = phoneNumber.replace(/[-\s+]/g, '')
     const international = cleaned.startsWith('0')
@@ -161,5 +189,29 @@ export class WahaService {
       return this.resolveLidToPhone(chatId, session)
     }
     return this.extractPhoneNumber(chatId)
+  }
+}
+
+/** WhatsApp drops the typing state on its own after about 25 seconds. */
+const TYPING_REFRESH_MS = 10_000
+
+/**
+ * Show typing for as long as the work takes.
+ *
+ * A single startTyping is not enough for a repo search that runs half a minute,
+ * so it is re-sent on a heartbeat. The timer is always cleared and the state
+ * always closed, including when the work throws.
+ */
+export async function withTyping<T>(chatId: string, work: () => Promise<T>): Promise<T> {
+  await WahaService.startTyping(chatId)
+  const heartbeat = setInterval(() => {
+    void WahaService.startTyping(chatId)
+  }, TYPING_REFRESH_MS)
+
+  try {
+    return await work()
+  } finally {
+    clearInterval(heartbeat)
+    await WahaService.stopTyping(chatId)
   }
 }
