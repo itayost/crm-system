@@ -722,6 +722,95 @@ describe('support agent', () => {
     expect(prismaMock.request.create).not.toHaveBeenCalled()
   })
 
+
+  it("files on the client's next-turn confirmation, the way Midad's never did", async () => {
+    // The real conversation: propose, "כן", and nothing was ever filed because
+    // the model re-proposed on the confirmation turn and re-armed the guard.
+    await proposeInOwnTurn()
+
+    driver = async ({ tools }) => {
+      // Re-proposing the same summary is the model being repetitive, not the
+      // client being shown something new.
+      await tools.proposeSummary.execute({
+        title: 'תיקון כפתור בעמוד הבית',
+        description: 'הכפתור בעמוד הבית לא מגיב בלחיצה',
+        suggestedType: 'BUG',
+        priority: 'HIGH',
+        projectName: 'האתר',
+      })
+      const result = await tools.fileRequest.execute({})
+      expect(result).toMatchObject({ success: true })
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
+    expect(storedConversation().pendingDraft).toBeNull()
+  })
+
+  it('refuses when the summary changed on the turn the client confirmed', async () => {
+    await proposeInOwnTurn()
+
+    let toolResult: unknown
+    driver = async ({ tools }) => {
+      await tools.proposeSummary.execute({
+        title: 'משהו אחר לגמרי',
+        description: 'תיאור אחר',
+        suggestedType: 'BUG',
+        priority: 'HIGH',
+      })
+      toolResult = await tools.fileRequest.execute({})
+      return { text: 'רגע' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(toolResult).toMatchObject({ success: false, reason: 'awaiting_client_confirmation' })
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('tells the model not to claim a ticket it was refused', async () => {
+    let toolResult: { message?: string } | undefined
+    driver = async ({ tools }) => {
+      await tools.proposeSummary.execute({
+        title: 'תיקון כפתור',
+        description: 'לא מגיב',
+        suggestedType: 'BUG',
+        priority: 'HIGH',
+      })
+      toolResult = (await tools.fileRequest.execute({})) as typeof toolResult
+      return { text: 'סיכמתי' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(toolResult?.message).toContain('אל תגיד ללקוח שנפתחה פנייה')
+  })
+
+  it('tells the agent to answer a question before turning it into a ticket', async () => {
+    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'QUESTION' })
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
+      where.agentConfig
+        ? [
+            {
+              id: 'project-1',
+              name: 'האפליקציה',
+              agentConfig: { githubOwner: 'itayost', githubRepo: 'app', githubBranch: 'main' },
+            },
+          ]
+        : [{ id: 'project-1', name: 'האפליקציה', status: 'ACTIVE', type: 'MOBILE_APP' }]
+    )
+
+    let systemPrompt = ''
+    driver = async ({ system, tools }) => {
+      systemPrompt = system
+      expect(Object.keys(tools)).toContain('searchProjectCode')
+      return { text: 'בודק' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'איפה רואים הערות של מאמן?' })
+
+    expect(systemPrompt).toContain('הלקוח שאל שאלה')
+    expect(systemPrompt).toContain('נסה לענות')
+  })
+
   it('files a draft nobody confirmed as a flagged ticket', async () => {
     await proposeInOwnTurn()
 

@@ -22,6 +22,12 @@ export interface SupportToolContext {
   contactName: string
   chatId: string
   sourceMessageId: string | null
+  /**
+   * The draft as it stood when this client message arrived. A draft that was
+   * already there is one the client has seen, which makes their message a
+   * response to it - the only thing that makes filing legitimate.
+   */
+  confirmableDraft?: PendingDraft | null
 }
 
 const CLIENT_VISIBLE_STATUSES = ['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] as const
@@ -35,12 +41,19 @@ const CLIENT_STATUS_LABELS: Record<string, string> = {
 }
 
 const NO_CONFIRMATION_YET =
-  'הלקוח עדיין לא אישר את הסיכום. הצג לו את הסיכום, חכה לתשובה שלו, ורק בהודעה הבאה פתח את הפנייה.'
+  'הלקוח עדיין לא אישר את הסיכום. אל תגיד ללקוח שנפתחה פנייה - היא לא נפתחה. הצג לו את הסיכום, חכה לתשובה שלו, ורק בהודעה הבאה פתח את הפנייה.'
+
+/** Same request in the client's eyes: the wording they were asked to approve. */
+function sameSummary(a: PendingDraft, b: PendingDraft): boolean {
+  return a.title.trim() === b.title.trim() && a.description.trim() === b.description.trim()
+}
 
 export function createSupportTools(context: SupportToolContext) {
-  // One tool set per client message, so this flag says "the summary was proposed
-  // while answering the current message" - meaning the client has not seen it yet.
-  let proposedThisTurn = false
+  // Filing is allowed when the client is responding to a summary they were
+  // already shown. Re-proposing the identical text during this turn is the model
+  // repeating itself and must not revoke that; proposing something *different*
+  // must, because the client has not seen the new wording.
+  let confirmable = context.confirmableDraft ?? null
 
   return {
     listMyProjects: tool({
@@ -152,7 +165,9 @@ export function createSupportTools(context: SupportToolContext) {
         }
 
         await SupportConversationService.setPendingDraft(context, draft)
-        proposedThisTurn = true
+        if (!confirmable || !sameSummary(confirmable, draft)) {
+          confirmable = null
+        }
 
         return {
           success: true,
@@ -177,10 +192,9 @@ export function createSupportTools(context: SupportToolContext) {
           }
         }
 
-        // The summary was proposed while answering the current message, so the
-        // client has not seen it yet, let alone agreed to it. Always-confirm is
-        // enforced here, not left to the prompt.
-        if (proposedThisTurn) {
+        // Nothing the client has actually seen, so their message cannot be a
+        // confirmation of it. Always-confirm is enforced here, not in the prompt.
+        if (!confirmable) {
           return {
             success: false,
             reason: 'awaiting_client_confirmation',

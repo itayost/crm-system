@@ -77,6 +77,9 @@ export class SupportAgentService {
       contactName: input.contactName,
       chatId: input.chatId,
       sourceMessageId: input.sourceMessageId,
+      // Read before the model runs: a draft already on the conversation is one
+      // the client has seen, so this message can be their answer to it.
+      confirmableDraft: conversation.pendingDraft,
     }
 
     // Repo tools exist only when this client has a project with a configured
@@ -218,6 +221,20 @@ function buildSystemPrompt({
         ]
       : []
 
+  const questionBlock =
+    kind === 'question'
+      ? `
+הלקוח שאל שאלה, לא דיווח על תקלה:
+- ${
+          hasRepoTools
+            ? 'נסה לענות לו. השתמש ב-searchProjectCode וב-readProjectFile כדי למצוא איפה בממשק נמצא מה שהוא מחפש, וענה במילים של מי שמשתמש במוצר — שם המסך ואיפה להסתכל בו. בלי שמות קבצים, נתיבים או רכיבים.'
+            : 'נסה לענות לו ממה שאתה יודע בוודאות. אין לך גישה לקוד של הפרויקט הזה.'
+        }
+- אם ענית ואתה בטוח בתשובה — אל תפתח פנייה. שאל אם זה עזר.
+- אם אתה לא מצליח לענות בוודאות — אל תנחש. תגיד שאיתי יחזור אליו עם תשובה, סכם את השאלה ופתח פנייה.
+`
+      : ''
+
   const intakeBlock = `
 מה כבר ידוע לך על הפנייה:
 ${known.length ? known.join('\n') : '- (עדיין כלום)'}
@@ -260,7 +277,7 @@ ${projectLines}
 - אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
 - שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.
 
-${intakeBlock}
+${intakeBlock}${questionBlock}
 
 תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
 1. הבן את הבקשה, שאל אם צריך.
@@ -268,6 +285,7 @@ ${intakeBlock}
 3. הצג את הסיכום ללקוח בהודעה ובקש אישור מפורש ("זה מדויק?").
 4. רק אחרי שהלקוח אישר — קרא ל-fileRequest, ואז עדכן אותו שהפנייה נקלטה ושאיתי יעבור עליה.
 לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.
+אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. אם הוא החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.
 
 ${pendingLine}
 ${
