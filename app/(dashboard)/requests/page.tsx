@@ -101,6 +101,40 @@ interface ClientOption {
   name: string
 }
 
+/**
+ * One link per attached file. A WhatsApp request can arrive with a voice note
+ * and a screenshot together, so linking only the first file would hide the rest.
+ */
+function AttachmentLinks({
+  attachments,
+  onOpen,
+  className = '',
+}: {
+  attachments: string[]
+  onOpen: (path: string) => void
+  className?: string
+}) {
+  if (!attachments?.length) return null
+
+  return (
+    <>
+      {attachments.map((path, index) => (
+        <button
+          key={path}
+          type="button"
+          className={`text-xs text-blue-600 underline ${className}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpen(path)
+          }}
+        >
+          {attachments.length > 1 ? `קובץ ${index + 1}` : 'צפייה בקובץ'}
+        </button>
+      ))}
+    </>
+  )
+}
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<RequestRecord[]>([])
   const [pending, setPending] = useState<RequestRecord[]>([])
@@ -256,18 +290,10 @@ export default function RequestsPage() {
                         </Badge>
                       )}
                       <span className="text-sm font-medium">{request.title}</span>
-                      {request.attachments?.length > 0 && (
-                        <button
-                          type="button"
-                          className="text-xs text-blue-600 underline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openAttachment(request.id, request.attachments[0])
-                          }}
-                        >
-                          צפייה בקובץ
-                        </button>
-                      )}
+                      <AttachmentLinks
+                        attachments={request.attachments}
+                        onOpen={(path) => openAttachment(request.id, path)}
+                      />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {request.client?.name ?? '-'}
@@ -389,18 +415,11 @@ export default function RequestsPage() {
                     {request.isAiGenerated && (
                       <Sparkles className="inline w-3 h-3 text-violet-500 mr-1" />
                     )}
-                    {request.attachments?.length > 0 && (
-                      <button
-                        type="button"
-                        className="text-xs text-blue-600 underline mr-2"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openAttachment(request.id, request.attachments[0])
-                        }}
-                      >
-                        צפייה בקובץ
-                      </button>
-                    )}
+                    <AttachmentLinks
+                      attachments={request.attachments}
+                      onOpen={(path) => openAttachment(request.id, path)}
+                      className="mr-2"
+                    />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 flex-wrap">

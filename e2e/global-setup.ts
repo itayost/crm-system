@@ -1,6 +1,7 @@
 import { chromium, FullConfig } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { BASE_URL } from './base-url'
 
 const prisma = new PrismaClient()
 
@@ -161,7 +162,7 @@ async function globalSetup(_config: FullConfig) {
   const browser = await chromium.launch()
   const page = await browser.newPage()
 
-  await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle', timeout: 30000 })
+  await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle', timeout: 30000 })
 
   // Debug: screenshot what the page actually shows
   await page.screenshot({ path: './e2e/.auth/debug-login.png' })
@@ -172,7 +173,7 @@ async function globalSetup(_config: FullConfig) {
   await page.fill('input[name="email"]', TEST_USER.email)
   await page.fill('input[name="password"]', TEST_USER.password)
   await page.click('button[type="submit"]')
-  await page.waitForURL('http://localhost:3000/', { timeout: 15000 })
+  await page.waitForURL(`${BASE_URL}/`, { timeout: 15000 })
 
   await page.context().storageState({ path: './e2e/.auth/storageState.json' })
   await browser.close()

@@ -3,6 +3,7 @@ import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { createCrmTools } from './whatsapp-tools'
+import { WahaService } from './waha.service'
 
 const SYSTEM_PROMPT = `You are a smart CRM assistant for a Hebrew-speaking freelancer named Itay who builds websites, apps, and digital projects.
 You manage his contacts (leads and clients), projects, and tasks via WhatsApp.
@@ -169,5 +170,18 @@ export class WhatsAppAgentService {
       select: { ownerChatId: true },
     })
     return conversation?.ownerChatId ?? null
+  }
+
+  /**
+   * Where to reach Itay. The stored chat id is the LID he actually writes from;
+   * before he has ever messaged the bot, fall back to his configured phone so
+   * notifications are not silently dropped on a fresh deployment.
+   */
+  static async resolveOwnerChatId(): Promise<string | null> {
+    const stored = await this.getOwnerChatId()
+    if (stored) return stored
+
+    const phone = process.env.OWNER_PHONE
+    return phone ? WahaService.formatChatId(phone) : null
   }
 }

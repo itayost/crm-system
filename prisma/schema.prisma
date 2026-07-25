@@ -22,6 +22,8 @@ model User {
   projects Project[]
   tasks    Task[]
   requests Request[]
+
+  supportConversations SupportConversation[]
 }
 
 model Contact {
@@ -52,6 +54,8 @@ model Contact {
   projects         Project[]          @relation("ProjectPrimaryContact")
   whatsappMessages WhatsAppMessage[]
   requests         Request[]
+
+  supportConversations SupportConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -108,6 +112,9 @@ model Task {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
+  /// Set when this task was created by approving a client request.
+  request Request?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -132,6 +139,8 @@ model Client {
   contacts Contact[]
   projects Project[]
   requests Request[]
+
+  supportConversations SupportConversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -221,6 +230,12 @@ model WhatsAppMessage {
   sessionName String
   timestamp   DateTime
   processedAt DateTime?
+
+  /// Stored original of a voice note, video, or image sent with this message.
+  mediaPath     String?
+  mediaMimeType String?
+  /// What the media said or showed, as understood by the transcription model.
+  transcript String? @db.Text
   createdAt   DateTime         @default(now())
 
   requests    Request[]
@@ -240,6 +255,39 @@ model BotConversation {
   lastActiveAt DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+/// One live support conversation per WhatsApp chat on the bot session.
+model SupportConversation {
+  id     String @id @default(cuid())
+  chatId String
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  /// Trimmed rolling history: [{ role, content }]
+  messages Json @default("[]")
+  /// The request summary awaiting the client's confirmation, if any.
+  pendingDraft        Json?
+  confirmationAskedAt DateTime?
+  remindersSent       Int       @default(0)
+  /// Media sent in this conversation that the next filed request should carry:
+  /// [{ path, mimeType, transcribed }]
+  pendingMedia Json @default("[]")
+  /// Internal repository findings for the next filed request's AI note.
+  repoFindings Json @default("[]")
+
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, chatId])
+  @@index([clientId])
+  @@index([confirmationAskedAt])
 }
 
 model AgentProjectConfig {
@@ -293,6 +341,10 @@ model Request {
 
   sourceMessageId String?
   sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+
+  /// The work item this request became when it was approved. One Task per Request.
+  taskId String? @unique
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)

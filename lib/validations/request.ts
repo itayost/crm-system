@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const requestType = z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER'])
+export const requestType = z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER'])
 const requestStatus = z.enum([
   'PENDING_REVIEW',
   'OPEN',
@@ -8,7 +8,7 @@ const requestStatus = z.enum([
   'RESOLVED',
   'DISMISSED',
 ])
-const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+export const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
 const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])
 
 export const createRequestSchema = z.object({
@@ -44,6 +44,7 @@ export const draftRequestSchema = z.object({
   sourceMessageId: z.string().optional(),
   aiConfidence: z.number().min(0).max(1).optional(),
   aiNote: z.string().optional(),
+  attachments: z.array(z.string()).optional(),
 })
 
 export const bulkDraftRequestsSchema = z.array(draftRequestSchema)

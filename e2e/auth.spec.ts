@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { expectToastError } from './fixtures'
+import { BASE_URL } from './base-url'
 
 const TEST_USER = {
   email: 'e2e-test@test.com',
@@ -18,7 +19,7 @@ test.describe('Authentication', () => {
     await page.click('button[type="submit"]')
 
     await page.waitForURL('/', { timeout: 15000 })
-    expect(page.url()).toBe('http://localhost:3000/')
+    expect(page.url()).toBe(`${BASE_URL}/`)
   })
 
   test('login-invalid: shows Hebrew error toast on wrong password', async ({ page }) => {
@@ -50,8 +51,8 @@ test.describe('Authentication', () => {
     const logoutItem = page.locator('[role="menuitem"]').filter({ hasText: 'התנתק' })
     await logoutItem.click()
 
-    // Verify redirect to login
-    await page.waitForURL('/login', { timeout: 15000 })
+    // Middleware appends ?callbackUrl=..., so match the path, not the whole URL.
+    await page.waitForURL(/\/login/, { timeout: 15000 })
     expect(page.url()).toContain('/login')
   })
 })

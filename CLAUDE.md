@@ -22,7 +22,10 @@ npm run db:seed      # Seed the database with initial data
 npm run db:studio    # Open Prisma Studio for database management
 
 # Testing
+npm test             # Run Vitest unit/route tests (tests/*.test.ts)
+npm run test:watch   # Vitest in watch mode
 npm run test:e2e     # Run Playwright E2E tests (43 tests across 6 spec files)
+npm run typecheck    # tsc --noEmit
 ```
 
 ## Project Overview
@@ -159,6 +162,11 @@ components/
   charts/                    # Chart components (currently empty)
   shared/                    # Shared components (currently empty)
 
+tests/                       # Vitest route/unit tests (mocked Prisma + WAHA)
+  whatsapp-bot-webhook.test.ts   # Bot-session identity routing
+  whatsapp-index-webhook.test.ts # Personal-session indexing
+  whatsapp-identity.test.ts      # Phone normalization and contact matching
+
 e2e/
   auth.spec.ts               # Authentication flows
   dashboard.spec.ts          # Dashboard page tests
@@ -239,6 +247,15 @@ Required environment variables:
 - `NEXTAUTH_SECRET` -- JWT encryption secret
 - `NEXTAUTH_URL` -- Application URL for auth callbacks
 
+WhatsApp (WAHA) variables, required for the two webhooks:
+
+- `WHATSAPP_WEBHOOK_SECRET` -- shared secret for both webhooks; they **fail closed** while it is unset
+- `OWNER_PHONE` -- Itay's number; the only sender routed to the owner agent on the bot session
+- `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
+- `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
+- `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
+- `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
+
 ## E2E Testing
 
 43 Playwright tests across 6 spec files covering:
@@ -277,3 +294,17 @@ Run with: `npm run test:e2e`
 ## Legacy Context
 
 The `claude-context/` directory contains planning documents from the original 12-model design. These documents describe the old architecture (leads, clients, payments, activities, notifications, milestones, documents as separate models) and are outdated. The current system uses the simplified 4-model architecture described above. Do not rely on those documents for understanding the current codebase.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live in GitHub Issues for itayost/crm-system via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical label names used as-is: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily by /domain-modeling). See `docs/agents/domain.md`.

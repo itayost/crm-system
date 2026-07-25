@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/extract-requests",
       "schedule": "0 5,12,18 * * *"
+    },
+    {
+      "path": "/api/cron/support-followups",
+      "schedule": "0 * * * *"
     }
   ]
 }

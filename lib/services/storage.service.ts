@@ -14,6 +14,44 @@ export function validateAttachment(file: { size: number; type: string }) {
   return { ok: true as const }
 }
 
+/**
+ * Media the support agent receives over WhatsApp. Wider and larger than the
+ * public form's attachments (voice notes and screen recordings), so it is a
+ * separate allowlist rather than a loosening of the form one.
+ */
+export const SUPPORT_MEDIA_MAX_BYTES = 25 * 1024 * 1024
+export const ALLOWED_SUPPORT_MEDIA_MIME = [
+  ...ALLOWED_MIME,
+  'image/gif',
+  'audio/ogg',
+  'audio/opus',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/aac',
+  'audio/amr',
+  'audio/wav',
+  'audio/webm',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+  'video/3gpp',
+]
+
+/** WhatsApp reports codecs on the mime type ("audio/ogg; codecs=opus"). */
+export function baseMimeType(mimeType: string): string {
+  return mimeType.split(';')[0].trim().toLowerCase()
+}
+
+export function validateSupportMedia(media: { size: number; mimeType: string }) {
+  if (!ALLOWED_SUPPORT_MEDIA_MIME.includes(baseMimeType(media.mimeType))) {
+    return { ok: false as const, error: 'סוג קובץ לא נתמך' }
+  }
+  if (media.size > SUPPORT_MEDIA_MAX_BYTES) {
+    return { ok: false as const, error: 'הקובץ גדול מדי (מקסימום 25MB)' }
+  }
+  return { ok: true as const }
+}
+
 let cached: SupabaseClient | null = null
 
 function getClient(): SupabaseClient {
@@ -33,12 +71,31 @@ function sanitizeName(name: string): string {
 
 export class StorageService {
   static async uploadAttachment({ clientId, file }: { clientId: string; file: File }): Promise<string> {
-    const path = `${clientId}/${crypto.randomUUID()}/${sanitizeName(file.name)}`
-    const bytes = Buffer.from(await file.arrayBuffer())
+    return this.uploadBytes({
+      clientId,
+      bytes: Buffer.from(await file.arrayBuffer()),
+      contentType: file.type,
+      name: file.name,
+    })
+  }
+
+  /** Same bucket and layout as form attachments, for media that never was a File. */
+  static async uploadBytes({
+    clientId,
+    bytes,
+    contentType,
+    name,
+  }: {
+    clientId: string
+    bytes: Buffer
+    contentType: string
+    name: string
+  }): Promise<string> {
+    const path = `${clientId}/${crypto.randomUUID()}/${sanitizeName(name)}`
 
     const { error } = await getClient()
       .storage.from(BUCKET)
-      .upload(path, bytes, { contentType: file.type, upsert: false })
+      .upload(path, bytes, { contentType, upsert: false })
 
     if (error) {
       throw new Error(`Storage upload failed: ${error.message}`)

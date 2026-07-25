@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { E2E_PORT } from './base-url'
 
 test.describe('Navigation', () => {
   test('sidebar-links: each sidebar link navigates to the correct page', async ({ page }) => {
@@ -16,7 +17,7 @@ test.describe('Navigation', () => {
       const sidebarLink = page.locator('nav a').filter({ hasText: link.text })
       await sidebarLink.click()
       await page.waitForLoadState('networkidle')
-      expect(page.url()).toContain(link.href === '/' ? 'localhost:3000' : link.href)
+      expect(page.url()).toContain(link.href === '/' ? `localhost:${E2E_PORT}` : link.href)
     }
   })
 

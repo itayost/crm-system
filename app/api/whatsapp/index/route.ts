@@ -1,48 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { WahaService } from '@/lib/services/waha.service'
+import { isWebhookAuthorized } from '@/lib/api/webhook-auth'
+import { WahaService, personalSessionName } from '@/lib/services/waha.service'
+import { findContactByPhone } from '@/lib/services/whatsapp-identity'
+import { parseWahaMessageEvent } from '@/lib/validations/whatsapp'
 
-const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET ?? ''
-
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-webhook-secret')
-  if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
+export async function POST(req: Request) {
+  if (!isWebhookAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const body = await req.json()
-
-    if (body.event !== 'message') {
+    const message = parseWahaMessageEvent(await req.json())
+    // Text-only archive: media on the personal session stays out of scope, so a
+    // bare voice note is skipped here exactly as it was before.
+    if (!message?.body) {
       return NextResponse.json({ ok: true })
     }
 
-    const message = body.payload
-    if (!message?.body || !message?.from) {
-      return NextResponse.json({ ok: true })
-    }
-
+    const content = message.body
     const rawChatId = message.fromMe ? message.to : message.from
-    const session = process.env.WAHA_PERSONAL_SESSION ?? 'personal'
+    if (!rawChatId) {
+      return NextResponse.json({ ok: true })
+    }
+
+    const session = personalSessionName()
     const resolvedPhone = await WahaService.getPhoneFromChatId(rawChatId, session)
 
     // Never drop a message: if the LID can't be resolved to a phone yet,
     // keep the raw chat id so a later pass can re-resolve and attribute it.
     const phoneNumber = resolvedPhone ?? rawChatId
 
-    let contact: { id: string; clientId: string | null } | null = null
-    if (resolvedPhone) {
-      const normalized = resolvedPhone.replace(/[-\s]/g, '')
-      contact = await prisma.contact.findFirst({
-        where: {
-          OR: [
-            { phone: normalized },
-            { phone: { endsWith: normalized.slice(-7) } },
-          ],
-        },
-        select: { id: true, clientId: true },
-      })
-    }
+    const contact = resolvedPhone ? await findContactByPhone(resolvedPhone) : null
 
     // Store every message. Unknown numbers land with contactId=null (unattributed)
     // and wait for manual attribution; they are never auto-extracted.
@@ -51,7 +40,7 @@ export async function POST(req: NextRequest) {
         phoneNumber,
         rawChatId,
         direction: message.fromMe ? 'OUTGOING' : 'INCOMING',
-        content: message.body,
+        content,
         contactId: contact?.id ?? null,
         clientId: contact?.clientId ?? null,
         sessionName: session,
