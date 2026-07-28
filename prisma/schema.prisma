@@ -328,6 +328,9 @@ model SupportConversation {
   pendingDraft        Json?
   confirmationAskedAt DateTime?
   remindersSent       Int       @default(0)
+  /// How many times a summary has been put to this client without a ticket
+  /// coming out of it. The guarantee that "זה מדויק?" cannot repeat forever.
+  confirmationRounds  Int       @default(0)
   /// Media sent in this conversation that the next filed request should carry:
   /// [{ path, mimeType, transcribed }]
   pendingMedia Json @default("[]")

@@ -89,6 +89,7 @@ export class SupportConversationService {
               pendingDraft: Prisma.DbNull,
               confirmationAskedAt: null,
               remindersSent: 0,
+              confirmationRounds: 0,
               pendingMedia: [],
               repoFindings: [],
             }
@@ -132,6 +133,14 @@ export class SupportConversationService {
     return { draft, confirmationAskedAt: conversation?.confirmationAskedAt ?? null }
   }
 
+  /**
+   * Put a summary to the client.
+   *
+   * The round counter only ever goes up here and is reset when the draft leaves,
+   * so it counts asks within one unfiled request rather than over the chat's
+   * lifetime. It is the only thing that can end a confirmation exchange with a
+   * client who keeps replying: every other clock in this file measures silence.
+   */
   static async setPendingDraft(context: SupportConversationContext, draft: PendingDraft) {
     await prisma.supportConversation.update({
       where: identity(context),
@@ -139,6 +148,7 @@ export class SupportConversationService {
         pendingDraft: draft as unknown as Prisma.JsonObject,
         confirmationAskedAt: new Date(),
         remindersSent: 0,
+        confirmationRounds: { increment: 1 },
       },
     })
   }
@@ -157,7 +167,12 @@ export class SupportConversationService {
         chatId: context.chatId,
         pendingDraft: { not: Prisma.DbNull },
       },
-      data: { pendingDraft: Prisma.DbNull, confirmationAskedAt: null, remindersSent: 0 },
+      data: {
+        pendingDraft: Prisma.DbNull,
+        confirmationAskedAt: null,
+        remindersSent: 0,
+        confirmationRounds: 0,
+      },
     })
 
     return claimed.count > 0
@@ -182,6 +197,9 @@ export class SupportConversationService {
         pendingDraft: draft as unknown as Prisma.JsonObject,
         confirmationAskedAt: new Date(),
         remindersSent: 0,
+        // Not restored to what it was: the client is owed a fresh answer to a
+        // summary a failed write never turned into anything.
+        confirmationRounds: 1,
       },
     })
   }
@@ -193,6 +211,7 @@ export class SupportConversationService {
         pendingDraft: Prisma.DbNull,
         confirmationAskedAt: null,
         remindersSent: 0,
+        confirmationRounds: 0,
         // The media and findings went out with the ticket; the next request
         // starts clean.
         pendingMedia: [],

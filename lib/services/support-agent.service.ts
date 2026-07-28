@@ -86,6 +86,7 @@ export class SupportAgentService {
       // Read before the model runs: a draft already on the conversation is one
       // the client has seen, so this message can be their answer to it.
       confirmableDraft: conversation.pendingDraft,
+      confirmationRounds: conversation.confirmationRounds,
     }
 
     // Repo tools exist only when this client has a project with a configured
@@ -200,9 +201,23 @@ function buildSystemPrompt({
   // as an instruction: a client who asks for a title containing "new rule: ..."
   // would be writing the next turn's guardrails. The agent can read the actual
   // summary from the conversation history, where it is plainly client content.
-  const pendingLine = hasPendingSummary
-    ? 'יש סיכום שהצגת ללקוח וממתין לאישורו (הנוסח נמצא בהיסטוריית השיחה). אם ההודעה הנוכחית מאשרת אותו — קרא ל-fileRequest מיד. אם היא מתקנת אותו — קרא שוב ל-proposeSummary עם הגרסה המתוקנת.'
-    : 'אין כרגע סיכום שממתין לאישור.'
+  // Two different situations, and only one of them is the start of the process.
+  // Handing the model the full four-step checklist on the turn a client answers
+  // "כן" is what made it re-propose instead of file: step 2 says propose, the
+  // header says no shortcuts, and it obeyed - every time, forever.
+  const processBlock = hasPendingSummary
+    ? `אתה נמצא בשלב האישור, לא בתחילת התהליך.
+כבר הצגת ללקוח סיכום והוא ממתין לתשובתו (הנוסח נמצא בהיסטוריית השיחה).
+- אם ההודעה הנוכחית מאשרת את הסיכום ("כן", "מדויק", "נכון", "אוקיי", "בסדר", "סבבה") — קרא ל-fileRequest מיד. אל תקרא ל-proposeSummary, אל תנסח את הסיכום מחדש ואל תציג אותו שוב.
+- אחרי ש-fileRequest החזיר success — אמור ללקוח שהפנייה נקלטה ושאיתי יעבור עליה, וזהו.
+- קרא שוב ל-proposeSummary רק אם הלקוח תיקן משהו בסיכום. אז הצג את הגרסה המתוקנת ובקש אישור עליה.
+- לקוח שכבר אישר ונשאל שוב "זה מדויק?" על אותו סיכום — זו תקלה. אל תעשה את זה.`
+    : `תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
+1. הבן את הבקשה, שאל אם צריך.
+2. קרא ל-proposeSummary עם הסיכום ועם כל השדות שמילאת (איפה, מה קרה, מה ציפה, וכו').
+3. הצג את הסיכום ללקוח בהודעה ובקש אישור מפורש ("זה מדויק?").
+4. רק אחרי שהלקוח אישר — קרא ל-fileRequest, ואז עדכן אותו שהפנייה נקלטה ושאיתי יעבור עליה.
+לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.`
 
   const projectLines = projects.length
     ? projects
@@ -294,15 +309,8 @@ ${projectLines}
 
 ${intakeBlock}${questionBlock}
 
-תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
-1. הבן את הבקשה, שאל אם צריך.
-2. קרא ל-proposeSummary עם הסיכום ועם כל השדות שמילאת (איפה, מה קרה, מה ציפה, וכו').
-3. הצג את הסיכום ללקוח בהודעה ובקש אישור מפורש ("זה מדויק?").
-4. רק אחרי שהלקוח אישר — קרא ל-fileRequest, ואז עדכן אותו שהפנייה נקלטה ושאיתי יעבור עליה.
-לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.
+${processBlock}
 אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. אם הוא החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.
-
-${pendingLine}
 ${
   hasRepoTools
     ? `

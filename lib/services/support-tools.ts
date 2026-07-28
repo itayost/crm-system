@@ -28,7 +28,24 @@ export interface SupportToolContext {
    * response to it - the only thing that makes filing legitimate.
    */
   confirmableDraft?: PendingDraft | null
+  /**
+   * How many summaries this client has already been asked to confirm without a
+   * ticket coming out of it. Past MAX_CONFIRMATION_ROUNDS the exchange has
+   * stopped converging and is ended rather than continued.
+   */
+  confirmationRounds?: number
 }
+
+/**
+ * How many times one client may be asked "זה מדויק?" about the same unfiled
+ * request. Three leaves room for the honest case - propose, client corrects,
+ * propose again - and stops the fourth ask, which has never once been the
+ * thing that got a ticket written.
+ */
+const MAX_CONFIRMATION_ROUNDS = 3
+
+/** Below this, two summaries are about different things and one of them is unseen. */
+const SAME_SUMMARY_SIMILARITY = 0.6
 
 const CLIENT_VISIBLE_STATUSES = ['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] as const
 
@@ -43,9 +60,48 @@ const CLIENT_STATUS_LABELS: Record<string, string> = {
 const NO_CONFIRMATION_YET =
   'הלקוח עדיין לא אישר את הסיכום. אל תגיד ללקוח שנפתחה פנייה - היא לא נפתחה. הצג לו את הסיכום, חכה לתשובה שלו, ורק בהודעה הבאה פתח את הפנייה.'
 
-/** Same request in the client's eyes: the wording they were asked to approve. */
+/**
+ * Same request in the client's eyes.
+ *
+ * Deliberately not string equality. On the turn a client says "כן" the model
+ * routinely restates its own summary in slightly different words, and treating
+ * that rewording as a summary the client has never seen revoked the very
+ * confirmation they had just given - which is what left Eden being asked "זה
+ * מדויק?" after every "כן", with no ticket ever written. A rewording of the same
+ * report still counts as confirmed; a summary about something else does not,
+ * because that is genuinely something she has not read.
+ */
 function sameSummary(a: PendingDraft, b: PendingDraft): boolean {
-  return a.title.trim() === b.title.trim() && a.description.trim() === b.description.trim()
+  if (a.title.trim() === b.title.trim() && a.description.trim() === b.description.trim()) {
+    return true
+  }
+
+  return similarity(summaryTokens(a), summaryTokens(b)) >= SAME_SUMMARY_SIMILARITY
+}
+
+/** Words worth comparing: punctuation and single letters carry no meaning here. */
+function summaryTokens(draft: PendingDraft): Set<string> {
+  return new Set(
+    `${draft.title} ${draft.description}`
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((token) => token.length > 1)
+  )
+}
+
+/**
+ * Dice coefficient rather than Jaccard: a restatement is usually the same report
+ * at a different length, and Dice is the one that does not punish that.
+ */
+function similarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0
+
+  let shared = 0
+  for (const token of a) {
+    if (b.has(token)) shared += 1
+  }
+
+  return (2 * shared) / (a.size + b.size)
 }
 
 export function createSupportTools(context: SupportToolContext) {
@@ -54,6 +110,11 @@ export function createSupportTools(context: SupportToolContext) {
   // repeating itself and must not revoke that; proposing something *different*
   // must, because the client has not seen the new wording.
   let confirmable = context.confirmableDraft ?? null
+
+  // The wording the client demonstrably read, kept even after a re-proposal
+  // revokes `confirmable`. It is the only text we can prove was in front of
+  // them, so it is what gets filed when the exchange has to be ended.
+  const seenByClient = context.confirmableDraft ?? null
 
   return {
     listMyProjects: tool({
@@ -194,7 +255,24 @@ export function createSupportTools(context: SupportToolContext) {
 
         // Nothing the client has actually seen, so their message cannot be a
         // confirmation of it. Always-confirm is enforced here, not in the prompt.
-        if (!confirmable) {
+        //
+        // Unless we have already asked too many times. The client answered a
+        // summary - that is what put a draft here before their message arrived -
+        // and asking them to read one more rewrite of it has stopped being a
+        // confirmation and become a loop. Their own approved wording is filed
+        // instead, which honours the rule the extra ask was meant to protect.
+        //
+        // `pending.draft` is the model's latest wording; `seenByClient` is what
+        // the client actually read. Where those have come apart past the round
+        // limit, the client's version wins.
+        const rounds = context.confirmationRounds ?? 0
+        const draft = confirmable
+          ? pending.draft
+          : rounds >= MAX_CONFIRMATION_ROUNDS
+            ? seenByClient
+            : null
+
+        if (!draft) {
           return {
             success: false,
             reason: 'awaiting_client_confirmation',
@@ -202,7 +280,13 @@ export function createSupportTools(context: SupportToolContext) {
           }
         }
 
-        const { requestId, skipped } = await fileDraftAsRequest(context, pending.draft)
+        if (!confirmable) {
+          console.warn(
+            `Support confirmation stopped converging after ${rounds} rounds on chat ${context.chatId}; filing the wording the client approved`
+          )
+        }
+
+        const { requestId, skipped } = await fileDraftAsRequest(context, draft)
 
         if (skipped) {
           return {

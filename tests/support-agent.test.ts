@@ -31,6 +31,13 @@ function applyUpdate(current: Record<string, unknown>, data: Record<string, unkn
   const next = { ...current, ...data }
   // Prisma writes DbNull as SQL NULL and reads it back as null.
   if (data.pendingDraft === Prisma.DbNull) next.pendingDraft = null
+  // { increment: n } is applied by the database, not sent as a value.
+  for (const [column, value] of Object.entries(data)) {
+    if (value && typeof value === 'object' && 'increment' in value) {
+      const by = (value as { increment: number }).increment
+      next[column] = ((current[column] as number) ?? 0) + by
+    }
+  }
   return next
 }
 
@@ -748,6 +755,72 @@ describe('support agent', () => {
     expect(storedConversation().pendingDraft).toBeNull()
   })
 
+  it("files when the model rewords its own summary on the client's confirmation turn", async () => {
+    // Eden's conversation: every time she answered "כן", the model rewrote its
+    // own summary in slightly different words before filing. Exact-match was
+    // the guard, so each rewording revoked the confirmation she had just given
+    // and she was asked "זה מדויק?" again, forever.
+    await proposeInOwnTurn({
+      title: 'שחקן לא מופיע ברשימת המשתמשים',
+      description: 'שחקן לא מופיע ברשימה כי לא הוסף למערכת, ולכן לא ניתן לשייך אותו',
+    })
+
+    let toolResult: unknown
+    driver = async ({ tools }) => {
+      await tools.proposeSummary.execute({
+        title: 'שחקן לא מופיע ברשימת המשתמשים',
+        // The same report, said again in different words.
+        description: 'השחקן לא מופיע ברשימת המשתמשים כי לא הוסף למערכת ולכן לא ניתן לשייך אותו',
+        suggestedType: 'BUG',
+        priority: 'MEDIUM',
+        projectName: 'האתר',
+      })
+      toolResult = await tools.fileRequest.execute({})
+      return { text: 'נפתחה פנייה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(toolResult).toMatchObject({ success: true })
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
+    expect(storedConversation().pendingDraft).toBeNull()
+  })
+
+  it('stops asking and files what the client approved once the exchange stops converging', async () => {
+    // The loop breaker, for a model that keeps rewriting a genuinely different
+    // summary rather than merely rewording one. Nothing else can end this: the
+    // follow-up sweep measures the client's silence, and a client who keeps
+    // answering "כן" is never silent, so its clock resets on every turn.
+    await proposeInOwnTurn()
+
+    // Each one is about something else entirely, so none of them is a rewording
+    // the client can be said to have already read.
+    const rewrites = [
+      { title: 'התפריט העליון נפתח לאט', description: 'התפריט העליון נפתח לאט מאוד' },
+      { title: 'הזמנות לא נשלחות במייל', description: 'מיילים של אישור הזמנה לא מגיעים ללקוחות' },
+      { title: 'דוח מכירות חודשי', description: 'צריך להוסיף דוח מכירות חודשי למערכת' },
+    ]
+
+    for (const rewrite of rewrites) {
+      driver = async ({ tools }) => {
+        await tools.proposeSummary.execute({
+          ...rewrite,
+          suggestedType: 'BUG',
+          priority: 'HIGH',
+        })
+        await tools.fileRequest.execute({})
+        return { text: 'זה מדויק?' }
+      }
+      await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+    }
+
+    // Asked three times, never a fourth - and what gets filed is the wording
+    // that was in front of the client when she last said yes, not the rewrite
+    // she never read.
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
+    expect(createdRequestData()).toMatchObject({ title: 'הזמנות לא נשלחות במייל' })
+    expect(storedConversation().pendingDraft).toBeNull()
+  })
+
   it('refuses when the summary changed on the turn the client confirmed', async () => {
     await proposeInOwnTurn()
 
@@ -936,7 +1009,9 @@ describe('support agent', () => {
     await SupportAgentService.handleMessage({ ...input, text: 'כן' })
 
     expect(systemPrompt).not.toContain('כלל חדש')
-    expect(systemPrompt).toContain('ממתין לאישורו')
+    // Anchored on the confirmation-stage block, so the assertion above cannot
+    // pass merely because that branch never rendered.
+    expect(systemPrompt).toContain('אתה נמצא בשלב האישור')
   })
 
   it('falls back to a safe reply when the model returns nothing', async () => {
