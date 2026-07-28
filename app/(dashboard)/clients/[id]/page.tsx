@@ -13,7 +13,6 @@ import {
   Briefcase,
   User,
   MessageSquare,
-  Inbox,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -40,29 +39,13 @@ import {
 import { ClientForm } from '@/components/forms/client-form'
 import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
-import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
-import { tone, REQUEST_STATUS_TONES } from '@/lib/design/tones'
-import {
-  label,
-  REQUEST_TYPE_LABELS,
-  REQUEST_STATUS_LABELS,
-} from '@/lib/design/labels'
-import type { RequestRecord } from '@/lib/types/request'
+import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
+import { tone, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
+import { projectTotal } from '@/lib/utils/project-money'
+import type { PhaseSummary } from '@/lib/types/project'
 
-type ClientRequest = Pick<
-  RequestRecord,
-  'id' | 'title' | 'type' | 'status' | 'source' | 'isAiGenerated' | 'aiConfidence' | 'aiNote'
->
-
-const PROJECT_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'פעיל',
-  COMPLETED: 'הושלם',
-}
-
-const PROJECT_STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-surface-muted text-content-body',
-}
+type ClientRequest = RequestListItem
 
 interface ClientContact {
   id: string
@@ -78,8 +61,10 @@ interface ClientProject {
   id: string
   name: string
   status: string
-  price?: number | string | null
   deadline?: string | null
+  advanceAmount?: number | string | null
+  advancePaidAt?: string | null
+  phases: PhaseSummary[]
   _count?: { tasks: number }
 }
 
@@ -417,16 +402,14 @@ export default function ClientDetailPage() {
                     <Briefcase className="w-4 h-4 text-content-faint" />
                     <span className="text-sm font-medium">{project.name}</span>
                     <Badge
-                      className={PROJECT_STATUS_COLORS[project.status] ?? ''}
+                      className={tone(PROJECT_STATUS_TONES, project.status)}
                       variant="secondary"
                     >
-                      {PROJECT_STATUS_LABELS[project.status] ?? project.status}
+                      {label(PROJECT_STATUS_LABELS, project.status)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-content-subtle">
-                    {project.price != null && (
-                      <span>{formatCurrency(project.price)}</span>
-                    )}
+                    <span>{formatCurrency(projectTotal(project.advanceAmount, project.phases))}</span>
                     {project.deadline && <span>{formatDate(project.deadline)}</span>}
                   </div>
                 </div>
@@ -436,60 +419,15 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Requests */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Inbox className="w-5 h-5 text-content-faint" />
-            פניות
-          </CardTitle>
+      <RequestListCard
+        requests={requests}
+        action={
           <Button size="sm" onClick={() => setShowRequestForm(true)}>
             <Plus className="w-4 h-4 ml-2" />
             פניה חדשה ללקוח זה
           </Button>
-        </CardHeader>
-        <CardContent>
-          {requests.length === 0 ? (
-            <p className="text-sm text-content-subtle text-center py-6">אין פניות עדיין</p>
-          ) : (
-            <div className="space-y-3">
-              {requests.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
-                  onClick={() => router.push(`/requests/${request.id}`)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      router.push(`/requests/${request.id}`)
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-sm font-medium">{request.title}</span>
-                    <span className="text-xs text-content-subtle">
-                      {label(REQUEST_TYPE_LABELS, request.type)}
-                    </span>
-                    <SourceBadge source={request.source} />
-                    <AiBadge
-                      isAiGenerated={request.isAiGenerated}
-                      aiConfidence={request.aiConfidence}
-                      aiNote={request.aiNote}
-                    />
-                  </div>
-                  <Badge
-                    className={tone(REQUEST_STATUS_TONES, request.status)}
-                    variant="secondary"
-                  >
-                    {label(REQUEST_STATUS_LABELS, request.status)}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        }
+      />
 
       {/* Conversation timeline (wired in Phase 3) */}
       <Card>

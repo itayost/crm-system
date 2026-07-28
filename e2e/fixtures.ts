@@ -79,7 +79,7 @@ export async function fillProjectForm(page: Page, data: {
   name: string
   type?: string
   contactName?: string
-  price?: string
+  advanceAmount?: string
   priority?: string
   description?: string
 }) {
@@ -93,8 +93,8 @@ export async function fillProjectForm(page: Page, data: {
     await selectOption(page, /בחר לקוח|לקוח/, data.contactName)
   }
 
-  if (data.price) {
-    await page.fill('input[name="price"]', data.price)
+  if (data.advanceAmount) {
+    await page.fill('input[name="advanceAmount"]', data.advanceAmount)
   }
 
   if (data.priority) {

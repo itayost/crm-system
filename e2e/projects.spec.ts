@@ -48,8 +48,9 @@ test.describe('Projects', () => {
       await clientSelect.click()
       await page.locator('[role="option"]').filter({ hasText: 'לקוח פעיל' }).click()
 
-      // Fill price
-      await page.locator('[role="dialog"] input[name="price"]').fill('3000')
+      // Fill the advance. The rest of a project's money is added as phases
+      // on the detail page, so the create form no longer asks for a total.
+      await page.locator('[role="dialog"] input[name="advanceAmount"]').fill('3000')
 
       // Submit
       await page.locator('[role="dialog"] button[type="submit"]').click()
@@ -107,8 +108,9 @@ test.describe('Projects', () => {
     await expect(page.locator('[role="dialog"]').locator('text=לקוח חובה')).toBeVisible()
   })
 
-  test('view-detail: project detail page shows price in formatted ILS', async ({ page }) => {
-    // Click on "פרויקט אתר" which has price: 5000
+  test('view-detail: project detail page shows the total in formatted ILS', async ({ page }) => {
+    // "פרויקט אתר" is seeded as a 1,000 advance plus 1,500 + 1,500 + 1,000 of
+    // phases, so the same 5,000 the spec always asserted - computed now.
     const projectRow = getTableRow(page, 'פרויקט אתר')
     await projectRow.click()
     await page.waitForLoadState('networkidle')
@@ -116,14 +118,14 @@ test.describe('Projects', () => {
     // Verify project name
     await expect(page.locator('h1').filter({ hasText: 'פרויקט אתר' })).toBeVisible()
 
-    // Verify formatted price "5,000 ₪"
-    await expect(page.locator('text=5,000 ₪')).toBeVisible()
+    // Shown twice: the info card's סה"כ and the phases card footer.
+    await expect(page.locator('text=5,000 ₪').first()).toBeVisible()
 
     // Verify contact link
     await expect(page.locator('text=לקוח פעיל').first()).toBeVisible()
   })
 
-  test('edit: changes project price on detail page', async ({ page }) => {
+  test('edit: changing the advance moves the project total', async ({ page }) => {
     // Navigate to "פרויקט אתר" detail
     const projectRow = getTableRow(page, 'פרויקט אתר')
     await projectRow.click()
@@ -134,24 +136,119 @@ test.describe('Projects', () => {
     await editButton.click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // Change the price
-    const priceInput = page.locator('[role="dialog"] input[name="price"]')
-    await priceInput.fill('6000')
+    // 1,000 -> 2,000 on a 4,000 phase total takes the project to 6,000.
+    const advanceInput = page.locator('[role="dialog"] input[name="advanceAmount"]')
+    await advanceInput.fill('2000')
 
     // Submit
     await page.locator('[role="dialog"] button[type="submit"]').click()
     await expectToastSuccess(page, 'פרויקט עודכן בהצלחה')
     await page.waitForLoadState('networkidle')
 
-    // Verify updated price
-    await expect(page.locator('text=6,000 ₪')).toBeVisible()
+    // Verify updated total
+    await expect(page.locator('text=6,000 ₪').first()).toBeVisible()
 
-    // Restore original price
+    // Restore the original advance
     await editButton.click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
-    await page.locator('[role="dialog"] input[name="price"]').fill('5000')
+    await page.locator('[role="dialog"] input[name="advanceAmount"]').fill('1000')
     await page.locator('[role="dialog"] button[type="submit"]').click()
     await expectToastSuccess(page, 'פרויקט עודכן בהצלחה')
+  })
+
+  test('phases-list: seeded phases and totals are on the detail page', async ({ page }) => {
+    await getTableRow(page, 'פרויקט אתר').click()
+    await page.waitForLoadState('networkidle')
+
+    const card = page.locator('main').filter({ hasText: 'שלבים ותשלומים' }).last()
+    await expect(card.getByText('אפיון')).toBeVisible()
+    await expect(card.getByText('עיצוב')).toBeVisible()
+
+    // 1,000 advance paid + a paid 1,500 phase.
+    await expect(card.getByText('2,500 ₪')).toBeVisible()
+  })
+
+  test('phase-add-and-delete: a new phase changes the project total', async ({ page }) => {
+    await getTableRow(page, 'פרויקט אתר').click()
+    await page.waitForLoadState('networkidle')
+
+    await page.locator('main button').filter({ hasText: 'הוסף שלב' }).click()
+    await expect(page.locator('[role="dialog"]')).toBeVisible()
+    await page.locator('[role="dialog"] input[name="name"]').fill('בדיקות')
+    await page.locator('[role="dialog"] input[name="price"]').fill('2000')
+    await page.locator('[role="dialog"] button[type="submit"]').click()
+    await expectToastSuccess(page, 'שלב נוסף בהצלחה')
+    await page.waitForLoadState('networkidle')
+
+    // 5,000 + 2,000. The total is derived, so adding a phase moves it.
+    await expect(page.locator('text=7,000 ₪').first()).toBeVisible()
+
+    // Clean up: later assertions and the visual snapshots expect 5,000.
+    await page.locator('main button[aria-label="מחיקת בדיקות"]').click()
+    await page.locator('[role="alertdialog"] button').filter({ hasText: 'מחק' }).click()
+    await expectToastSuccess(page, 'שלב נמחק בהצלחה')
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('text=5,000 ₪').first()).toBeVisible()
+  })
+
+  test('phase-status-and-payment: approving does not pay, paying is its own act', async ({ page }) => {
+    await getTableRow(page, 'פרויקט אתר').click()
+    await page.waitForLoadState('networkidle')
+
+    const statusSelect = page.locator('main button[aria-label="סטטוס עיצוב"]')
+    await expect(statusSelect).toContainText('בעבודה')
+
+    // No "סמן כשולם" until the client has signed the work off.
+    await expect(page.locator('main button').filter({ hasText: 'סמן כשולם' })).toHaveCount(1)
+
+    await statusSelect.click()
+    await page.locator('[role="option"]').filter({ hasText: 'אושר' }).click()
+    await expectToastSuccess(page, 'סטטוס שלב עודכן')
+    await page.waitForLoadState('networkidle')
+
+    await expect(statusSelect).toContainText('אושר')
+
+    // Approved but still unpaid, so paid total has not moved off 2,500.
+    const card = page.locator('main').filter({ hasText: 'שלבים ותשלומים' }).last()
+    await expect(card.getByText('2,500 ₪')).toBeVisible()
+
+    // Restore.
+    await statusSelect.click()
+    await page.locator('[role="option"]').filter({ hasText: 'בעבודה' }).click()
+    await expectToastSuccess(page, 'סטטוס שלב עודכן')
+  })
+
+  test('phase-reorder: moving a phase up swaps it with its neighbour', async ({ page }) => {
+    await getTableRow(page, 'פרויקט אתר').click()
+    await page.waitForLoadState('networkidle')
+
+    const card = page.locator('main').filter({ hasText: 'שלבים ותשלומים' }).last()
+    const names = () => card.locator('span.font-medium.truncate').allTextContents()
+
+    expect(await names()).toEqual(['אפיון', 'עיצוב', 'פיתוח'])
+
+    // Second row's "up" button.
+    await card.locator('button[aria-label="הזז למעלה"]').nth(1).click()
+    await expectToastSuccess(page, 'סדר השלבים עודכן')
+    await page.waitForLoadState('networkidle')
+
+    expect(await names()).toEqual(['עיצוב', 'אפיון', 'פיתוח'])
+
+    // Restore the seeded order.
+    await card.locator('button[aria-label="הזז למעלה"]').nth(1).click()
+    await expectToastSuccess(page, 'סדר השלבים עודכן')
+    await page.waitForLoadState('networkidle')
+
+    expect(await names()).toEqual(['אפיון', 'עיצוב', 'פיתוח'])
+  })
+
+  test('project-requests: the project page shows its own פניות card', async ({ page }) => {
+    await getTableRow(page, 'פרויקט אתר').click()
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('main').getByText('פניות')).toBeVisible()
+    await expect(page.locator('text=אין פניות לפרויקט זה')).toBeVisible()
   })
 
   test('status-toggle: toggle between ACTIVE and COMPLETED', async ({ page }) => {

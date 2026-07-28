@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { contactStatus, contactSource } from '@/lib/validations/enums'
+import type { PhaseSummary } from './project'
 
 /**
  * The Contact as the dashboard receives it over the wire: dates are ISO
@@ -20,7 +21,9 @@ export interface ContactProject {
   type: string
   status: string
   deadline: string | null
-  price: number | string | null
+  advanceAmount: number | string | null
+  advancePaidAt: string | null
+  phases: PhaseSummary[]
 }
 
 export interface ContactRecord {

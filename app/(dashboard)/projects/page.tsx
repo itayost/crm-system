@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { format } from 'date-fns'
 import { Plus, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -27,28 +26,15 @@ import {
 } from '@/components/ui/table'
 import { ProjectForm } from '@/components/forms/project-form'
 import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'פעיל',
-  COMPLETED: 'הושלם',
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  LANDING_PAGE: 'דף נחיתה',
-  WEBSITE: 'אתר',
-  ECOMMERCE: 'חנות אונליין',
-  WEB_APP: 'אפליקציית ווב',
-  MOBILE_APP: 'אפליקציה',
-  MANAGEMENT_SYSTEM: 'מערכת ניהול',
-  CONSULTATION: 'ייעוץ',
-}
-
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: 'נמוך',
-  MEDIUM: 'בינוני',
-  HIGH: 'גבוה',
-  URGENT: 'דחוף',
-}
+import {
+  label,
+  PROJECT_STATUS_LABELS,
+  PROJECT_TYPE_LABELS,
+  PRIORITY_LABELS,
+} from '@/lib/design/labels'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { projectTotal } from '@/lib/utils/project-money'
+import type { ProjectListItem } from '@/lib/types/project'
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'הכל' },
@@ -56,27 +42,10 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'COMPLETED', label: 'הושלם' },
 ]
 
-interface Project {
-  id: string
-  name: string
-  type: string
-  status: string
-  priority: string
-  price?: number | string | null
-  deadline?: string | null
-  client: {
-    id: string
-    name: string
-  } | null
-  _count: {
-    tasks: number
-  }
-}
-
 function ProjectsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -120,20 +89,6 @@ function ProjectsPageContent() {
     }, search ? 300 : 0)
     return () => clearTimeout(debounce)
   }, [fetchProjects, search])
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    if (amount == null) return '-'
-    return `${Number(amount).toLocaleString()} ₪`
-  }
 
   return (
     <div className="space-y-6">
@@ -202,7 +157,7 @@ function ProjectsPageContent() {
                 <TableHead className="text-right">סטטוס</TableHead>
                 <TableHead className="text-right">עדיפות</TableHead>
                 <TableHead className="text-right">דדליין</TableHead>
-                <TableHead className="text-right">מחיר</TableHead>
+                <TableHead className="text-right">סה&quot;כ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -217,14 +172,14 @@ function ProjectsPageContent() {
                   </TableCell>
                   <TableCell>{project.client?.name ?? '-'}</TableCell>
                   <TableCell>
-                    {TYPE_LABELS[project.type] ?? project.type}
+                    {label(PROJECT_TYPE_LABELS, project.type)}
                   </TableCell>
                   <TableCell>
                     <Badge
                       className={tone(PROJECT_STATUS_TONES, project.status)}
                       variant="secondary"
                     >
-                      {STATUS_LABELS[project.status] ?? project.status}
+                      {label(PROJECT_STATUS_LABELS, project.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -232,11 +187,13 @@ function ProjectsPageContent() {
                       className={tone(PRIORITY_TONES, project.priority)}
                       variant="secondary"
                     >
-                      {PRIORITY_LABELS[project.priority] ?? project.priority}
+                      {label(PRIORITY_LABELS, project.priority)}
                     </Badge>
                   </TableCell>
                   <TableCell>{formatDate(project.deadline)}</TableCell>
-                  <TableCell>{formatCurrency(project.price)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(projectTotal(project.advanceAmount, project.phases))}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

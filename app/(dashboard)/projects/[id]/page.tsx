@@ -2,16 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { format } from 'date-fns'
-import {
-  ArrowRight,
-  Edit,
-  Trash2,
-  Plus,
-  Calendar,
-  User,
-  CheckSquare,
-} from 'lucide-react'
+import { ArrowRight, Edit, Trash2, Calendar, User, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
@@ -36,77 +27,27 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ProjectForm } from '@/components/forms/project-form'
 import { TaskForm } from '@/components/forms/task-form'
-import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES, TASK_STATUS_TONES } from '@/lib/design/tones'
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'פעיל',
-  COMPLETED: 'הושלם',
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  LANDING_PAGE: 'דף נחיתה',
-  WEBSITE: 'אתר',
-  ECOMMERCE: 'חנות אונליין',
-  WEB_APP: 'אפליקציית ווב',
-  MOBILE_APP: 'אפליקציה',
-  MANAGEMENT_SYSTEM: 'מערכת ניהול',
-  CONSULTATION: 'ייעוץ',
-}
-
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: 'נמוך',
-  MEDIUM: 'בינוני',
-  HIGH: 'גבוה',
-  URGENT: 'דחוף',
-}
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  TODO: 'לביצוע',
-  IN_PROGRESS: 'בתהליך',
-  COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
-}
-
-const FREQUENCY_LABELS: Record<string, string> = {
-  MONTHLY: 'חודשי',
-  YEARLY: 'שנתי',
-}
-
-
-interface Task {
-  id: string
-  title: string
-  status: string
-  priority: string
-  dueDate?: string | null
-}
-
-interface ProjectDetail {
-  id: string
-  name: string
-  description?: string | null
-  type: string
-  status: string
-  priority: string
-  startDate?: string | null
-  deadline?: string | null
-  completedAt?: string | null
-  price?: number | string | null
-  retention?: number | string | null
-  retentionFrequency?: string | null
-  clientId: string
-  client: { id: string; name: string } | null
-  primaryContactId?: string | null
-  primaryContact?: { id: string; name: string } | null
-  tasks: Task[]
-  createdAt: string
-}
+import { PhasesCard } from '@/components/projects/phases-card'
+import { ProjectTasksCard } from '@/components/projects/project-tasks-card'
+import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
+import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import {
+  label,
+  PROJECT_STATUS_LABELS,
+  PROJECT_TYPE_LABELS,
+  PRIORITY_LABELS,
+  RETENTION_FREQUENCY_LABELS,
+} from '@/lib/design/labels'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { projectTotal } from '@/lib/utils/project-money'
+import type { ProjectRecord } from '@/lib/types/project'
 
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
-  const [project, setProject] = useState<ProjectDetail | null>(null)
+  const [project, setProject] = useState<ProjectRecord | null>(null)
+  const [requests, setRequests] = useState<RequestListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showTaskForm, setShowTaskForm] = useState(false)
@@ -116,8 +57,13 @@ export default function ProjectDetailPage() {
   const fetchProject = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await api.get(`/projects/${id}`)
-      setProject(response.data)
+      // In parallel: the פניות card must not wait on the project request.
+      const [projectRes, requestsRes] = await Promise.all([
+        api.get(`/projects/${id}`),
+        api.get(`/requests?projectId=${id}`),
+      ])
+      setProject(projectRes.data)
+      setRequests(requestsRes.data)
     } catch {
       toast.error('שגיאה בטעינת פרטי פרויקט')
       router.push('/projects')
@@ -155,20 +101,6 @@ export default function ProjectDetailPage() {
     } finally {
       setUpdatingStatus(false)
     }
-  }
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    if (amount == null) return '-'
-    return `${Number(amount).toLocaleString()} ₪`
   }
 
   if (loading) {
@@ -209,17 +141,17 @@ export default function ProjectDetailPage() {
               className={tone(PROJECT_STATUS_TONES, project.status)}
               variant="secondary"
             >
-              {STATUS_LABELS[project.status] ?? project.status}
+              {label(PROJECT_STATUS_LABELS, project.status)}
             </Badge>
             <Badge
               className={tone(PRIORITY_TONES, project.priority)}
               variant="secondary"
             >
-              {PRIORITY_LABELS[project.priority] ?? project.priority}
+              {label(PRIORITY_LABELS, project.priority)}
             </Badge>
           </div>
           <p className="text-sm text-content-subtle mt-1">
-            {TYPE_LABELS[project.type] ?? project.type}
+            {label(PROJECT_TYPE_LABELS, project.type)}
           </p>
         </div>
 
@@ -330,11 +262,12 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Price */}
+              {/* Total - the advance plus every phase, so it moves as phases
+                  are added rather than being a figure typed once. */}
               <div>
-                <span className="text-sm text-content-muted">מחיר: </span>
+                <span className="text-sm text-content-muted">סה&quot;כ: </span>
                 <span className="text-sm font-bold text-green-700">
-                  {formatCurrency(project.price)}
+                  {formatCurrency(projectTotal(project.advanceAmount, project.phases))}
                 </span>
               </div>
 
@@ -345,7 +278,7 @@ export default function ProjectDetailPage() {
                   <span className="text-sm font-medium">
                     {formatCurrency(project.retention)}{' '}
                     {project.retentionFrequency
-                      ? `(${FREQUENCY_LABELS[project.retentionFrequency] ?? project.retentionFrequency})`
+                      ? `(${label(RETENTION_FREQUENCY_LABELS, project.retentionFrequency)})`
                       : ''}
                   </span>
                 </div>
@@ -372,76 +305,19 @@ export default function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Tasks Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>משימות</CardTitle>
-          <Button size="sm" onClick={() => setShowTaskForm(true)}>
-            <Plus className="w-4 h-4 ml-2" />
-            משימה חדשה
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {project.tasks.length === 0 ? (
-            <p className="text-sm text-content-subtle text-center py-6">
-              אין משימות עדיין
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {project.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
-                  onClick={() => router.push(`/tasks`)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      router.push(`/tasks`)
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <CheckSquare
-                      className={`w-4 h-4 ${
-                        task.status === 'COMPLETED'
-                          ? 'text-green-500'
-                          : 'text-content-faint'
-                      }`}
-                    />
-                    <span
-                      className={`text-sm font-medium ${
-                        task.status === 'COMPLETED'
-                          ? 'line-through text-content-faint'
-                          : ''
-                      }`}
-                    >
-                      {task.title}
-                    </span>
-                    <Badge
-                      className={tone(TASK_STATUS_TONES, task.status)}
-                      variant="secondary"
-                    >
-                      {TASK_STATUS_LABELS[task.status] ?? task.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-content-subtle">
-                    <Badge
-                      className={tone(PRIORITY_TONES, task.priority)}
-                      variant="secondary"
-                    >
-                      {PRIORITY_LABELS[task.priority] ?? task.priority}
-                    </Badge>
-                    {task.dueDate && (
-                      <span>{formatDate(task.dueDate)}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <PhasesCard
+        projectId={project.id}
+        phases={project.phases}
+        advanceAmount={project.advanceAmount}
+        advancePaidAt={project.advancePaidAt}
+        onChanged={fetchProject}
+      />
+
+      <ProjectTasksCard tasks={project.tasks} onAdd={() => setShowTaskForm(true)} />
+
+      {/* The פניות already linked to this project. No "new" button: RequestForm
+          takes a defaultClientId but not a defaultProjectId. */}
+      <RequestListCard requests={requests} emptyText="אין פניות לפרויקט זה" />
 
       {/* Edit Form Dialog */}
       <ProjectForm

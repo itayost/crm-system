@@ -10,7 +10,7 @@ export const createProjectSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   startDate: z.string().datetime().optional(),
   deadline: z.string().datetime().optional(),
-  price: z.number().optional(),
+  advanceAmount: z.number().min(0).optional(),
   retention: z.number().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
   clientId: z.string().min(1, 'לקוח חובה'),
@@ -28,7 +28,10 @@ export const updateProjectSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   startDate: z.string().datetime().nullable().optional(),
   deadline: z.string().datetime().nullable().optional(),
-  price: z.number().nullable().optional(),
+  advanceAmount: z.number().min(0).nullable().optional(),
+  // true marks the advance paid now, false clears it. Kept apart from the
+  // amount so recording payment is never a side effect of editing the figure.
+  advancePaid: z.boolean().optional(),
   retention: z.number().nullable().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).nullable().optional(),
 })

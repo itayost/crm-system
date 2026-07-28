@@ -23,13 +23,13 @@ npm run db:studio    # Open Prisma Studio for database management
 # Testing
 npm test             # Run Vitest unit/route tests (tests/*.test.ts)
 npm run test:watch   # Vitest in watch mode
-npm run test:e2e     # Run Playwright E2E tests (43 tests across 6 spec files)
+npm run test:e2e     # Run Playwright E2E tests (62 tests across 8 spec files)
 npm run typecheck    # tsc --noEmit
 ```
 
 ## Project Overview
 
-A **Next.js 15 CRM system** for a Hebrew-speaking freelancer (RTL). The system was redesigned from a 12-model architecture down to **4 core models** (User, Contact, Project, Task) for simplicity and maintainability.
+A **Next.js 15 CRM system** for a Hebrew-speaking freelancer (RTL). A 2026-03 redesign cut a 12-model architecture down to four; it has since grown back to **11 models** as WhatsApp support, client requests and phase billing landed. The four originals (User, Contact, Project, Task) are still the spine.
 
 ## Business Context
 
@@ -54,9 +54,11 @@ The CRM is built for a freelancer in the digital field who:
 - **Testing**: Playwright for E2E tests
 - **HTTP Client**: Axios via `lib/api/client.ts`
 
-## Data Model (4 Models)
+## Data Model
 
-The schema (`prisma/schema.prisma`) has 4 models:
+The schema (`prisma/schema.prisma`) has 11 models. The five that carry the
+domain are below; the rest (Client, Request, WhatsAppMessage, BotConversation,
+SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 
 ### User
 
@@ -76,12 +78,21 @@ The schema (`prisma/schema.prisma`) has 4 models:
 
 ### Project
 
-- Belongs to a Contact (must have CLIENT status to create a project)
-- Statuses: DRAFT -> IN_PROGRESS -> ON_HOLD -> COMPLETED -> CANCELLED
+- Belongs to a **Client** (the business), with an optional `primaryContactId` pointing at a person in it
+- Statuses: **ACTIVE, COMPLETED** only. There is no DRAFT / ON_HOLD / CANCELLED
 - Types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
 - Priority: LOW, MEDIUM, HIGH, URGENT
-- **Pricing on the project itself** -- `price` (one-time) and `retention` + `retentionFrequency` (recurring) replace the old separate Payments module
-- Has many Tasks
+- **Billed per phase.** A project has an `advanceAmount` (מקדמה) plus many `ProjectPhase` rows. There is no `Project.price` -- the total is `advance + Σ phase prices`, computed by `projectTotal()` in `lib/utils/project-money.ts`. Never re-derive money inline; use those helpers
+- `retention` + `retentionFrequency` are unchanged (recurring maintenance)
+- Has many Tasks and many Requests
+
+### ProjectPhase
+
+- A billable stage: `name`, `order`, `status`, `price`, `approvedAt`, `paidAt`
+- Statuses: NOT_STARTED, IN_PROGRESS, PENDING_APPROVAL, REVISIONS, APPROVED. **Not a straight line** -- PENDING_APPROVAL and REVISIONS cycle, which is why the UI uses a Select and not a "next stage" button
+- **Approval and payment are separate.** `approvedAt` follows the status both ways; `paidAt` moves only on an explicit `paid` flag, so un-approving a phase never un-pays it
+- **No `userId`** -- ownership comes through the project (same as `AgentProjectConfig`), so `PhasesService` proves project ownership on every call. Cascades on project delete
+- Dashboard revenue = paid phases + paid advances. Approved-but-unpaid surfaces separately as `outstanding`
 
 ### Task
 
@@ -128,7 +139,6 @@ app/
 lib/
   api/
     api-handler.ts           # Shared API route handler wrapper
-    auth-handler.ts          # Authentication helper for API routes
     client.ts                # Axios client for frontend API calls
   auth/
     auth.config.ts           # NextAuth provider configuration
@@ -147,8 +157,13 @@ lib/
   config/                    # Configuration (currently empty)
   errors/                    # Error utilities (currently empty)
   hooks/                     # Custom hooks (currently empty)
-  utils/                     # Utility functions (currently empty)
-  utils.ts                   # cn() helper for classnames
+  utils/
+    project-money.ts         # projectTotal / projectPaid / projectOutstanding
+  utils.ts                   # cn(), formatDate(), formatCurrency()
+  design/
+    labels.ts                # every enum's Hebrew, decided once
+    tones.ts                 # every status's colour, decided once
+  types/                     # wire shapes shared by pages (contact, project, request)
 
 components/
   forms/
@@ -194,7 +209,7 @@ prisma/
 - NextAuth.js v4 with credentials provider (email + password with bcrypt)
 - JWT strategy with session tokens
 - Middleware-based route protection (all non-API routes require auth)
-- User ID extracted from session in API routes via `auth-handler.ts`
+- User ID extracted from session in API routes via the `withAuth` wrapper in `lib/api/api-handler.ts`
 
 ### Service Layer Pattern
 
@@ -218,7 +233,7 @@ Services: `ContactsService`, `ProjectsService`, `TasksService`, `DashboardServic
 API routes use handler functions from `lib/api/`:
 
 - `api-handler.ts` wraps route logic with error handling
-- `auth-handler.ts` extracts authenticated user from the session
+- `withAuth` in the same file extracts the authenticated user and forwards route params. It maps an `Error` to a 400 **only if the message contains Hebrew** -- everything else becomes a 500, so service errors must be written in Hebrew
 - All mutations validate input with Zod schemas from `lib/validations/`
 
 ### Frontend Pattern
@@ -257,7 +272,7 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 
 ## E2E Testing
 
-43 Playwright tests across 6 spec files covering:
+62 Playwright tests across 8 spec files covering:
 
 - Authentication (login, registration)
 - Dashboard (KPIs, data display)
@@ -273,7 +288,7 @@ Run with: `npm run test:e2e`
 ## Code Patterns to Follow
 
 - **Services**: Static classes in `lib/services/`, always scope queries by `userId`
-- **API Routes**: Use `auth-handler.ts` to get the authenticated user, validate with Zod
+- **API Routes**: Wrap with `withAuth` from `lib/api/api-handler.ts`, validate with Zod, throw Hebrew errors
 - **Forms**: React Hook Form + Zod schemas, Dialog modals for create/edit
 - **Error Handling**: Hebrew error messages with toast notifications
 - **UI Components**: shadcn/ui with consistent RTL styling
@@ -283,11 +298,11 @@ Run with: `npm run test:e2e`
 ## Codebase Metrics
 
 - ~74 TypeScript files
-- 4 database models, 8 enums
+- 11 database models, 15 enums
 - 4 service classes
 - 9 API route files (7 resource routes + 2 auth routes)
 - 6 dashboard pages (+ detail pages for contacts and projects)
-- 43 E2E tests across 6 spec files
+- 62 E2E tests across 8 spec files, plus 223 Vitest tests in 22 files
 - 23 shadcn/ui components
 
 ## Legacy Context

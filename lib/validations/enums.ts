@@ -48,3 +48,16 @@ export const CLIENT_STATUSES = ['CLIENT', 'INACTIVE'] as const
 
 /** No next action survives these - the chasing is over, won or lost. */
 export const TERMINAL_CONTACT_STATUSES = ['CLIENT', 'LOST', 'INACTIVE'] as const
+
+/**
+ * A billing phase's life. Not a straight line: PENDING_APPROVAL and REVISIONS
+ * cycle for as long as the client keeps finding things, which is why the UI
+ * offers a Select rather than a "next stage" button.
+ */
+export const phaseStatus = z.enum([
+  'NOT_STARTED',
+  'IN_PROGRESS',
+  'PENDING_APPROVAL',
+  'REVISIONS',
+  'APPROVED',
+])

@@ -79,7 +79,12 @@ export class ContactsService {
       include: {
         client: {
           include: {
-            projects: { include: { tasks: true } },
+            projects: {
+              include: {
+                tasks: true,
+                phases: { select: { price: true, status: true, paidAt: true } },
+              },
+            },
           },
         },
       },

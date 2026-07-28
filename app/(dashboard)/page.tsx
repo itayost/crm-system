@@ -24,17 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { tone, TASK_CATEGORY_TONES } from '@/lib/design/tones'
-
-const PROJECT_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'פעיל',
-  COMPLETED: 'הושלם',
-}
-
-const PROJECT_STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-surface-muted text-content-body',
-}
+import { tone, TASK_CATEGORY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
+import { formatCurrency } from '@/lib/utils'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_WORK: 'עבודת לקוח',
@@ -70,6 +62,8 @@ interface ActiveProject {
 
 interface DashboardData {
   revenue: number
+  /** Approved but unpaid - work signed off that has not been settled. */
+  outstanding: number
   contacts: {
     leads: number
     clients: number
@@ -118,10 +112,6 @@ export default function DashboardPage() {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return `${amount.toLocaleString()} ₪`
-  }
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -151,7 +141,12 @@ export default function DashboardPage() {
     {
       title: 'הכנסות',
       value: formatCurrency(data.revenue),
-      description: `${data.projects.completed} פרויקטים שהושלמו`,
+      // Revenue is money received; when something is signed off but unpaid,
+      // that is the more actionable number to put under it.
+      description:
+        data.outstanding > 0
+          ? `${data.outstanding.toLocaleString()} ₪ ממתין לתשלום`
+          : `${data.projects.completed} פרויקטים שהושלמו`,
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
@@ -391,13 +386,10 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{project.name}</p>
                         <Badge
-                          className={
-                            PROJECT_STATUS_COLORS[project.status] ?? ''
-                          }
+                          className={tone(PROJECT_STATUS_TONES, project.status)}
                           variant="secondary"
                         >
-                          {PROJECT_STATUS_LABELS[project.status] ??
-                            project.status}
+                          {label(PROJECT_STATUS_LABELS, project.status)}
                         </Badge>
                       </div>
                       <p className="text-xs text-content-subtle mt-1">

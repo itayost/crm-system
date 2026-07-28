@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { tone, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { projectTotal } from '@/lib/utils/project-money'
 import type { ContactProject } from '@/lib/types/contact'
 
 /**
@@ -65,7 +66,7 @@ export function ContactProjectsCard({
                   </Badge>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-content-subtle">
-                  {project.price != null && <span>{formatCurrency(project.price)}</span>}
+                  <span>{formatCurrency(projectTotal(project.advanceAmount, project.phases))}</span>
                   {project.deadline && <span>{formatDate(project.deadline)}</span>}
                 </div>
               </div>

@@ -82,7 +82,9 @@ model Project {
   startDate          DateTime?
   deadline           DateTime?
   completedAt        DateTime?
-  price              Decimal?            @db.Decimal(10, 2)
+  /// Paid up front to start. The rest of the money lives on the phases.
+  advanceAmount      Decimal?            @db.Decimal(10, 2)
+  advancePaidAt      DateTime?
   retention          Decimal?            @db.Decimal(10, 2)
   retentionFrequency RetentionFrequency?
 
@@ -94,6 +96,7 @@ model Project {
   user      User    @relation(fields: [userId], references: [id])
   tasks       Task[]
   requests    Request[]
+  phases      ProjectPhase[]
   agentConfig AgentProjectConfig?
 
   createdAt DateTime @default(now())
@@ -104,6 +107,31 @@ model Project {
   @@index([deadline])
   @@index([clientId])
   @@index([primaryContactId])
+}
+
+/// A billable stage of a project: its own price, its own sign-off, its own
+/// payment. Scoped through the project rather than carrying a userId, the same
+/// way AgentProjectConfig is.
+model ProjectPhase {
+  id         String      @id @default(cuid())
+  name       String
+  order      Int
+  status     PhaseStatus @default(NOT_STARTED)
+  price      Decimal     @default(0) @db.Decimal(10, 2)
+  /// Signed off by the client. Says nothing about whether they have paid.
+  approvedAt DateTime?
+  /// Set only by an explicit "סמן כשולם" - un-approving does not un-pay.
+  paidAt     DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([projectId, order])
+  @@index([status])
 }
 
 model Task {
@@ -197,6 +225,16 @@ enum ProjectType {
 enum ProjectStatus {
   ACTIVE
   COMPLETED
+}
+
+/// PENDING_APPROVAL and REVISIONS cycle until the client stops finding things,
+/// so this is not a straight line and the UI must not offer a "next" button.
+enum PhaseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_APPROVAL
+  REVISIONS
+  APPROVED
 }
 
 enum Priority {

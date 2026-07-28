@@ -125,30 +125,49 @@ async function globalSetup(_config: FullConfig) {
     },
   })
 
-  // 4. Seed projects
+  // 4. Seed projects.
+  //    Money is now advance + phases. Both projects keep the totals the specs
+  //    already assert against - 5,000 and 15,000 - so those assertions still
+  //    mean what they meant, they are just computed now rather than stored.
   const projectActive = await prisma.project.create({
     data: {
       name: 'פרויקט אתר',
       type: 'WEBSITE',
       status: 'ACTIVE',
       priority: 'HIGH',
-      price: 5000,
+      advanceAmount: 1000,
+      advancePaidAt: new Date(),
       clientId: clientActiveBiz.id,
       primaryContactId: clientActive.id,
       userId: user.id,
+      phases: {
+        create: [
+          { name: 'אפיון', order: 1, price: 1500, status: 'APPROVED', approvedAt: new Date(), paidAt: new Date() },
+          { name: 'עיצוב', order: 2, price: 1500, status: 'IN_PROGRESS' },
+          { name: 'פיתוח', order: 3, price: 1000, status: 'NOT_STARTED' },
+        ],
+      },
     },
   })
 
+  // Covers the two states the brief and the dashboard care about: work waiting
+  // on the client, and work signed off but not yet paid for.
   await prisma.project.create({
     data: {
       name: 'פרויקט אפליקציה',
       type: 'WEB_APP',
       status: 'ACTIVE',
       priority: 'URGENT',
-      price: 15000,
+      advanceAmount: 3000,
       clientId: clientActiveBiz.id,
       primaryContactId: clientActive.id,
       userId: user.id,
+      phases: {
+        create: [
+          { name: 'אפיון', order: 1, price: 5000, status: 'APPROVED', approvedAt: new Date(), paidAt: new Date() },
+          { name: 'פיתוח', order: 2, price: 7000, status: 'PENDING_APPROVAL' },
+        ],
+      },
     },
   })
 

@@ -14,6 +14,7 @@ import {
   fuzzyMatchRequest,
 } from './fuzzy-match'
 import { contactStatus, contactSource } from '@/lib/validations/enums'
+import { projectTotal, projectPaid, projectOutstanding } from '@/lib/utils/project-money'
 
 export function createCrmTools(userId: string) {
   return {
@@ -126,7 +127,8 @@ export function createCrmTools(userId: string) {
               name: p.name,
               status: p.status,
               type: p.type,
-              price: p.price ? Number(p.price) : null,
+              total: projectTotal(p.advanceAmount, p.phases),
+              paid: projectPaid(p.advanceAmount, p.advancePaidAt, p.phases),
               tasks: p.tasks?.map((t: { title: string; status: string; priority: string; category: string }) => ({
                 title: t.title,
                 status: t.status,
@@ -147,7 +149,7 @@ export function createCrmTools(userId: string) {
         name: z.string().describe('Project name'),
         type: z.enum(['LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP', 'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION']),
         clientName: z.string().describe('Client/business name (fuzzy match). A contact name also works if they belong to a business.'),
-        price: z.number().optional().describe('Project price in ILS'),
+        advanceAmount: z.number().optional().describe('Advance (מקדמה) paid up front, in ILS. The rest of the money lives on the phases.'),
         retention: z.number().optional().describe('Monthly/yearly maintenance fee'),
         retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
       }),
@@ -179,11 +181,12 @@ export function createCrmTools(userId: string) {
     }),
 
     updateProject: tool({
-      description: 'Update a project. Can change status, price, deadline, etc.',
+      description: 'Update a project. Can change status, advance, deadline, etc. Phase prices are edited on the project page, not here.',
       inputSchema: z.object({
         nameQuery: z.string().describe('Project name to search for (fuzzy match)'),
         status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
-        price: z.number().optional(),
+        advanceAmount: z.number().optional().describe('Advance (מקדמה) in ILS'),
+        advancePaid: z.boolean().optional().describe('Mark the advance paid or unpaid'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
         deadline: z.string().optional().describe('Deadline date in ISO format'),
       }),
@@ -220,7 +223,19 @@ export function createCrmTools(userId: string) {
             name: project.name,
             type: project.type,
             status: project.status,
-            price: project.price ? Number(project.price) : null,
+            advance: {
+              amount: project.advanceAmount ? Number(project.advanceAmount) : null,
+              paid: project.advancePaidAt != null,
+            },
+            phases: project.phases.map((ph) => ({
+              name: ph.name,
+              status: ph.status,
+              price: Number(ph.price),
+              paid: ph.paidAt != null,
+            })),
+            total: projectTotal(project.advanceAmount, project.phases),
+            paid: projectPaid(project.advanceAmount, project.advancePaidAt, project.phases),
+            outstanding: projectOutstanding(project.phases),
             deadline: project.deadline?.toISOString() ?? null,
             client: project.client?.name,
             contact: project.primaryContact?.name ?? null,
@@ -260,7 +275,8 @@ export function createCrmTools(userId: string) {
             status: p.status,
             type: p.type,
             client: p.client?.name ?? 'לא ידוע',
-            price: p.price ? Number(p.price) : null,
+            total: projectTotal(p.advanceAmount, p.phases),
+            outstanding: projectOutstanding(p.phases),
             taskCount: p._count?.tasks ?? 0,
           })),
         }

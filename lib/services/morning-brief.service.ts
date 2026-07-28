@@ -120,6 +120,7 @@ export class MorningBriefService {
         where: { userId, status: 'ACTIVE' },
         include: {
           client: { select: { name: true } },
+          phases: { orderBy: { order: 'asc' } },
           _count: { select: { tasks: true } },
         },
       }),
@@ -149,6 +150,24 @@ export class MorningBriefService {
       const due = t.dueDate ? t.dueDate.toLocaleDateString('he-IL') : ''
       return `- ${t.title}${client ? ` (${client})` : ''}${project ? ` [${project}]` : ''} | ${priority}${due ? ` | ${due}` : ''}`
     }
+
+    // Two things that only become visible once money lives on phases: work
+    // sitting in the client's court, and work signed off but never paid for.
+    const awaitingApproval = activeProjects.flatMap((p) =>
+      p.phases
+        .filter((ph) => ph.status === 'PENDING_APPROVAL')
+        .map((ph) => `- ${ph.name} (${p.name} / ${p.client.name})`)
+    )
+
+    const unpaidPhases = activeProjects.flatMap((p) =>
+      p.phases
+        .filter((ph) => ph.status === 'APPROVED' && !ph.paidAt)
+        .map((ph) => ({
+          line: `- ${ph.name} (${p.name} / ${p.client.name}) | ${Number(ph.price).toLocaleString()} ₪`,
+          amount: Number(ph.price),
+        }))
+    )
+    const unpaidTotal = unpaidPhases.reduce((sum, p) => sum + p.amount, 0)
 
     const briefData = `
 תאריך: ${now.toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -186,6 +205,12 @@ ${staleLeads.map(l => `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})`)
 פרויקטים בתהליך (${activeProjects.length}):
 ${activeProjects.map(p => `- ${p.name} (${p.client.name}) | ${p._count.tasks} משימות`).join('\n')}
 
+שלבים ממתינים לאישור לקוח (${awaitingApproval.length}):
+${awaitingApproval.length > 0 ? awaitingApproval.join('\n') : 'אין'}
+
+תשלומים פתוחים (${unpaidPhases.length}${unpaidTotal > 0 ? `, סה"כ ${unpaidTotal.toLocaleString()} ₪` : ''}):
+${unpaidPhases.length > 0 ? unpaidPhases.map(p => p.line).join('\n') : 'אין'}
+
 משימות ממתינות לפי קטגוריה:
 ${taskCountsByCategory.map(c => {
       const labels: Record<string, string> = { CLIENT_WORK: 'עבודת לקוח', MARKETING: 'שיווק', LEAD_FOLLOWUP: 'מעקב לידים', ADMIN: 'מנהלה' }
@@ -221,6 +246,8 @@ Structure:
 5. Proactive suggestions section (only if relevant):
    - Follow-up reminders for stale contacts/leads
    - Marketing nudge if no marketing tasks in 14 days
+   - If "שלבים ממתינים לאישור לקוח" is not empty, nudge to chase the client for sign-off
+   - If "תשלומים פתוחים" is not empty, nudge to invoice or chase payment, and give the total
    - Any other observations
 6. If there are "בקשות חדשות לאישור", add a short section "X בקשות ממתינות לאישור" with the 3 most important items, and suggest Itay approve/dismiss them via the bot
 7. End with a motivating one-liner

@@ -57,6 +57,36 @@ export const PROJECT_STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'הושלם',
 }
 
+export const PROJECT_TYPE_LABELS: Record<string, string> = {
+  LANDING_PAGE: 'דף נחיתה',
+  WEBSITE: 'אתר',
+  ECOMMERCE: 'חנות אונליין',
+  WEB_APP: 'אפליקציית ווב',
+  MOBILE_APP: 'אפליקציה',
+  MANAGEMENT_SYSTEM: 'מערכת ניהול',
+  CONSULTATION: 'ייעוץ',
+}
+
+export const RETENTION_FREQUENCY_LABELS: Record<string, string> = {
+  MONTHLY: 'חודשי',
+  YEARLY: 'שנתי',
+}
+
+export const PHASE_STATUS_LABELS: Record<string, string> = {
+  NOT_STARTED: 'לא פעיל',
+  IN_PROGRESS: 'בעבודה',
+  PENDING_APPROVAL: 'ממתין לאישור לקוח',
+  REVISIONS: 'סבב תיקונים',
+  APPROVED: 'אושר',
+}
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  TODO: 'לביצוע',
+  IN_PROGRESS: 'בתהליך',
+  COMPLETED: 'הושלם',
+  CANCELLED: 'בוטל',
+}
+
 export const PRIORITY_LABELS: Record<string, string> = {
   LOW: 'נמוך',
   MEDIUM: 'בינוני',

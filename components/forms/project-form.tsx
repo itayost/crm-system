@@ -64,7 +64,7 @@ const projectFormSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
   startDate: z.string().optional(),
   deadline: z.string().optional(),
-  price: z.string().optional(),
+  advanceAmount: z.string().optional(),
   retention: z.string().optional(),
   retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
   clientId: z.string().min(1, 'לקוח חובה'),
@@ -81,7 +81,7 @@ interface Project {
   priority: string
   startDate?: string | null
   deadline?: string | null
-  price?: number | string | null
+  advanceAmount?: number | string | null
   retention?: number | string | null
   retentionFrequency?: string | null
   clientId: string
@@ -136,7 +136,7 @@ export function ProjectForm({
     priority: (project?.priority as ProjectFormValues['priority']) ?? 'MEDIUM',
     startDate: toDateInputValue(project?.startDate),
     deadline: toDateInputValue(project?.deadline),
-    price: project?.price != null ? String(project.price) : '',
+    advanceAmount: project?.advanceAmount != null ? String(project.advanceAmount) : '',
     retention: project?.retention != null ? String(project.retention) : '',
     retentionFrequency:
       (project?.retentionFrequency as ProjectFormValues['retentionFrequency']) ??
@@ -198,12 +198,12 @@ export function ProjectForm({
   const handleSubmit = async (values: ProjectFormValues) => {
     setIsSubmitting(true)
     try {
-      const priceNum = values.price ? Number(values.price) : undefined
+      const advanceNum = values.advanceAmount ? Number(values.advanceAmount) : undefined
       const retentionNum = values.retention ? Number(values.retention) : undefined
       const payload = {
         ...values,
         description: values.description || undefined,
-        price: priceNum && !isNaN(priceNum) ? priceNum : undefined,
+        advanceAmount: advanceNum != null && !isNaN(advanceNum) ? advanceNum : undefined,
         retention: retentionNum && !isNaN(retentionNum) ? retentionNum : undefined,
         startDate: values.startDate
           ? new Date(values.startDate).toISOString()
@@ -459,16 +459,20 @@ export function ProjectForm({
               />
             </div>
 
-            {/* Price */}
+            {/* Advance. The rest of the money is added phase by phase on the
+                project page, so this form no longer asks for a total. */}
             <FormField
               control={form.control}
-              name="price"
+              name="advanceAmount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>מחיר (₪)</FormLabel>
+                  <FormLabel>מקדמה (₪)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} />
+                    <Input type="number" min="0" placeholder="0" {...field} />
                   </FormControl>
+                  <p className="text-xs text-content-subtle">
+                    שאר התשלומים נוספים כשלבים בעמוד הפרויקט
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

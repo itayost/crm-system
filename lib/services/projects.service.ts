@@ -32,6 +32,8 @@ export class ProjectsService {
       include: {
         client: { select: { id: true, name: true } },
         primaryContact: { select: { id: true, name: true } },
+        // Enough to total the money without dragging every phase name across.
+        phases: { select: { price: true, status: true, paidAt: true } },
         _count: { select: { tasks: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -45,6 +47,7 @@ export class ProjectsService {
         client: true,
         primaryContact: true,
         tasks: true,
+        phases: { orderBy: { order: 'asc' } },
       },
     })
 
@@ -82,7 +85,8 @@ export class ProjectsService {
         priority: data.priority,
         startDate: data.startDate ? new Date(data.startDate) : undefined,
         deadline: data.deadline ? new Date(data.deadline) : undefined,
-        price: data.price != null ? new Prisma.Decimal(data.price) : undefined,
+        advanceAmount:
+          data.advanceAmount != null ? new Prisma.Decimal(data.advanceAmount) : undefined,
         retention: data.retention != null ? new Prisma.Decimal(data.retention) : undefined,
         retentionFrequency: data.retentionFrequency,
         clientId: data.clientId,
@@ -113,8 +117,8 @@ export class ProjectsService {
       deadline: data.deadline !== undefined
         ? (data.deadline ? new Date(data.deadline) : null)
         : undefined,
-      price: data.price !== undefined
-        ? (data.price != null ? new Prisma.Decimal(data.price) : null)
+      advanceAmount: data.advanceAmount !== undefined
+        ? (data.advanceAmount != null ? new Prisma.Decimal(data.advanceAmount) : null)
         : undefined,
       retention: data.retention !== undefined
         ? (data.retention != null ? new Prisma.Decimal(data.retention) : null)
@@ -126,6 +130,12 @@ export class ProjectsService {
       updateData.completedAt = new Date()
     } else if (data.status === 'ACTIVE') {
       updateData.completedAt = null
+    }
+
+    // The advance is marked paid by its own flag, never as a side effect of
+    // editing the amount - same separation as a phase's paidAt.
+    if (data.advancePaid !== undefined) {
+      updateData.advancePaidAt = data.advancePaid ? (project.advancePaidAt ?? new Date()) : null
     }
 
     return prisma.project.update({

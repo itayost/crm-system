@@ -40,7 +40,11 @@ export class ClientsService {
       include: {
         contacts: { orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }] },
         projects: {
-          include: { _count: { select: { tasks: true } } },
+          include: {
+            _count: { select: { tasks: true } },
+            // Just enough to total each project's money in the list.
+            phases: { select: { price: true, status: true, paidAt: true } },
+          },
           orderBy: { createdAt: 'desc' },
         },
       },

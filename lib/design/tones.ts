@@ -61,6 +61,19 @@ export const PROJECT_STATUS_TONES: Record<string, Tone> = {
   COMPLETED: 'neutral',
 }
 
+/**
+ * A billing phase. Only APPROVED is success - PENDING_APPROVAL and REVISIONS
+ * are the two states where the ball is in someone else's court, and they read
+ * as things to chase rather than things that went wrong.
+ */
+export const PHASE_STATUS_TONES: Record<string, Tone> = {
+  NOT_STARTED: 'neutral',
+  IN_PROGRESS: 'progress',
+  PENDING_APPROVAL: 'caution',
+  REVISIONS: 'warning',
+  APPROVED: 'success',
+}
+
 export const TASK_STATUS_TONES: Record<string, Tone> = {
   TODO: 'neutral',
   IN_PROGRESS: 'info',
