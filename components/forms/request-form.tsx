@@ -31,44 +31,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { requestType, priority } from '@/lib/validations/enums'
+import { REQUEST_TYPE_LABELS, PRIORITY_LABELS } from '@/lib/design/labels'
+import type { RequestRecord } from '@/lib/types/request'
 
-const TYPE_OPTIONS = [
-  { value: 'REQUEST', label: 'בקשה' },
-  { value: 'BUG', label: 'תקלה' },
-  { value: 'IMPROVEMENT', label: 'שיפור' },
-  { value: 'QUESTION', label: 'שאלה' },
-  { value: 'OTHER', label: 'אחר' },
-] as const
-
-const PRIORITY_OPTIONS = [
-  { value: 'LOW', label: 'נמוך' },
-  { value: 'MEDIUM', label: 'בינוני' },
-  { value: 'HIGH', label: 'גבוה' },
-  { value: 'URGENT', label: 'דחוף' },
-] as const
+const TYPE_OPTIONS = Object.entries(REQUEST_TYPE_LABELS)
+const PRIORITY_OPTIONS = Object.entries(PRIORITY_LABELS)
 
 const NO_PROJECT = 'none'
 
 const requestFormSchema = z.object({
-  title: z.string().min(1, 'כותרת בקשה חובה'),
+  title: z.string().min(1, 'כותרת פניה חובה'),
   description: z.string().optional(),
-  type: z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER']),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+  type: requestType,
+  priority: priority,
   clientId: z.string().min(1, 'לקוח חובה'),
   projectId: z.string().optional(),
 })
 
 type RequestFormValues = z.input<typeof requestFormSchema>
 
-interface RequestRecord {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  priority: string
-  clientId: string
-  projectId?: string | null
-}
+type RequestFormRecord = Pick<
+  RequestRecord,
+  'id' | 'title' | 'description' | 'type' | 'priority' | 'clientId' | 'projectId'
+>
 
 interface Option {
   id: string
@@ -76,7 +62,7 @@ interface Option {
 }
 
 interface RequestFormProps {
-  request?: RequestRecord
+  request?: RequestFormRecord
   defaultClientId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -98,8 +84,8 @@ export function RequestForm({
   const buildDefaults = (): RequestFormValues => ({
     title: request?.title ?? '',
     description: request?.description ?? '',
-    type: (request?.type as RequestFormValues['type']) ?? 'REQUEST',
-    priority: (request?.priority as RequestFormValues['priority']) ?? 'MEDIUM',
+    type: request?.type ?? 'REQUEST',
+    priority: request?.priority ?? 'MEDIUM',
     clientId: request?.clientId ?? defaultClientId ?? '',
     projectId: request?.projectId ?? NO_PROJECT,
   })
@@ -167,10 +153,10 @@ export function RequestForm({
         const { clientId: _clientId, ...updatePayload } = payload
         void _clientId
         await api.put(`/requests/${request.id}`, updatePayload)
-        toast.success('בקשה עודכנה בהצלחה')
+        toast.success('הפניה עודכנה בהצלחה')
       } else {
         await api.post('/requests', payload)
-        toast.success('בקשה נוצרה בהצלחה')
+        toast.success('הפניה נוצרה בהצלחה')
       }
 
       onSuccess()
@@ -178,7 +164,7 @@ export function RequestForm({
       form.reset(buildDefaults())
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
-      toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת בקשה')
+      toast.error(axiosError.response?.data?.error ?? 'שגיאה בשמירת הפניה')
     } finally {
       setIsSubmitting(false)
     }
@@ -188,9 +174,9 @@ export function RequestForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'עריכת בקשה' : 'בקשה חדשה'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'עריכת פניה' : 'פניה חדשה'}</DialogTitle>
           <DialogDescription>
-            {isEditing ? 'ערוך את פרטי הבקשה' : 'הזן את פרטי הבקשה החדשה'}
+            {isEditing ? 'ערוך את פרטי הפניה' : 'הזן את פרטי הפניה החדשה'}
           </DialogDescription>
         </DialogHeader>
 
@@ -238,9 +224,9 @@ export function RequestForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                        {TYPE_OPTIONS.map(([value, optionLabel]) => (
+                          <SelectItem key={value} value={value}>
+                            {optionLabel}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -263,9 +249,9 @@ export function RequestForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {PRIORITY_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                        {PRIORITY_OPTIONS.map(([value, optionLabel]) => (
+                          <SelectItem key={value} value={value}>
+                            {optionLabel}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -336,7 +322,7 @@ export function RequestForm({
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSubmitting} className="flex-1">
-                {isSubmitting ? 'שומר...' : isEditing ? 'עדכן' : 'צור בקשה'}
+                {isSubmitting ? 'שומר...' : isEditing ? 'עדכן' : 'צור פניה'}
               </Button>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 ביטול

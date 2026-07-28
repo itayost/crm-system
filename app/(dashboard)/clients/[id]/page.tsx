@@ -40,37 +40,19 @@ import {
 import { ClientForm } from '@/components/forms/client-form'
 import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
+import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
+import { tone, REQUEST_STATUS_TONES } from '@/lib/design/tones'
+import {
+  label,
+  REQUEST_TYPE_LABELS,
+  REQUEST_STATUS_LABELS,
+} from '@/lib/design/labels'
+import type { RequestRecord } from '@/lib/types/request'
 
-const REQUEST_TYPE_LABELS: Record<string, string> = {
-  REQUEST: 'בקשה',
-  BUG: 'תקלה',
-  IMPROVEMENT: 'שיפור',
-  QUESTION: 'שאלה',
-  OTHER: 'אחר',
-}
-
-const REQUEST_STATUS_LABELS: Record<string, string> = {
-  PENDING_REVIEW: 'ממתין לאישור',
-  OPEN: 'פתוח',
-  IN_PROGRESS: 'בטיפול',
-  RESOLVED: 'טופל',
-  DISMISSED: 'נדחה',
-}
-
-const REQUEST_STATUS_COLORS: Record<string, string> = {
-  PENDING_REVIEW: 'bg-amber-100 text-amber-800',
-  OPEN: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-indigo-100 text-indigo-800',
-  RESOLVED: 'bg-green-100 text-green-800',
-  DISMISSED: 'bg-surface-muted text-content-muted',
-}
-
-interface ClientRequest {
-  id: string
-  title: string
-  type: string
-  status: string
-}
+type ClientRequest = Pick<
+  RequestRecord,
+  'id' | 'title' | 'type' | 'status' | 'source' | 'isAiGenerated' | 'aiConfidence' | 'aiNote'
+>
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'פעיל',
@@ -463,7 +445,7 @@ export default function ClientDetailPage() {
           </CardTitle>
           <Button size="sm" onClick={() => setShowRequestForm(true)}>
             <Plus className="w-4 h-4 ml-2" />
-            בקשה חדשה ללקוח זה
+            פניה חדשה ללקוח זה
           </Button>
         </CardHeader>
         <CardContent>
@@ -474,19 +456,33 @@ export default function ClientDetailPage() {
               {requests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-3 rounded-lg border"
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
+                  onClick={() => router.push(`/requests/${request.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      router.push(`/requests/${request.id}`)
+                    }
+                  }}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-sm font-medium">{request.title}</span>
                     <span className="text-xs text-content-subtle">
-                      {REQUEST_TYPE_LABELS[request.type] ?? request.type}
+                      {label(REQUEST_TYPE_LABELS, request.type)}
                     </span>
+                    <SourceBadge source={request.source} />
+                    <AiBadge
+                      isAiGenerated={request.isAiGenerated}
+                      aiConfidence={request.aiConfidence}
+                      aiNote={request.aiNote}
+                    />
                   </div>
                   <Badge
-                    className={REQUEST_STATUS_COLORS[request.status] ?? ''}
+                    className={tone(REQUEST_STATUS_TONES, request.status)}
                     variant="secondary"
                   >
-                    {REQUEST_STATUS_LABELS[request.status] ?? request.status}
+                    {label(REQUEST_STATUS_LABELS, request.status)}
                   </Badge>
                 </div>
               ))}

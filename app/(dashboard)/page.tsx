@@ -187,11 +187,11 @@ export default function DashboardPage() {
       href: '/tasks',
     },
     {
-      title: 'בקשות לקוחות',
+      title: 'פניות לקוחות',
       value: String(data.requests.open),
       description: data.requests.pendingReview > 0
         ? `${data.requests.pendingReview} ממתינות לאישור`
-        : 'אין בקשות לאישור',
+        : 'אין פניות לאישור',
       icon: Inbox,
       color: data.requests.pendingReview > 0 ? 'text-red-600' : 'text-amber-600',
       bgColor: data.requests.pendingReview > 0 ? 'bg-red-50' : 'bg-amber-50',

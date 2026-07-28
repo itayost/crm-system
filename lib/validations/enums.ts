@@ -11,3 +11,13 @@ import { z } from 'zod'
 
 export const requestType = z.enum(['REQUEST', 'BUG', 'IMPROVEMENT', 'QUESTION', 'OTHER'])
 export const priority = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'])
+
+export const requestStatus = z.enum([
+  'PENDING_REVIEW',
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'DISMISSED',
+])
+
+export const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])

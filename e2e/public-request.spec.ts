@@ -120,10 +120,16 @@ test.describe('requests dashboard shows form tickets', () => {
     })
     await pub.dispose()
 
+    // A pending ticket lives only in the review queue card - the main table
+    // hides PENDING_REVIEW so the same ticket is not listed twice.
     await page.goto('/requests')
-    const row = page.locator('tr', { hasText: title }).first()
-    await expect(row).toBeVisible()
-    await expect(row.getByText('טופס')).toBeVisible()
+    const item = page
+      .locator('div.rounded-lg.border.bg-white', {
+        has: page.getByRole('link', { name: title }),
+      })
+      .first()
+    await expect(item).toBeVisible()
+    await expect(item.getByText('טופס')).toBeVisible()
   })
 })
 

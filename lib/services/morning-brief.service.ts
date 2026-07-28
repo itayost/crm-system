@@ -1,6 +1,7 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
+import { REQUEST_TYPE_LABELS } from '@/lib/design/labels'
 
 const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
 
@@ -129,14 +130,6 @@ export class MorningBriefService {
       }),
     ])
 
-    const requestTypeLabel: Record<string, string> = {
-      REQUEST: 'בקשה',
-      BUG: 'באג',
-      IMPROVEMENT: 'שיפור',
-      QUESTION: 'שאלה',
-      OTHER: 'אחר',
-    }
-
     const formatTask = (t: { title: string; priority: string; dueDate: Date | null; project: { name: string; client: { name: string } | null } | null }) => {
       const client = t.project?.client?.name ?? ''
       const project = t.project?.name ?? ''
@@ -183,7 +176,7 @@ ${pendingRequests.length > 0
       .slice(0, 5)
       .map(
         (r) =>
-          `- [${requestTypeLabel[r.type] ?? r.type}] ${r.title} (${r.client?.name ?? r.contact?.name ?? 'לא ידוע'})`
+          `- [${REQUEST_TYPE_LABELS[r.type] ?? r.type}] ${r.title} (${r.client?.name ?? r.contact?.name ?? 'לא ידוע'})`
       )
       .join('\n')
   : 'אין'}

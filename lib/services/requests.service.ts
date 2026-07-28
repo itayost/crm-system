@@ -16,6 +16,7 @@ interface RequestFilters {
   clientId?: string
   projectId?: string
   pendingReview?: boolean
+  excludePending?: boolean
   search?: string
 }
 
@@ -23,6 +24,7 @@ const REQUEST_INCLUDE = {
   client: { select: { id: true, name: true } },
   contact: { select: { id: true, name: true } },
   project: { select: { id: true, name: true } },
+  task: { select: { id: true, title: true, status: true } },
 } satisfies Prisma.RequestInclude
 
 /**
@@ -88,6 +90,10 @@ export class RequestsService {
       where.status = 'PENDING_REVIEW'
     } else if (filters?.status) {
       where.status = filters.status as Prisma.EnumRequestStatusFilter
+    } else if (filters?.excludePending) {
+      // Opt-in only: the dashboard table hides drafts that already sit in the
+      // pending-review queue, but the WhatsApp owner tools must keep seeing them.
+      where.status = { not: 'PENDING_REVIEW' }
     }
 
     if (filters?.type) {
@@ -228,6 +234,7 @@ export class RequestsService {
       priority: data.priority,
       contactId: data.contactId !== undefined ? data.contactId : undefined,
       projectId: data.projectId !== undefined ? data.projectId : undefined,
+      intake: data.intake === undefined ? undefined : (data.intake as Prisma.InputJsonValue),
     }
 
     if (data.status === 'RESOLVED' && !existing.resolvedAt) {

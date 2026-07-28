@@ -1,20 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
-import { Plus, Search, Check, X, Sparkles } from 'lucide-react'
+import { Plus, Search, Sparkles, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -31,145 +26,25 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { RequestForm } from '@/components/forms/request-form'
-import {
-  INTAKE_FIELD_LABELS,
-  INTAKE_FREQUENCY_LABELS,
-  type Intake,
-} from '@/lib/validations/intake'
+import { PendingReviewCard } from '@/components/requests/pending-review-card'
+import { AttachmentLinks } from '@/components/requests/attachment-links'
+import { SourceBadge } from '@/components/requests/request-badges'
 import { tone, PRIORITY_TONES, REQUEST_STATUS_TONES, REQUEST_TYPE_TONES } from '@/lib/design/tones'
-
-const TYPE_LABELS: Record<string, string> = {
-  REQUEST: 'בקשה',
-  BUG: 'תקלה',
-  IMPROVEMENT: 'שיפור',
-  QUESTION: 'שאלה',
-  OTHER: 'אחר',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING_REVIEW: 'ממתין לאישור',
-  OPEN: 'פתוח',
-  IN_PROGRESS: 'בטיפול',
-  RESOLVED: 'טופל',
-  DISMISSED: 'נדחה',
-}
-
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: 'נמוך',
-  MEDIUM: 'בינוני',
-  HIGH: 'גבוה',
-  URGENT: 'דחוף',
-}
-
-interface RequestRecord {
-  id: string
-  title: string
-  description?: string | null
-  type: string
-  status: string
-  priority: string
-  source: string
-  attachments: string[]
-  isAiGenerated: boolean
-  aiNote?: string | null
-  intake?: Intake | null
-  clientId: string
-  projectId?: string | null
-  createdAt: string
-  client?: { id: string; name: string } | null
-  project?: { id: string; name: string } | null
-}
+import {
+  label,
+  REQUEST_TYPE_LABELS,
+  REQUEST_STATUS_LABELS,
+  PRIORITY_LABELS,
+} from '@/lib/design/labels'
+import type { RequestRecord } from '@/lib/types/request'
 
 interface ClientOption {
   id: string
   name: string
 }
 
-/**
- * What the agent got out of the client, as a form rather than as prose. The
- * point of the whole intake: everything you need to judge a ticket, in the same
- * place on every ticket.
- */
-function IntakeDetails({ intake }: { intake?: Intake | null }) {
-  if (!intake) return null
-
-  const rows: Array<[string, string]> = []
-  const add = (field: keyof Intake, value: string | null | undefined) => {
-    if (value) rows.push([INTAKE_FIELD_LABELS[field], value])
-  }
-
-  add('where', intake.where)
-  add('whatHappened', intake.whatHappened)
-  add('expected', intake.expected)
-  add('frequency', intake.frequency ? INTAKE_FREQUENCY_LABELS[intake.frequency] : null)
-  if (intake.workedBefore !== null && intake.workedBefore !== undefined) {
-    add('workedBefore', intake.workedBefore ? 'כן' : 'לא')
-  }
-  if (intake.blocking !== null && intake.blocking !== undefined) {
-    add('blocking', intake.blocking ? 'כן' : 'לא')
-  }
-  add('goal', intake.goal)
-  add('today', intake.today)
-
-  if (rows.length === 0) return null
-
-  return (
-    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-      {rows.map(([label, value]) => (
-        <div key={label} className="contents">
-          <dt className="text-content-subtle whitespace-nowrap">{label}</dt>
-          <dd className="text-content-strong">{value}</dd>
-        </div>
-      ))}
-      {intake.suggestedType && (
-        <div className="contents">
-          <dt className="text-content-faint whitespace-nowrap">
-            {INTAKE_FIELD_LABELS.suggestedType}
-          </dt>
-          <dd className="text-content-faint">
-            {TYPE_LABELS[intake.suggestedType] ?? intake.suggestedType}
-          </dd>
-        </div>
-      )}
-    </dl>
-  )
-}
-
-/**
- * One link per attached file. A WhatsApp request can arrive with a voice note
- * and a screenshot together, so linking only the first file would hide the rest.
- */
-function AttachmentLinks({
-  attachments,
-  onOpen,
-  className = '',
-}: {
-  attachments: string[]
-  onOpen: (path: string) => void
-  className?: string
-}) {
-  if (!attachments?.length) return null
-
-  return (
-    <>
-      {attachments.map((path, index) => (
-        <button
-          key={path}
-          type="button"
-          className={`text-xs text-link underline ${className}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onOpen(path)
-          }}
-        >
-          {attachments.length > 1 ? `קובץ ${index + 1}` : 'צפייה בקובץ'}
-        </button>
-      ))}
-    </>
-  )
-}
-
 export default function RequestsPage() {
+  const router = useRouter()
   const [requests, setRequests] = useState<RequestRecord[]>([])
   const [pending, setPending] = useState<RequestRecord[]>([])
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -195,7 +70,13 @@ export default function RequestsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (statusFilter !== 'ALL') {
+        params.set('status', statusFilter)
+      } else {
+        // Drafts already sit in the pending-review queue above the table;
+        // listing them twice made the page read as double the real workload.
+        params.set('excludePending', 'true')
+      }
       if (typeFilter !== 'ALL') params.set('type', typeFilter)
       if (clientFilter !== 'ALL') params.set('clientId', clientFilter)
       if (search.trim()) params.set('search', search.trim())
@@ -203,7 +84,7 @@ export default function RequestsPage() {
       const response = await api.get(`/requests?${params.toString()}`)
       setRequests(response.data)
     } catch {
-      toast.error('שגיאה בטעינת בקשות')
+      toast.error('שגיאה בטעינת פניות')
     } finally {
       setLoading(false)
     }
@@ -241,11 +122,11 @@ export default function RequestsPage() {
     setActingOn(id)
     try {
       await api.post(`/requests/${id}/action`, { action })
-      toast.success(action === 'approve' ? 'הבקשה אושרה' : 'הבקשה נדחתה')
+      toast.success(action === 'approve' ? 'הפניה אושרה' : 'הפניה נדחתה')
       refetchAll()
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
-      toast.error(axiosError.response?.data?.error ?? 'שגיאה בעדכון בקשה')
+      toast.error(axiosError.response?.data?.error ?? 'שגיאה בעדכון הפניה')
     } finally {
       setActingOn(null)
     }
@@ -288,85 +169,23 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-strong">בקשות לקוחות</h1>
+          <h1 className="text-2xl font-bold text-content-strong">פניות לקוחות</h1>
           <p className="text-sm text-content-subtle mt-1">
             בקשות, תקלות ושיפורים שהלקוחות ביקשו
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="w-4 h-4 ml-2" />
-          בקשה חדשה
+          פניה חדשה
         </Button>
       </div>
 
-      {/* Pending review queue */}
-      {pending.length > 0 && (
-        <Card className="border-amber-300 bg-amber-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
-              <Sparkles className="w-5 h-5" />
-              ממתין לאישור ({pending.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {pending.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex items-start justify-between gap-4 p-3 rounded-lg border bg-white"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
-                        {TYPE_LABELS[request.type] ?? request.type}
-                      </Badge>
-                      {request.source === 'FORM' && (
-                        <Badge variant="secondary" className="bg-sky-100 text-sky-800">
-                          טופס
-                        </Badge>
-                      )}
-                      {request.isAiGenerated && (
-                        <Badge variant="secondary" className="bg-violet-100 text-violet-800">
-                          AI
-                        </Badge>
-                      )}
-                      <span className="text-sm font-medium">{request.title}</span>
-                      <AttachmentLinks
-                        attachments={request.attachments}
-                        onOpen={(path) => openAttachment(request.id, path)}
-                      />
-                    </div>
-                    <p className="text-xs text-content-subtle mt-1">
-                      {request.client?.name ?? '-'}
-                      {request.aiNote ? ` · ${request.aiNote}` : ''}
-                    </p>
-                    <IntakeDetails intake={request.intake} />
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      disabled={actingOn === request.id}
-                      onClick={() => handleAction(request.id, 'approve')}
-                    >
-                      <Check className="w-4 h-4 ml-1" />
-                      אשר
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={actingOn === request.id}
-                      onClick={() => handleAction(request.id, 'dismiss')}
-                    >
-                      <X className="w-4 h-4 ml-1" />
-                      דחה
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <PendingReviewCard
+        pending={pending}
+        actingOn={actingOn}
+        onAction={handleAction}
+        onOpenAttachment={openAttachment}
+      />
 
       {/* Filters */}
       <div className="flex items-center gap-4 flex-wrap">
@@ -374,7 +193,7 @@ export default function RequestsPage() {
           <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
           <Input
             type="search"
-            placeholder="חיפוש בקשה..."
+            placeholder="חיפוש פניה..."
             className="pr-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -386,9 +205,9 @@ export default function RequestsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">כל הסטטוסים</SelectItem>
-            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            {Object.entries(REQUEST_STATUS_LABELS).map(([value, statusLabel]) => (
               <SelectItem key={value} value={value}>
-                {label}
+                {statusLabel}
               </SelectItem>
             ))}
           </SelectContent>
@@ -399,9 +218,9 @@ export default function RequestsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">כל הסוגים</SelectItem>
-            {Object.entries(TYPE_LABELS).map(([value, label]) => (
+            {Object.entries(REQUEST_TYPE_LABELS).map(([value, typeLabel]) => (
               <SelectItem key={value} value={value}>
-                {label}
+                {typeLabel}
               </SelectItem>
             ))}
           </SelectContent>
@@ -430,8 +249,8 @@ export default function RequestsPage() {
         </div>
       ) : requests.length === 0 ? (
         <div className="text-center py-12 text-content-subtle">
-          <p className="text-lg font-medium">אין בקשות</p>
-          <p className="text-sm mt-1">צור בקשה חדשה כדי להתחיל</p>
+          <p className="text-lg font-medium">אין פניות</p>
+          <p className="text-sm mt-1">צור פניה חדשה כדי להתחיל</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg border">
@@ -445,6 +264,7 @@ export default function RequestsPage() {
                 <TableHead className="text-right">לקוח</TableHead>
                 <TableHead className="text-right">פרויקט</TableHead>
                 <TableHead className="text-right">תאריך</TableHead>
+                <TableHead className="text-right w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -452,7 +272,7 @@ export default function RequestsPage() {
                 <TableRow
                   key={request.id}
                   className="cursor-pointer"
-                  onClick={() => openEdit(request)}
+                  onClick={() => router.push(`/requests/${request.id}`)}
                 >
                   <TableCell className="font-medium">
                     {request.title}
@@ -468,28 +288,38 @@ export default function RequestsPage() {
                   <TableCell>
                     <div className="flex items-center gap-1 flex-wrap">
                       <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
-                        {TYPE_LABELS[request.type] ?? request.type}
+                        {label(REQUEST_TYPE_LABELS, request.type)}
                       </Badge>
-                      {request.source === 'FORM' && (
-                        <Badge variant="secondary" className="bg-sky-100 text-sky-800">
-                          טופס
-                        </Badge>
-                      )}
+                      <SourceBadge source={request.source} />
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge className={tone(REQUEST_STATUS_TONES, request.status)} variant="secondary">
-                      {STATUS_LABELS[request.status] ?? request.status}
+                      {label(REQUEST_STATUS_LABELS, request.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={tone(PRIORITY_TONES, request.priority)} variant="secondary">
-                      {PRIORITY_LABELS[request.priority] ?? request.priority}
+                      {label(PRIORITY_LABELS, request.priority)}
                     </Badge>
                   </TableCell>
                   <TableCell>{request.client?.name ?? '-'}</TableCell>
                   <TableCell>{request.project?.name ?? '-'}</TableCell>
                   <TableCell>{formatDate(request.createdAt)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label="עריכה מהירה"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(request)
+                      }}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

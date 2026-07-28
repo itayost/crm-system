@@ -41,6 +41,7 @@ export class TasksService {
       where,
       include: {
         project: { select: { id: true, name: true } },
+        request: { select: { id: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -53,6 +54,7 @@ export class TasksService {
         project: {
           include: { client: true, primaryContact: true },
         },
+        request: { select: { id: true, title: true } },
       },
     })
 

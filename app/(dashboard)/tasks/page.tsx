@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { format } from 'date-fns'
-import { Plus, Search, Check, Send } from 'lucide-react'
+import { Plus, Search, Check, Send, Inbox } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
@@ -79,9 +81,14 @@ interface Task {
     id: string
     name: string
   } | null
+  request?: {
+    id: string
+    title: string
+  } | null
 }
 
 export default function TasksPage() {
+  const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -119,6 +126,24 @@ export default function TasksPage() {
     }, search ? 300 : 0)
     return () => clearTimeout(debounce)
   }, [fetchTasks, search])
+
+  // A request's detail page links here as /tasks?openTask=<id> - open that
+  // task's dialog once the list is in, then drop the param from the URL.
+  // window.location instead of useSearchParams keeps the page out of the
+  // Suspense boundary that hook requires.
+  const openedFromQuery = useRef(false)
+  useEffect(() => {
+    if (loading || openedFromQuery.current) return
+    const openTaskId = new URLSearchParams(window.location.search).get('openTask')
+    if (!openTaskId) return
+    openedFromQuery.current = true
+    const task = tasks.find((t) => t.id === openTaskId)
+    if (task) {
+      setEditingTask(task)
+      setShowForm(true)
+    }
+    router.replace('/tasks')
+  }, [loading, tasks, router])
 
   const handleToggleComplete = async (task: Task) => {
     setTogglingId(task.id)
@@ -372,6 +397,16 @@ export default function TasksPage() {
                           ? `${task.description.slice(0, 60)}...`
                           : task.description}
                       </p>
+                    )}
+                    {task.request && (
+                      <Link
+                        href={`/requests/${task.request.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-xs text-link hover:underline mt-0.5"
+                      >
+                        <Inbox className="w-3 h-3" />
+                        נוצרה מפניה: {task.request.title}
+                      </Link>
                     )}
                   </TableCell>
                   <TableCell>

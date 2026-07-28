@@ -1,3 +1,5 @@
+import { REQUEST_TYPE_LABELS } from '@/lib/design/labels'
+
 /**
  * Hebrew copy for the messages the bot session sends on its own initiative.
  * Kept out of the route files so tests and future agent slices share one source.
@@ -58,14 +60,8 @@ export function secondConfirmationReminder(title: string): string {
   return `תזכורת אחרונה בנוגע לבקשה *${title}*.\nאם זה מדויק, כתוב לי "כן" ואעביר את זה לאיתי. אם לא, ספר לי מה לתקן.`
 }
 
-const REQUEST_TYPE_LABELS: Record<string, string> = {
-  REQUEST: 'בקשה',
-  BUG: 'תקלה',
-  IMPROVEMENT: 'שיפור',
-  QUESTION: 'שאלה',
-  OTHER: 'אחר',
-}
-
+// Not the shared PRIORITY_LABELS from lib/design/labels: these agree in gender
+// with עדיפות for the client-facing WhatsApp message ("עדיפות גבוהה").
 const PRIORITY_LABELS: Record<string, string> = {
   LOW: 'נמוכה',
   MEDIUM: 'רגילה',

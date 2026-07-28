@@ -37,7 +37,7 @@ const navigation = [
     icon: Briefcase,
   },
   {
-    name: 'בקשות',
+    name: 'פניות',
     href: '/requests',
     icon: Inbox,
   },

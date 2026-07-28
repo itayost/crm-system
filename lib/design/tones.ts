@@ -83,6 +83,14 @@ export const REQUEST_STATUS_TONES: Record<string, Tone> = {
   DISMISSED: 'neutral',
 }
 
+export const REQUEST_SOURCE_TONES: Record<string, Tone> = {
+  WHATSAPP: 'success',
+  FORM: 'info',
+  EMAIL: 'accent',
+  MANUAL: 'neutral',
+  OTHER: 'neutral',
+}
+
 /** Falls back to neutral so an unmapped value is plain rather than invisible. */
 export function tone(map: Record<string, Tone>, value: string | null | undefined): string {
   return toneClass[map[value ?? ''] ?? 'neutral']

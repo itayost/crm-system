@@ -28,8 +28,10 @@ test.describe('Navigation', () => {
     await page.goto('/contacts')
     await page.waitForLoadState('networkidle')
 
+    // The active style is the text-link token (design tokens replaced the old
+    // hardcoded text-blue-600).
     const contactsLink = page.locator('nav a').filter({ hasText: 'אנשי קשר' })
-    await expect(contactsLink).toHaveClass(/text-blue-600/)
+    await expect(contactsLink).toHaveClass(/text-link/)
   })
 
   test('header-greeting: displays Hebrew greeting based on time of day', async ({ page }) => {

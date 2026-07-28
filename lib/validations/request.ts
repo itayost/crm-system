@@ -1,19 +1,10 @@
 import { z } from 'zod'
 import { intakeSchema } from './intake'
-import { requestType, priority } from './enums'
+import { requestType, requestStatus, requestSource, priority } from './enums'
 
 // Re-exported so existing importers keep working; defined in ./enums to avoid a
 // cycle with ./intake.
-export { requestType, priority } from './enums'
-const requestStatus = z.enum([
-  'PENDING_REVIEW',
-  'OPEN',
-  'IN_PROGRESS',
-  'RESOLVED',
-  'DISMISSED',
-])
-
-const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])
+export { requestType, requestStatus, requestSource, priority } from './enums'
 
 export const createRequestSchema = z.object({
   title: z.string().min(1, 'כותרת בקשה חובה'),
@@ -34,6 +25,10 @@ export const updateRequestSchema = z.object({
   priority: priority.optional(),
   contactId: z.string().nullable().optional(),
   projectId: z.string().nullable().optional(),
+  // A full intake object only - never null. Omitting it leaves the stored
+  // intake untouched, so the dashboard can't accidentally wipe what the
+  // support agent collected.
+  intake: intakeSchema.optional(),
 })
 
 // One AI-drafted request produced by the extraction pass

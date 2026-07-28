@@ -12,6 +12,7 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
     clientId: searchParams.get('clientId') || undefined,
     projectId: searchParams.get('projectId') || undefined,
     pendingReview: searchParams.get('pendingReview') === 'true' || undefined,
+    excludePending: searchParams.get('excludePending') === 'true' || undefined,
     search: searchParams.get('search') || undefined,
   })
 
