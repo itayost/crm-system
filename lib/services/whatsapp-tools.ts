@@ -13,6 +13,7 @@ import {
   fuzzyMatchTask,
   fuzzyMatchRequest,
 } from './fuzzy-match'
+import { contactStatus, contactSource } from '@/lib/validations/enums'
 
 export function createCrmTools(userId: string) {
   return {
@@ -23,8 +24,8 @@ export function createCrmTools(userId: string) {
       inputSchema: z.object({
         name: z.string().describe('Contact name'),
         phone: z.string().describe('Phone number in Israeli format (05XXXXXXXX)'),
-        source: z.enum(['WEBSITE', 'PHONE', 'WHATSAPP', 'REFERRAL', 'OTHER']).optional().describe('How the contact was acquired'),
-        status: z.enum(['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING', 'CLIENT']).optional().describe('Contact status, default NEW for leads'),
+        source: contactSource.optional().describe('How the contact was acquired'),
+        status: contactStatus.optional().describe('Pipeline stage, default NEW for leads'),
       }),
       execute: async ({ name, phone, source, status }) => {
         const contact = await ContactsService.create(userId, {
@@ -45,12 +46,23 @@ export function createCrmTools(userId: string) {
       description: 'Update an existing contact. Can change status, phone, email, VIP status, etc. Also used to convert a lead to client (set status to CLIENT).',
       inputSchema: z.object({
         nameQuery: z.string().describe('Contact name to search for (fuzzy match)'),
-        status: z.enum(['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING', 'CLIENT', 'INACTIVE']).optional(),
+        status: contactStatus.optional(),
         phone: z.string().optional(),
         email: z.string().optional(),
         isVip: z.boolean().optional(),
         company: z.string().optional(),
         notes: z.string().optional(),
+        nextActionAt: z
+          .string()
+          .datetime()
+          .nullable()
+          .optional()
+          .describe('When the next action on this lead is due, ISO 8601. null clears it.'),
+        nextActionNote: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('What the next action is, e.g. "לשלוח הצעת מחיר"'),
       }),
       execute: async ({ nameQuery, ...updates }) => {
         const result = await fuzzyMatchContact(userId, nameQuery)

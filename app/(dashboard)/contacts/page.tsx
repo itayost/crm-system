@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
 import { Plus, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -20,39 +19,22 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ContactForm } from '@/components/forms/contact-form'
-import { tone, CONTACT_STATUS_TONES } from '@/lib/design/tones'
+import { tone, CONTACT_STATUS_TONES, toneClass } from '@/lib/design/tones'
+import { label, CONTACT_STATUS_LABELS, CONTACT_SOURCE_LABELS } from '@/lib/design/labels'
+import { formatDate } from '@/lib/utils'
+import type { ContactListItem } from '@/lib/types/contact'
 
-const STATUS_LABELS: Record<string, string> = {
-  NEW: 'חדש',
-  CONTACTED: 'נוצר קשר',
-  QUOTED: 'הוצעה הצעה',
-  NEGOTIATING: 'במשא ומתן',
-  CLIENT: 'לקוח',
-  INACTIVE: 'לא פעיל',
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  WEBSITE: 'אתר',
-  PHONE: 'טלפון',
-  WHATSAPP: 'וואטסאפ',
-  REFERRAL: 'הפניה',
-  OTHER: 'אחר',
-}
-
-interface Contact {
-  id: string
-  name: string
-  phone: string
-  email?: string | null
-  company?: string | null
-  status: string
-  source: string
-  createdAt: string
+/** Compared against the start of today, so a lead due today is not late. */
+function isOverdue(iso: string | null): boolean {
+  if (!iso) return false
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  return new Date(iso) < start
 }
 
 export default function ContactsPage() {
   const router = useRouter()
-  const [contacts, setContacts] = useState<Contact[]>([])
+  const [contacts, setContacts] = useState<ContactListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState('all')
@@ -82,19 +64,10 @@ export default function ContactsPage() {
     return () => clearTimeout(debounce)
   }, [fetchContacts, search])
 
-  const visibleContacts = contacts.filter((c) => {
-    if (tab === 'leads') return ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'].includes(c.status)
-    if (tab === 'clients') return ['CLIENT', 'INACTIVE'].includes(c.status)
-    return true
-  })
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
+  // The server already applied `phase`, and it is the only place that knows
+  // which statuses count as a lead. Re-filtering here just meant a second copy
+  // of that list to forget to update.
+  const isLeadsTab = tab === 'leads'
 
   return (
     <div className="space-y-6">
@@ -139,7 +112,7 @@ export default function ContactsPage() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : visibleContacts.length === 0 ? (
+          ) : contacts.length === 0 ? (
             <div className="text-center py-12 text-content-subtle">
               <p className="text-lg font-medium">אין אנשי קשר</p>
               <p className="text-sm mt-1">
@@ -154,12 +127,13 @@ export default function ContactsPage() {
                     <TableHead className="text-right">שם</TableHead>
                     <TableHead className="text-right">טלפון</TableHead>
                     <TableHead className="text-right">סטטוס</TableHead>
+                    {isLeadsTab && <TableHead className="text-right">פעולה הבאה</TableHead>}
                     <TableHead className="text-right">מקור</TableHead>
                     <TableHead className="text-right">תאריך</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleContacts.map((contact) => (
+                  {contacts.map((contact) => (
                     <TableRow
                       key={contact.id}
                       className="cursor-pointer"
@@ -181,11 +155,36 @@ export default function ContactsPage() {
                           className={tone(CONTACT_STATUS_TONES, contact.status)}
                           variant="secondary"
                         >
-                          {STATUS_LABELS[contact.status] ?? contact.status}
+                          {label(CONTACT_STATUS_LABELS, contact.status)}
                         </Badge>
                       </TableCell>
+                      {isLeadsTab && (
+                        <TableCell>
+                          {contact.nextActionAt ? (
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  isOverdue(contact.nextActionAt)
+                                    ? toneClass.danger
+                                    : toneClass.neutral
+                                }
+                              >
+                                {formatDate(contact.nextActionAt)}
+                              </Badge>
+                              {contact.nextActionNote && (
+                                <span className="text-xs text-content-subtle truncate max-w-[16rem]">
+                                  {contact.nextActionNote}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-content-faint">-</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
-                        {SOURCE_LABELS[contact.source] ?? contact.source}
+                        {label(CONTACT_SOURCE_LABELS, contact.source)}
                       </TableCell>
                       <TableCell>{formatDate(contact.createdAt)}</TableCell>
                     </TableRow>

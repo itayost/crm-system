@@ -65,13 +65,14 @@ The schema (`prisma/schema.prisma`) has 4 models:
 
 ### Contact
 
-- **Unified model replacing the old Lead + Client split**
-- Status progression: NEW -> CONTACTED -> QUOTED -> NEGOTIATING -> CLIENT -> INACTIVE
-- Statuses NEW through NEGOTIATING represent leads; CLIENT and INACTIVE represent clients
-- The `ContactsService` uses a `phase` filter (`lead` | `client`) to distinguish them
-- `convertedAt` timestamp marks when a lead became a client
+- A person. The business they belong to is a separate `Client` model; a Contact points at one via `clientId` (with `role` and `isPrimary`)
+- Lead pipeline: NEW -> CONTACTED -> MEETING_SCHEDULED -> QUOTED, then CLIENT if won or **LOST** if not. INACTIVE is for a churned *client*, not a dead lead
+- `LEAD_STATUSES` and `CLIENT_STATUSES` live in `lib/validations/enums.ts` and are the single source for the `phase` filter (`lead` | `client`). **LOST is in neither** -- the לידים tab is the active pipeline, and LOST shows under "הכל" or via the status filter
+- **Status is not settable on create.** `ContactsService.create` derives it: a contact created with a `clientId` is born CLIENT (with `convertedAt` left null, since it was never a lead we won). Everything else takes the schema default NEW
+- `convertedAt` marks when a lead became a client
+- `nextActionAt` + `nextActionNote`: the one thing owed to this lead next. Drives the leads-table sort and the morning brief's "פעולות להיום". Cleared automatically on reaching CLIENT / LOST / INACTIVE
 - Sources: WEBSITE, PHONE, WHATSAPP, REFERRAL, OTHER
-- Fields: name, email, phone, company, estimatedBudget, projectType, isVip, address, taxId, notes
+- Hebrew labels come from `lib/design/labels.ts`, colours from `lib/design/tones.ts` -- never inline either
 
 ### Project
 

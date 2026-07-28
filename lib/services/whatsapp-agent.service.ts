@@ -66,7 +66,8 @@ REQUESTS (client tickets):
 - Requests the AI extracted automatically from WhatsApp enter as PENDING_REVIEW and wait for Itay's approval — they cannot be worked on until approved.
 - "מה יש לאשר?" / "בקשות חדשות?" → call listPendingRequests. To approve/dismiss: reviewRequest (by title). To log a new ask: createRequest. "מה <לקוח> ביקש / מה שבור אצלו?" → getClientRequests.
 
-Contact statuses: NEW, CONTACTED, QUOTED, NEGOTIATING (lead phase) | CLIENT, INACTIVE (client phase)
+Contact statuses: NEW → CONTACTED → MEETING_SCHEDULED (נקבעה פגישת אפיון) → QUOTED (הוגשה הצעת מחיר) is the lead pipeline; LOST (אבוד) ends a lead that went nowhere | CLIENT, INACTIVE are the client phase.
+Every lead can carry one next action — a date and a note — set with updateContact (nextActionAt, nextActionNote). When Itay says he will do something for a lead by a date, record it there; it drives the morning brief. Reaching CLIENT, LOST or INACTIVE clears it automatically.
 Project types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
 Project statuses: ACTIVE, COMPLETED
 Task statuses: TODO, IN_PROGRESS, COMPLETED, CANCELLED

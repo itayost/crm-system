@@ -38,13 +38,21 @@ export const PRIORITY_TONES: Record<string, Tone> = {
   URGENT: 'danger',
 }
 
-/** A lead warming up towards being a client, then going quiet. */
+/**
+ * A lead warming up towards being a client, then going quiet.
+ *
+ * The pipeline reads as rising heat - info, caution, accent, warning - so a
+ * row's colour tells you how close the deal is without reading the label.
+ * The two endings are deliberately opposite: LOST is danger (a deal that got
+ * away), INACTIVE is neutral (a client who simply stopped buying).
+ */
 export const CONTACT_STATUS_TONES: Record<string, Tone> = {
   NEW: 'info',
   CONTACTED: 'caution',
-  QUOTED: 'accent',
-  NEGOTIATING: 'warning',
+  MEETING_SCHEDULED: 'accent',
+  QUOTED: 'warning',
   CLIENT: 'success',
+  LOST: 'danger',
   INACTIVE: 'neutral',
 }
 

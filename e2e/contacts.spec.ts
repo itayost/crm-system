@@ -208,6 +208,91 @@ test.describe('Contacts', () => {
     }
   })
 
+  test('advance-stage: moves a lead through the pipeline from the detail page', async ({ page }) => {
+    const leadRow = getTableRow(page, 'ליד ראשון')
+    await leadRow.click()
+    await page.waitForLoadState('networkidle')
+
+    // The status is a Select, not a static badge - before this the only
+    // transition the UI offered at all was "המר ללקוח".
+    const statusSelect = page.locator('main button[role="combobox"]').first()
+    await expect(statusSelect).toContainText('חדש')
+
+    await statusSelect.click()
+    await page.locator('[role="option"]').filter({ hasText: 'נקבעה פגישת אפיון' }).click()
+    await expectToastSuccess(page, 'סטטוס עודכן בהצלחה')
+    await page.waitForLoadState('networkidle')
+
+    await expect(statusSelect).toContainText('נקבעה פגישת אפיון')
+
+    // Restore: later tests and the leads-tab assertions expect NEW.
+    const id = page.url().split('/contacts/')[1]
+    await page.request.put(`/api/contacts/${id}`, { data: { status: 'NEW' } })
+  })
+
+  test('next-action: sets and clears the next action on a lead', async ({ page }) => {
+    const leadRow = getTableRow(page, 'ליד ראשון')
+    await leadRow.click()
+    await page.waitForLoadState('networkidle')
+
+    const editor = page.locator('main').filter({ hasText: 'פעולה הבאה' })
+    await expect(editor.first()).toBeVisible()
+
+    await page.locator('input[aria-label="תאריך פעולה הבאה"]').fill('2026-12-31')
+    await page.locator('input[aria-label="תיאור פעולה הבאה"]').fill('להתקשר בחזרה')
+    await page.locator('main button').filter({ hasText: 'שמירה' }).click()
+    await expectToastSuccess(page, 'פעולה הבאה נשמרה')
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('input[aria-label="תיאור פעולה הבאה"]')).toHaveValue('להתקשר בחזרה')
+
+    await page.locator('main button').filter({ hasText: 'נקה' }).click()
+    await expectToastSuccess(page, 'פעולה הבאה נוקתה')
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('input[aria-label="תיאור פעולה הבאה"]')).toHaveValue('')
+  })
+
+  test('next-action-column: an overdue lead is flagged on the leads tab', async ({ page }) => {
+    const leadsTab = page.locator('[role="tab"]').filter({ hasText: 'לידים' })
+    await leadsTab.click()
+    await page.waitForLoadState('networkidle')
+
+    const row = getTableRow(page, 'ליד שלישי')
+    await expect(row).toBeVisible()
+    await expect(row).toContainText('לשלוח הצעת מחיר')
+
+    // Server-side sort puts the overdue lead above leads with nothing scheduled.
+    const names = await page.locator('tbody tr td:first-child').allTextContents()
+    expect(names[0]).toContain('ליד שלישי')
+  })
+
+  test('lost-visibility: a lost lead leaves the pipeline but stays findable', async ({ page }) => {
+    const leadsTab = page.locator('[role="tab"]').filter({ hasText: 'לידים' })
+    await leadsTab.click()
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('td').filter({ hasText: 'ליד אבוד' })).not.toBeVisible()
+
+    const allTab = page.locator('[role="tab"]').filter({ hasText: 'הכל' })
+    await allTab.click()
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('td').filter({ hasText: 'ליד אבוד' })).toBeVisible()
+  })
+
+  test('lost-lead-detail: a lost lead keeps the status select but loses the convert button', async ({ page }) => {
+    const allTab = page.locator('[role="tab"]').filter({ hasText: 'הכל' })
+    await allTab.click()
+    await page.waitForLoadState('networkidle')
+
+    await getTableRow(page, 'ליד אבוד').click()
+    await page.waitForLoadState('networkidle')
+
+    await expect(page.locator('main button[role="combobox"]').first()).toContainText('אבוד')
+    await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).not.toBeVisible()
+  })
+
   test('delete-success: creates and deletes a throwaway contact', async ({ page }) => {
     // Create a throwaway contact via API
     const createResponse = await page.request.post('/api/contacts', {

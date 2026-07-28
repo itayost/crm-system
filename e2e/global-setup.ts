@@ -47,6 +47,31 @@ async function globalSetup(_config: FullConfig) {
     },
   })
 
+  // Mid-pipeline, with a next action that is already late - covers both the
+  // overdue badge on the leads table and the "פעולות להיום" brief section.
+  await prisma.contact.create({
+    data: {
+      name: 'ליד שלישי',
+      phone: '0506789012',
+      status: 'MEETING_SCHEDULED',
+      source: 'REFERRAL',
+      nextActionAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      nextActionNote: 'לשלוח הצעת מחיר',
+      userId: user.id,
+    },
+  })
+
+  // Terminal lead: must stay out of the לידים tab but remain findable.
+  await prisma.contact.create({
+    data: {
+      name: 'ליד אבוד',
+      phone: '0507890123',
+      status: 'LOST',
+      source: 'WEBSITE',
+      userId: user.id,
+    },
+  })
+
   const clientActiveBiz = await prisma.client.create({
     data: { name: 'לקוח פעיל', userId: user.id },
   })

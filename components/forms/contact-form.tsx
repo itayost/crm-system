@@ -160,6 +160,12 @@ export function ContactForm({
       const budgetNum = values.estimatedBudget ? Number(values.estimatedBudget) : undefined
       const clientId =
         values.clientId && values.clientId !== NO_CLIENT ? values.clientId : undefined
+
+      // Selecting "ללא" has to send an explicit null. undefined disappears in
+      // JSON, and the server reads a missing clientId as "leave it alone", so
+      // detaching a contact from its business silently did nothing at all.
+      // On create there is nothing to detach, so undefined is still right.
+      const detached = isEditing ? null : undefined
       const payload = {
         ...values,
         email: values.email || undefined,
@@ -167,9 +173,9 @@ export function ContactForm({
         estimatedBudget: budgetNum && !isNaN(budgetNum) ? budgetNum : undefined,
         projectType: values.projectType || undefined,
         notes: values.notes || undefined,
-        clientId,
-        role: clientId ? values.role || undefined : undefined,
-        isPrimary: clientId ? values.isPrimary : undefined,
+        clientId: clientId ?? detached,
+        role: clientId ? values.role || undefined : detached,
+        isPrimary: clientId ? values.isPrimary : false,
       }
 
       if (isEditing) {
@@ -383,6 +389,11 @@ export function ContactForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  {!isEditing && (
+                    <p className="text-xs text-content-subtle">
+                      איש קשר עם עסק ייווצר ישירות כלקוח, לא כליד
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

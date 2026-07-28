@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
-
-const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
+import { LEAD_STATUSES } from '@/lib/validations/enums'
 
 export class DashboardService {
   static async getData(userId: string) {

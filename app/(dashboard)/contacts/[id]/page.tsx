@@ -2,29 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { format } from 'date-fns'
-import {
-  ArrowRight,
-  Edit,
-  Trash2,
-  Phone,
-  Mail,
-  Building2,
-  Star,
-  Plus,
-  Briefcase,
-} from 'lucide-react'
+import { ArrowRight, Edit, Trash2, Building2, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,71 +21,20 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { ContactForm } from '@/components/forms/contact-form'
-import { tone, CONTACT_STATUS_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
-
-const STATUS_LABELS: Record<string, string> = {
-  NEW: 'חדש',
-  CONTACTED: 'נוצר קשר',
-  QUOTED: 'הוצעה הצעה',
-  NEGOTIATING: 'במשא ומתן',
-  CLIENT: 'לקוח',
-  INACTIVE: 'לא פעיל',
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  WEBSITE: 'אתר',
-  PHONE: 'טלפון',
-  WHATSAPP: 'וואטסאפ',
-  REFERRAL: 'הפניה',
-  OTHER: 'אחר',
-}
-
-const PROJECT_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'פעיל',
-  COMPLETED: 'הושלם',
-}
-
-const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING']
-
-interface Project {
-  id: string
-  name: string
-  type: string
-  status: string
-  price?: number | string | null
-  deadline?: string | null
-}
-
-interface ContactDetail {
-  id: string
-  name: string
-  phone: string
-  email?: string | null
-  company?: string | null
-  status: string
-  source: string
-  estimatedBudget?: number | string | null
-  projectType?: string | null
-  isVip: boolean
-  address?: string | null
-  taxId?: string | null
-  notes?: string | null
-  convertedAt?: string | null
-  createdAt: string
-  updatedAt: string
-  role?: string | null
-  client?: {
-    id: string
-    name: string
-    projects: Project[]
-  } | null
-}
+import { ContactStatusSelect } from '@/components/contacts/contact-status-select'
+import { NextActionEditor } from '@/components/contacts/next-action-editor'
+import { ContactInfoCard } from '@/components/contacts/contact-info-card'
+import { ContactProjectsCard } from '@/components/contacts/contact-projects-card'
+import { LEAD_STATUSES } from '@/lib/validations/enums'
+import { tone, CONTACT_STATUS_TONES } from '@/lib/design/tones'
+import { label, CONTACT_STATUS_LABELS } from '@/lib/design/labels'
+import type { ContactRecord } from '@/lib/types/contact'
 
 export default function ContactDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
-  const [contact, setContact] = useState<ContactDetail | null>(null)
+  const [contact, setContact] = useState<ContactRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEditForm, setShowEditForm] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -151,21 +84,10 @@ export default function ContactDetailPage() {
     }
   }
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    if (amount == null) return '-'
-    return `${Number(amount).toLocaleString()} ₪`
-  }
-
-  const isLead = contact ? LEAD_STATUSES.includes(contact.status) : false
+  // LOST is not in LEAD_STATUSES, so a dead lead loses the convert button but
+  // keeps the status Select - reviving it is a status change, not a conversion.
+  const isLead = contact ? (LEAD_STATUSES as readonly string[]).includes(contact.status) : false
+  const isPipeline = isLead || contact?.status === 'LOST'
 
   if (loading) {
     return (
@@ -204,12 +126,20 @@ export default function ContactDetailPage() {
             {contact.isVip && (
               <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
             )}
-            <Badge
-              className={tone(CONTACT_STATUS_TONES, contact.status)}
-              variant="secondary"
-            >
-              {STATUS_LABELS[contact.status] ?? contact.status}
-            </Badge>
+            {isPipeline ? (
+              <ContactStatusSelect
+                contactId={contact.id}
+                status={contact.status}
+                onChanged={fetchContact}
+              />
+            ) : (
+              <Badge
+                className={tone(CONTACT_STATUS_TONES, contact.status)}
+                variant="secondary"
+              >
+                {label(CONTACT_STATUS_LABELS, contact.status)}
+              </Badge>
+            )}
           </div>
           {contact.company && (
             <p className="text-sm text-content-subtle mt-1">{contact.company}</p>
@@ -256,108 +186,16 @@ export default function ContactDetailPage() {
         </div>
       </div>
 
-      {/* Contact Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>פרטי איש קשר</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-content-faint" />
-                <span className="text-sm text-content-muted">טלפון:</span>
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="text-sm font-medium text-link hover:underline"
-                  dir="ltr"
-                >
-                  {contact.phone}
-                </a>
-              </div>
-              {contact.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-content-faint" />
-                  <span className="text-sm text-content-muted">אימייל:</span>
-                  <a
-                    href={`mailto:${contact.email}`}
-                    className="text-sm font-medium text-link hover:underline"
-                  >
-                    {contact.email}
-                  </a>
-                </div>
-              )}
-              {contact.company && (
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-content-faint" />
-                  <span className="text-sm text-content-muted">חברה:</span>
-                  <span className="text-sm font-medium">{contact.company}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-content-muted">מקור:</span>
-                <span className="text-sm font-medium">
-                  {SOURCE_LABELS[contact.source] ?? contact.source}
-                </span>
-              </div>
-            </div>
+      {isPipeline && (
+        <NextActionEditor
+          contactId={contact.id}
+          nextActionAt={contact.nextActionAt}
+          nextActionNote={contact.nextActionNote}
+          onChanged={fetchContact}
+        />
+      )}
 
-            <div className="space-y-4">
-              {contact.estimatedBudget != null && (
-                <div>
-                  <span className="text-sm text-content-muted">תקציב משוער: </span>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(contact.estimatedBudget)}
-                  </span>
-                </div>
-              )}
-              {contact.projectType && (
-                <div>
-                  <span className="text-sm text-content-muted">סוג פרויקט: </span>
-                  <span className="text-sm font-medium">
-                    {contact.projectType}
-                  </span>
-                </div>
-              )}
-              {contact.address && (
-                <div>
-                  <span className="text-sm text-content-muted">כתובת: </span>
-                  <span className="text-sm font-medium">{contact.address}</span>
-                </div>
-              )}
-              {contact.taxId && (
-                <div>
-                  <span className="text-sm text-content-muted">ח.פ / ע.מ: </span>
-                  <span className="text-sm font-medium">{contact.taxId}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-sm text-content-muted">נוצר בתאריך: </span>
-                <span className="text-sm font-medium">
-                  {formatDate(contact.createdAt)}
-                </span>
-              </div>
-              {contact.convertedAt && (
-                <div>
-                  <span className="text-sm text-content-muted">
-                    הומר ללקוח בתאריך:{' '}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {formatDate(contact.convertedAt)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {contact.notes && (
-            <div className="mt-6 pt-4 border-t">
-              <p className="text-sm text-content-muted mb-1">הערות:</p>
-              <p className="text-sm whitespace-pre-wrap">{contact.notes}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <ContactInfoCard contact={contact} />
 
       {/* Business link (for clients) */}
       {contact.client && (
@@ -382,72 +220,13 @@ export default function ContactDetailPage() {
         </Card>
       )}
 
-      {/* Projects Section (for clients) */}
-      {contact.status === 'CLIENT' && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>פרויקטים</CardTitle>
-            <Button
-              size="sm"
-              disabled={!contact.client}
-              onClick={() =>
-                contact.client &&
-                router.push(`/projects?new=true&clientId=${contact.client.id}`)
-              }
-            >
-              <Plus className="w-4 h-4 ml-2" />
-              פרויקט חדש
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {(contact.client?.projects ?? []).length === 0 ? (
-              <p className="text-sm text-content-subtle text-center py-6">
-                אין פרויקטים עדיין
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {(contact.client?.projects ?? []).map((project) => (
-                  <div
-                    key={project.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-surface-subtle cursor-pointer transition-colors"
-                    onClick={() => router.push(`/projects/${project.id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        router.push(`/projects/${project.id}`)
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Briefcase className="w-4 h-4 text-content-faint" />
-                      <span className="text-sm font-medium">
-                        {project.name}
-                      </span>
-                      <Badge
-                        className={
-                          tone(PROJECT_STATUS_TONES, project.status)
-                        }
-                        variant="secondary"
-                      >
-                        {PROJECT_STATUS_LABELS[project.status] ??
-                          project.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-content-subtle">
-                      {project.price != null && (
-                        <span>{formatCurrency(project.price)}</span>
-                      )}
-                      {project.deadline && (
-                        <span>{formatDate(project.deadline)}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Keyed off the business, not the status: an INACTIVE client still has
+          projects worth looking at. */}
+      {contact.client && (
+        <ContactProjectsCard
+          clientId={contact.client.id}
+          projects={contact.client.projects}
+        />
       )}
 
       {/* Edit Form Dialog */}

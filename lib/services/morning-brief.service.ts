@@ -1,9 +1,8 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
-import { REQUEST_TYPE_LABELS } from '@/lib/design/labels'
-
-const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
+import { REQUEST_TYPE_LABELS, CONTACT_STATUS_LABELS, label } from '@/lib/design/labels'
+import { LEAD_STATUSES } from '@/lib/validations/enums'
 
 const BRIEF_TIME_ZONE = process.env.BRIEF_TIME_ZONE ?? 'Asia/Jerusalem'
 
@@ -59,6 +58,7 @@ export class MorningBriefService {
       newLeads,
       staleClients,
       staleLeads,
+      dueNextActions,
       activeProjects,
       taskCountsByCategory,
       recentMarketingTasks,
@@ -97,12 +97,24 @@ export class MorningBriefService {
         where: {
           userId,
           status: { in: [...LEAD_STATUSES] },
+          // A lead with a scheduled next action is not neglected, it is
+          // waiting. It belongs in "פעולות להיום" on its day, not here.
+          nextActionAt: null,
           OR: [
             { lastContactedAt: { lt: threeDaysAgo } },
             { lastContactedAt: null, createdAt: { lt: threeDaysAgo } },
           ],
         },
         select: { name: true, status: true, lastContactedAt: true, createdAt: true },
+      }),
+      prisma.contact.findMany({
+        where: {
+          userId,
+          status: { in: [...LEAD_STATUSES] },
+          nextActionAt: { lt: todayEnd },
+        },
+        orderBy: { nextActionAt: 'asc' },
+        select: { name: true, phone: true, status: true, nextActionAt: true, nextActionNote: true },
       }),
       prisma.project.findMany({
         where: { userId, status: 'ACTIVE' },
@@ -156,8 +168,20 @@ ${newLeads.map(l => `- ${l.name} | ${l.phone} | ${l.source}`).join('\n')}
 לקוחות ללא קשר 7+ ימים (${staleClients.length}):
 ${staleClients.map(c => `- ${c.name} (קשר אחרון: ${c.lastContactedAt?.toLocaleDateString('he-IL') ?? 'לא ידוע'})`).join('\n')}
 
-לידים ללא קשר 3+ ימים (${staleLeads.length}):
-${staleLeads.map(l => `- ${l.name} (${l.status})`).join('\n')}
+פעולות להיום (${dueNextActions.length}):
+${dueNextActions.length > 0
+  ? dueNextActions
+      .map((l) => {
+        const due = l.nextActionAt!
+        const overdue = due < todayStart ? ' [באיחור]' : ''
+        const note = l.nextActionNote ? ` - ${l.nextActionNote}` : ''
+        return `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})${note} | ${due.toLocaleDateString('he-IL')}${overdue}`
+      })
+      .join('\n')
+  : 'אין'}
+
+לידים ללא פעולה מתוכננת וללא קשר 3+ ימים (${staleLeads.length}):
+${staleLeads.map(l => `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})`).join('\n')}
 
 פרויקטים בתהליך (${activeProjects.length}):
 ${activeProjects.map(p => `- ${p.name} (${p.client.name}) | ${p._count.tasks} משימות`).join('\n')}
@@ -191,15 +215,18 @@ Structure:
 1. Start with "בוקר טוב!" and the Hebrew date
 2. Top 3 priorities for today (you decide based on urgency, deadlines, staleness — be specific and actionable)
 3. Quick summary: overdue count, today count, new leads
-4. Proactive suggestions section (only if relevant):
+4. If there are "פעולות להיום", give them their own short section. These are next
+   actions Itay scheduled himself on specific leads, so they outrank anything
+   inferred — name the lead and what he said he would do. Call out [באיחור] ones first.
+5. Proactive suggestions section (only if relevant):
    - Follow-up reminders for stale contacts/leads
    - Marketing nudge if no marketing tasks in 14 days
    - Any other observations
-5. If there are "בקשות חדשות לאישור", add a short section "X בקשות ממתינות לאישור" with the 3 most important items, and suggest Itay approve/dismiss them via the bot
-6. End with a motivating one-liner
+6. If there are "בקשות חדשות לאישור", add a short section "X בקשות ממתינות לאישור" with the 3 most important items, and suggest Itay approve/dismiss them via the bot
+7. End with a motivating one-liner
 
 Use WhatsApp formatting: *bold* (single asterisk), _italic_ (underscore).
-Keep it scannable — max 15 lines.
+Keep it scannable — max 16 lines.
 NEVER use Markdown syntax. NEVER escape underscores with backslash. Write plain Hebrew text.
 Use Hebrew labels for categories (עבודת לקוח, שיווק, מעקב לידים, מנהלה) — never show English enum values.`,
       prompt: briefData,

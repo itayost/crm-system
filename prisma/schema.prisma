@@ -43,6 +43,11 @@ model Contact {
   convertedAt     DateTime?
   lastContactedAt DateTime?
 
+  /// The one thing owed to this lead next, and when. Cleared once the lead
+  /// reaches a terminal status - there is nothing left to chase.
+  nextActionAt   DateTime?
+  nextActionNote String?   @db.Text
+
   // Membership in a Client (business)
   role      String?
   isPrimary Boolean @default(false)
@@ -64,6 +69,7 @@ model Contact {
   @@index([userId, status])
   @@index([createdAt])
   @@index([clientId])
+  @@index([userId, nextActionAt])
 }
 
 model Project {
@@ -159,12 +165,14 @@ enum UserRole {
   USER
 }
 
+/// NEW..QUOTED are the lead pipeline; LOST ends a lead, INACTIVE ends a client.
 enum ContactStatus {
   NEW
   CONTACTED
+  MEETING_SCHEDULED
   QUOTED
-  NEGOTIATING
   CLIENT
+  LOST
   INACTIVE
 }
 

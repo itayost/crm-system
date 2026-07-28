@@ -136,6 +136,9 @@ export class ClientsService {
           clientId: client.id,
           isPrimary: true,
           role: overrides?.role ?? contact.role ?? 'בעלים',
+          // The lead was won; whatever was owed to it next no longer is.
+          nextActionAt: null,
+          nextActionNote: null,
         },
       })
 

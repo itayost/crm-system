@@ -1,10 +1,8 @@
 import { prisma } from '@/lib/db/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, type ContactStatus } from '@prisma/client'
 import type { CreateContactInput, UpdateContactInput } from '@/lib/validations/contact'
 import { ClientsService } from './clients.service'
-
-const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING'] as const
-const CLIENT_STATUSES = ['CLIENT', 'INACTIVE'] as const
+import { LEAD_STATUSES, CLIENT_STATUSES, TERMINAL_CONTACT_STATUSES } from '@/lib/validations/enums'
 
 interface ContactFilters {
   status?: string
@@ -18,18 +16,28 @@ export class ContactsService {
   static async getAll(userId: string, filters?: ContactFilters) {
     const where: Prisma.ContactWhereInput = { userId }
 
+    // `phase` narrows to the pipeline or to the client roster; `status` picks a
+    // single stage. Both used to be written to `where.status`, so passing them
+    // together silently dropped the status - phase just overwrote it.
+    const phaseStatuses: readonly ContactStatus[] | null =
+      filters?.phase === 'lead'
+        ? LEAD_STATUSES
+        : filters?.phase === 'client'
+          ? CLIENT_STATUSES
+          : null
+
     if (filters?.status) {
-      where.status = filters.status as Prisma.EnumContactStatusFilter
+      const status = filters.status as ContactStatus
+      // A status outside the requested phase describes an empty set. Returning
+      // it is more honest than quietly ignoring one of the two filters.
+      if (phaseStatuses && !phaseStatuses.includes(status)) return []
+      where.status = status
+    } else if (phaseStatuses) {
+      where.status = { in: [...phaseStatuses] }
     }
 
     if (filters?.source) {
       where.source = filters.source as Prisma.EnumContactSourceFilter
-    }
-
-    if (filters?.phase === 'lead') {
-      where.status = { in: [...LEAD_STATUSES] }
-    } else if (filters?.phase === 'client') {
-      where.status = { in: [...CLIENT_STATUSES] }
     }
 
     if (filters?.clientId) {
@@ -55,7 +63,13 @@ export class ContactsService {
         client: { select: { id: true, name: true } },
         _count: { select: { projects: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      // The leads list is a worklist, so it sorts by what is owed soonest and
+      // puts leads with nothing scheduled at the bottom. Everywhere else,
+      // newest first is still the useful order.
+      orderBy:
+        filters?.phase === 'lead'
+          ? [{ nextActionAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'desc' }]
+          : { createdAt: 'desc' },
     })
   }
 
@@ -103,9 +117,16 @@ export class ContactsService {
     return prisma.contact.create({
       data: {
         ...data,
+        // Someone attached to an existing business is not a lead - nobody is
+        // going to sell to the bookkeeper. Derived here rather than in the
+        // schema default so the form, the API and the WhatsApp agent all get
+        // it, and left convertedAt-less because that field means "was once a
+        // lead we won", which this contact never was.
+        status: data.clientId ? 'CLIENT' : undefined,
         estimatedBudget: data.estimatedBudget != null
           ? new Prisma.Decimal(data.estimatedBudget)
           : undefined,
+        nextActionAt: data.nextActionAt ? new Date(data.nextActionAt) : undefined,
         userId,
       },
     })
@@ -143,10 +164,26 @@ export class ContactsService {
       estimatedBudget: data.estimatedBudget != null
         ? new Prisma.Decimal(data.estimatedBudget)
         : data.estimatedBudget,
+      // Tri-state: a date sets it, null clears it, undefined leaves it alone.
+      nextActionAt:
+        data.nextActionAt !== undefined
+          ? (data.nextActionAt ? new Date(data.nextActionAt) : null)
+          : undefined,
     }
 
     if (data.status === 'CLIENT' && !contact.convertedAt && !justConverted) {
       updateData.convertedAt = new Date()
+    }
+
+    // Won, lost, or gone quiet - there is nothing left to chase, so a stale
+    // "call them Thursday" should not keep surfacing in the morning brief.
+    // Skipped when the caller set a next action in the same request.
+    const isTerminal =
+      data.status != null &&
+      (TERMINAL_CONTACT_STATUSES as readonly string[]).includes(data.status)
+    if (isTerminal && data.nextActionAt === undefined && data.nextActionNote === undefined) {
+      updateData.nextActionAt = null
+      updateData.nextActionNote = null
     }
 
     return prisma.contact.update({

@@ -34,6 +34,29 @@ export const REQUEST_SOURCE_LABELS: Record<string, string> = {
   OTHER: 'אחר',
 }
 
+export const CONTACT_STATUS_LABELS: Record<string, string> = {
+  NEW: 'חדש',
+  CONTACTED: 'נוצר קשר',
+  MEETING_SCHEDULED: 'נקבעה פגישת אפיון',
+  QUOTED: 'הוגשה הצעת מחיר',
+  CLIENT: 'לקוח',
+  LOST: 'אבוד',
+  INACTIVE: 'לא פעיל',
+}
+
+export const CONTACT_SOURCE_LABELS: Record<string, string> = {
+  WEBSITE: 'אתר',
+  PHONE: 'טלפון',
+  WHATSAPP: 'וואטסאפ',
+  REFERRAL: 'הפניה',
+  OTHER: 'אחר',
+}
+
+export const PROJECT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'פעיל',
+  COMPLETED: 'הושלם',
+}
+
 export const PRIORITY_LABELS: Record<string, string> = {
   LOW: 'נמוך',
   MEDIUM: 'בינוני',
