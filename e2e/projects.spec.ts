@@ -199,8 +199,10 @@ test.describe('Projects', () => {
     const statusSelect = page.locator('main button[aria-label="סטטוס עיצוב"]')
     await expect(statusSelect).toContainText('בעבודה')
 
-    // No "סמן כשולם" until the client has signed the work off.
-    await expect(page.locator('main button').filter({ hasText: 'סמן כשולם' })).toHaveCount(1)
+    // Nothing is payable yet: the advance and אפיון are already paid, and
+    // עיצוב has not been signed off, so no "סמן כשולם" is on the page at all.
+    const payButtons = page.locator('main button').filter({ hasText: 'סמן כשולם' })
+    await expect(payButtons).toHaveCount(0)
 
     await statusSelect.click()
     await page.locator('[role="option"]').filter({ hasText: 'אושר' }).click()
@@ -209,9 +211,11 @@ test.describe('Projects', () => {
 
     await expect(statusSelect).toContainText('אושר')
 
-    // Approved but still unpaid, so paid total has not moved off 2,500.
+    // Approving made it payable but did not pay it: the button appears, and
+    // the paid total is still 2,500.
+    await expect(payButtons).toHaveCount(1)
     const card = page.locator('main').filter({ hasText: 'שלבים ותשלומים' }).last()
-    await expect(card.getByText('2,500 ₪')).toBeVisible()
+    await expect(card.getByText('שולם: 2,500 ₪')).toBeVisible()
 
     // Restore.
     await statusSelect.click()
@@ -223,31 +227,42 @@ test.describe('Projects', () => {
     await getTableRow(page, 'פרויקט אתר').click()
     await page.waitForLoadState('networkidle')
 
+    // Read the order off the per-phase status controls rather than a styling
+    // class - each carries the phase name in its aria-label, so this says what
+    // it means and does not break when the markup is restyled.
+    //
+    // Polled, not read once: reordering refetches the project, so a bare
+    // evaluateAll can land while the list is re-rendering and see nothing.
     const card = page.locator('main').filter({ hasText: 'שלבים ותשלומים' }).last()
-    const names = () => card.locator('span.font-medium.truncate').allTextContents()
+    const names = () =>
+      card
+        .locator('button[aria-label^="סטטוס "]')
+        .evaluateAll((els) =>
+          els.map((e) => (e.getAttribute('aria-label') ?? '').replace('סטטוס ', ''))
+        )
+    const expectOrder = (order: string[]) => expect.poll(names).toEqual(order)
 
-    expect(await names()).toEqual(['אפיון', 'עיצוב', 'פיתוח'])
+    await expectOrder(['אפיון', 'עיצוב', 'פיתוח'])
 
     // Second row's "up" button.
     await card.locator('button[aria-label="הזז למעלה"]').nth(1).click()
     await expectToastSuccess(page, 'סדר השלבים עודכן')
-    await page.waitForLoadState('networkidle')
 
-    expect(await names()).toEqual(['עיצוב', 'אפיון', 'פיתוח'])
+    await expectOrder(['עיצוב', 'אפיון', 'פיתוח'])
 
     // Restore the seeded order.
     await card.locator('button[aria-label="הזז למעלה"]').nth(1).click()
     await expectToastSuccess(page, 'סדר השלבים עודכן')
-    await page.waitForLoadState('networkidle')
 
-    expect(await names()).toEqual(['אפיון', 'עיצוב', 'פיתוח'])
+    await expectOrder(['אפיון', 'עיצוב', 'פיתוח'])
   })
 
   test('project-requests: the project page shows its own פניות card', async ({ page }) => {
     await getTableRow(page, 'פרויקט אתר').click()
     await page.waitForLoadState('networkidle')
 
-    await expect(page.locator('main').getByText('פניות')).toBeVisible()
+    // Exact, or the empty-state line ("אין פניות לפרויקט זה") matches too.
+    await expect(page.locator('main').getByText('פניות', { exact: true })).toBeVisible()
     await expect(page.locator('text=אין פניות לפרויקט זה')).toBeVisible()
   })
 

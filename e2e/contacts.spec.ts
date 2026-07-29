@@ -262,9 +262,10 @@ test.describe('Contacts', () => {
     await expect(row).toBeVisible()
     await expect(row).toContainText('לשלוח הצעת מחיר')
 
-    // Server-side sort puts the overdue lead above leads with nothing scheduled.
-    const names = await page.locator('tbody tr td:first-child').allTextContents()
-    expect(names[0]).toContain('ליד שלישי')
+    // Server-side sort puts the overdue lead above leads with nothing
+    // scheduled. Asserted through expect() rather than a bare allTextContents
+    // read, which raced the skeleton while the rows were still arriving.
+    await expect(page.locator('tbody tr').first()).toContainText('ליד שלישי')
   })
 
   test('lost-visibility: a lost lead leaves the pipeline but stays findable', async ({ page }) => {
