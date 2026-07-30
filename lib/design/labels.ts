@@ -80,6 +80,13 @@ export const PHASE_STATUS_LABELS: Record<string, string> = {
   APPROVED: 'אושר',
 }
 
+export const TASK_CATEGORY_LABELS: Record<string, string> = {
+  CLIENT_WORK: 'עבודת לקוח',
+  MARKETING: 'שיווק',
+  LEAD_FOLLOWUP: 'מעקב לידים',
+  ADMIN: 'מנהלה',
+}
+
 export const TASK_STATUS_LABELS: Record<string, string> = {
   TODO: 'לביצוע',
   IN_PROGRESS: 'בתהליך',

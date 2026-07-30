@@ -1,10 +1,34 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
-import { REQUEST_TYPE_LABELS, CONTACT_STATUS_LABELS, label } from '@/lib/design/labels'
+import {
+  REQUEST_TYPE_LABELS,
+  REQUEST_STATUS_LABELS,
+  CONTACT_STATUS_LABELS,
+  CONTACT_SOURCE_LABELS,
+  TASK_CATEGORY_LABELS,
+  PRIORITY_LABELS,
+  label,
+} from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
 
 const BRIEF_TIME_ZONE = process.env.BRIEF_TIME_ZONE ?? 'Asia/Jerusalem'
+
+/**
+ * How many lines any one section will print before it says "ועוד N".
+ *
+ * A cap is necessary - the prompt should not grow without bound - but a silent
+ * one is worse than none: the pending-requests section used to take 10 rows,
+ * print five of them, and report the count of the ten, so a genuinely busy day
+ * looked like a mildly busy one.
+ */
+const LIST_CAP = 8
+
+/** Caps a section's lines and says so, rather than quietly dropping the tail. */
+function capped(lines: string[], total = lines.length): string[] {
+  if (total <= LIST_CAP) return lines
+  return [...lines.slice(0, LIST_CAP), `- ...ועוד ${total - LIST_CAP}`]
+}
 
 /**
  * Midnight in Israel, expressed as a UTC instant. Derived from the zone rather
@@ -34,7 +58,12 @@ export function startOfIsraelDay(now: Date): Date {
   )
 
   // now - (elapsed since local midnight) = the instant local midnight happened.
-  return new Date(now.getTime() - (localNowAsUtc - localMidnightAsUtc))
+  // The milliseconds have to come off separately: Intl parts stop at seconds,
+  // so without this the "boundary" sat a few hundred ms after midnight and a
+  // task due at exactly 00:00:00.000 counted as overdue.
+  return new Date(
+    now.getTime() - (localNowAsUtc - localMidnightAsUtc) - now.getMilliseconds()
+  )
 }
 
 export class MorningBriefService {
@@ -46,23 +75,28 @@ export class MorningBriefService {
     const todayStart = startOfIsraelDay(now)
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
     const weekEnd = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    // All measured from the Israel day boundary, not from `now`. Measured from
+    // `now` they were rolling windows anchored to whenever the cron happened to
+    // fire, so "new leads in the last 24 hours" drifted against "today" and a
+    // lead created yesterday evening could fall outside both.
+    const threeDaysAgo = new Date(todayStart.getTime() - 3 * 24 * 60 * 60 * 1000)
+    const fourteenDaysAgo = new Date(todayStart.getTime() - 14 * 24 * 60 * 60 * 1000)
+    const sinceYesterday = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000)
 
     const [
       overdueTasks,
       todayTasks,
       weekTasks,
       newLeads,
-      staleClients,
       staleLeads,
       dueNextActions,
       activeProjects,
       taskCountsByCategory,
       recentMarketingTasks,
       pendingRequests,
+      pendingRequestCount,
+      openRequests,
+      openRequestCount,
     ] = await Promise.all([
       prisma.task.findMany({
         where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueDate: { lt: todayStart } },
@@ -77,21 +111,7 @@ export class MorningBriefService {
         include: { project: { select: { name: true, client: { select: { name: true } } } } },
       }),
       prisma.contact.findMany({
-        where: { userId, status: { in: [...LEAD_STATUSES] }, createdAt: { gte: yesterday } },
-      }),
-      prisma.contact.findMany({
-        where: {
-          userId,
-          status: 'CLIENT',
-          // A NULL lastContactedAt is the worst case, not an exemption: Prisma
-          // treats `lt` as excluding NULL, so never-contacted clients were the
-          // only ones the brief never mentioned.
-          OR: [
-            { lastContactedAt: { lt: sevenDaysAgo } },
-            { lastContactedAt: null, createdAt: { lt: sevenDaysAgo } },
-          ],
-        },
-        select: { name: true, lastContactedAt: true },
+        where: { userId, status: { in: [...LEAD_STATUSES] }, createdAt: { gte: sinceYesterday } },
       }),
       prisma.contact.findMany({
         where: {
@@ -135,18 +155,34 @@ export class MorningBriefService {
       prisma.request.findMany({
         where: { userId, status: 'PENDING_REVIEW' },
         orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-        take: 10,
+        take: LIST_CAP,
         include: {
           client: { select: { name: true } },
           contact: { select: { name: true } },
         },
       }),
+      // The real total, so a capped list can say how much it is hiding.
+      prisma.request.count({ where: { userId, status: 'PENDING_REVIEW' } }),
+      // Work already committed to, as opposed to work awaiting a decision.
+      // The brief never mentioned these at all.
+      prisma.request.findMany({
+        where: { userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+        take: LIST_CAP,
+        include: {
+          client: { select: { name: true } },
+          project: { select: { name: true } },
+        },
+      }),
+      prisma.request.count({ where: { userId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
     ])
 
     const formatTask = (t: { title: string; priority: string; dueDate: Date | null; project: { name: string; client: { name: string } | null } | null }) => {
       const client = t.project?.client?.name ?? ''
       const project = t.project?.name ?? ''
-      const priority = t.priority
+      // Was printing the raw enum - "HIGH" - straight into a prompt whose own
+      // last instruction forbids English enum values.
+      const priority = label(PRIORITY_LABELS, t.priority)
       const due = t.dueDate ? t.dueDate.toLocaleDateString('he-IL') : ''
       return `- ${t.title}${client ? ` (${client})` : ''}${project ? ` [${project}]` : ''} | ${priority}${due ? ` | ${due}` : ''}`
     }
@@ -169,93 +205,146 @@ export class MorningBriefService {
     )
     const unpaidTotal = unpaidPhases.reduce((sum, p) => sum + p.amount, 0)
 
-    const briefData = `
-תאריך: ${now.toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+    // Every section that has something to say, in reading order. Sections with
+    // nothing in them are dropped rather than reported as empty: the brief used
+    // to hand the model eleven "אין" lines on a quiet day and ask it to write
+    // something motivating about them, and it obliged with filler.
+    const sections: {
+      title: string
+      lines: string[]
+      total?: number
+      suffix?: string
+      /** For sections whose line count is not a count of anything meaningful. */
+      hideCount?: boolean
+    }[] = [
+      { title: 'משימות באיחור', lines: overdueTasks.map(formatTask) },
+      { title: 'משימות להיום', lines: todayTasks.map(formatTask) },
+      { title: 'משימות השבוע', lines: weekTasks.map(formatTask) },
+      {
+        title: 'לידים חדשים (מאתמול)',
+        lines: newLeads.map(
+          (l) => `- ${l.name} | ${l.phone} | ${label(CONTACT_SOURCE_LABELS, l.source)}`
+        ),
+      },
+      {
+        title: 'פעולות להיום',
+        lines: dueNextActions.map((l) => {
+            const due = l.nextActionAt!
+            const overdue = due < todayStart ? ' [באיחור]' : ''
+            const note = l.nextActionNote ? ` - ${l.nextActionNote}` : ''
+            return `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})${note} | ${due.toLocaleDateString('he-IL')}${overdue}`
+        }),
+      },
+      {
+        title: 'לידים ללא פעולה מתוכננת וללא קשר 3+ ימים',
+        lines: staleLeads.map((l) => `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})`),
+      },
+      {
+        title: 'שלבים ממתינים לאישור לקוח',
+        lines: awaitingApproval,
+      },
+      {
+        title: 'תשלומים פתוחים',
+        lines: unpaidPhases.map((p) => p.line),
+        suffix: unpaidTotal > 0 ? `, סה"כ ${unpaidTotal.toLocaleString()} ₪` : undefined,
+      },
+      {
+        title: 'פניות ממתינות לאישור',
+        lines: pendingRequests.map(
+          (r) =>
+            `- [${label(REQUEST_TYPE_LABELS, r.type)}] ${r.title} (${r.client?.name ?? r.contact?.name ?? 'לא ידוע'})`
+        ),
+        // The query is already capped, so the honest count comes from a count().
+        total: pendingRequestCount,
+      },
+      {
+        title: 'פניות פתוחות',
+        lines: openRequests.map(
+          (r) =>
+            `- [${label(REQUEST_TYPE_LABELS, r.type)}] ${r.title} (${r.client?.name ?? 'לא ידוע'})` +
+            `${r.project ? ` [${r.project.name}]` : ''} | ${label(REQUEST_STATUS_LABELS, r.status)}`
+        ),
+        total: openRequestCount,
+      },
+      {
+        title: 'משימות ממתינות לפי קטגוריה',
+        lines: taskCountsByCategory.map(
+          (c) => `- ${label(TASK_CATEGORY_LABELS, c.category)}: ${c._count}`
+        ),
+        // The line count here is a number of categories, which would read as a
+        // number of tasks.
+        hideCount: true,
+      },
+      {
+        title: 'פרויקטים בתהליך',
+        lines: activeProjects.map(
+          (p) => `- ${p.name} (${p.client.name}) | ${p._count.tasks} משימות`
+        ),
+      },
+    ]
 
-משימות באיחור (${overdueTasks.length}):
-${overdueTasks.length > 0 ? overdueTasks.map(formatTask).join('\n') : 'אין'}
+    const total = (s: { lines: string[]; total?: number }) => s.total ?? s.lines.length
+    const filled = sections.filter((s) => total(s) > 0)
 
-משימות להיום (${todayTasks.length}):
-${todayTasks.length > 0 ? todayTasks.map(formatTask).join('\n') : 'אין'}
-
-משימות השבוע (${weekTasks.length}):
-${weekTasks.length > 0 ? weekTasks.map(formatTask).join('\n') : 'אין'}
-
-לידים חדשים (24 שעות אחרונות): ${newLeads.length}
-${newLeads.map(l => `- ${l.name} | ${l.phone} | ${l.source}`).join('\n')}
-
-לקוחות ללא קשר 7+ ימים (${staleClients.length}):
-${staleClients.map(c => `- ${c.name} (קשר אחרון: ${c.lastContactedAt?.toLocaleDateString('he-IL') ?? 'לא ידוע'})`).join('\n')}
-
-פעולות להיום (${dueNextActions.length}):
-${dueNextActions.length > 0
-  ? dueNextActions
-      .map((l) => {
-        const due = l.nextActionAt!
-        const overdue = due < todayStart ? ' [באיחור]' : ''
-        const note = l.nextActionNote ? ` - ${l.nextActionNote}` : ''
-        return `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})${note} | ${due.toLocaleDateString('he-IL')}${overdue}`
+    const header = `תאריך: ${now.toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+    const body = filled
+      .map((s) => {
+        const head = s.hideCount ? s.title : `${s.title} (${total(s)}${s.suffix ?? ''})`
+        return `${head}:\n${capped(s.lines, total(s)).join('\n')}`
       })
-      .join('\n')
-  : 'אין'}
+      .join('\n\n')
 
-לידים ללא פעולה מתוכננת וללא קשר 3+ ימים (${staleLeads.length}):
-${staleLeads.map(l => `- ${l.name} (${label(CONTACT_STATUS_LABELS, l.status)})`).join('\n')}
-
-פרויקטים בתהליך (${activeProjects.length}):
-${activeProjects.map(p => `- ${p.name} (${p.client.name}) | ${p._count.tasks} משימות`).join('\n')}
-
-שלבים ממתינים לאישור לקוח (${awaitingApproval.length}):
-${awaitingApproval.length > 0 ? awaitingApproval.join('\n') : 'אין'}
-
-תשלומים פתוחים (${unpaidPhases.length}${unpaidTotal > 0 ? `, סה"כ ${unpaidTotal.toLocaleString()} ₪` : ''}):
-${unpaidPhases.length > 0 ? unpaidPhases.map(p => p.line).join('\n') : 'אין'}
-
-משימות ממתינות לפי קטגוריה:
-${taskCountsByCategory.map(c => {
-      const labels: Record<string, string> = { CLIENT_WORK: 'עבודת לקוח', MARKETING: 'שיווק', LEAD_FOLLOWUP: 'מעקב לידים', ADMIN: 'מנהלה' }
-      return `- ${labels[c.category] ?? c.category}: ${c._count}`
-    }).join('\n')}
-
-משימות שיווק ב-14 ימים אחרונים: ${recentMarketingTasks}
-
-בקשות חדשות לאישור (${pendingRequests.length}):
-${pendingRequests.length > 0
-  ? pendingRequests
-      .slice(0, 5)
-      .map(
-        (r) =>
-          `- [${REQUEST_TYPE_LABELS[r.type] ?? r.type}] ${r.title} (${r.client?.name ?? r.contact?.name ?? 'לא ידוע'})`
-      )
-      .join('\n')
-  : 'אין'}
-`
+    const briefData = [
+      header,
+      // A genuinely quiet day should say so once, not arrive blank and invite
+      // the model to fill the silence.
+      filled.length > 0 ? body : 'אין משימות פתוחות, לידים ממתינים או תשלומים פתוחים.',
+      `משימות שיווק ב-14 ימים אחרונים: ${recentMarketingTasks}`,
+    ].join('\n\n')
 
     const result = await generateText({
       model: gateway('anthropic/claude-sonnet-4.6'),
-      system: `You write a daily morning brief for a Hebrew-speaking freelancer.
-You receive raw CRM data and write a natural, concise WhatsApp message.
+      system: `You write a daily morning brief for a Hebrew-speaking freelancer (Itay).
+You receive CRM data and write a natural WhatsApp message in Hebrew.
 
-Structure:
-1. Start with "בוקר טוב!" and the Hebrew date
-2. Top 3 priorities for today (you decide based on urgency, deadlines, staleness — be specific and actionable)
-3. Quick summary: overdue count, today count, new leads
-4. If there are "פעולות להיום", give them their own short section. These are next
-   actions Itay scheduled himself on specific leads, so they outrank anything
-   inferred — name the lead and what he said he would do. Call out [באיחור] ones first.
-5. Proactive suggestions section (only if relevant):
-   - Follow-up reminders for stale contacts/leads
-   - Marketing nudge if no marketing tasks in 14 days
-   - If "שלבים ממתינים לאישור לקוח" is not empty, nudge to chase the client for sign-off
-   - If "תשלומים פתוחים" is not empty, nudge to invoice or chase payment, and give the total
-   - Any other observations
-6. If there are "בקשות חדשות לאישור", add a short section "X בקשות ממתינות לאישור" with the 3 most important items, and suggest Itay approve/dismiss them via the bot
-7. End with a motivating one-liner
+IMPORTANT — the data only contains sections that have something in them.
+A section that is absent means there is nothing there. Never mention a section
+that was not supplied, never say a section is empty, and never speculate that
+data might be missing. Silence means "nothing to do", which is good news.
+
+Only these sections can appear:
+משימות באיחור · משימות להיום · משימות השבוע · לידים חדשים (מאתמול) ·
+פעולות להיום · לידים ללא פעולה מתוכננת וללא קשר 3+ ימים ·
+שלבים ממתינים לאישור לקוח · תשלומים פתוחים · פניות ממתינות לאישור ·
+פניות פתוחות · משימות ממתינות לפי קטגוריה · פרויקטים בתהליך
+A count in a title is the real total; "...ועוד N" means the list was trimmed.
+"משימות ממתינות לפי קטגוריה" and "משימות שיווק ב-14 ימים אחרונים" are counts and
+nothing more — never infer anything about an individual task from them, such as
+which project it belongs to or whether it has one.
+
+Write it like this:
+1. Open with "בוקר טוב!" and the Hebrew date.
+2. Lead with what actually needs doing today, most pressing first, naming
+   specifics rather than counts. If "פעולות להיום" is present it comes first:
+   those are actions Itay committed to himself on named leads, so they outrank
+   anything you infer. Mention [באיחור] ones before the rest.
+3. Then anything worth chasing, only where the data supports it:
+   - "שלבים ממתינים לאישור לקוח" → nudge to chase the client for sign-off.
+   - "תשלומים פתוחים" → nudge to invoice or chase payment, and give the total.
+   - "פניות ממתינות לאישור" → suggest approving or dismissing via the bot.
+   - "פניות פתוחות" → work already promised to a client; flag anything stale.
+   - No marketing tasks in 14 days → a short nudge.
+4. Close with one motivating line.
+
+Length must track the day: if there is little to report, write a short message
+and say the day is clear. Do not pad, do not invent, do not repeat the same item
+in two sections. Never use a numbered-section layout in the output itself — it
+should read like a message from a colleague, not a form.
 
 Use WhatsApp formatting: *bold* (single asterisk), _italic_ (underscore).
-Keep it scannable — max 16 lines.
-NEVER use Markdown syntax. NEVER escape underscores with backslash. Write plain Hebrew text.
-Use Hebrew labels for categories (עבודת לקוח, שיווק, מעקב לידים, מנהלה) — never show English enum values.`,
+NEVER use Markdown syntax. NEVER escape underscores with backslash.
+Every label in the data is already Hebrew — keep it that way and never write an
+English enum value such as HIGH, WEBSITE or PENDING_REVIEW.`,
       prompt: briefData,
     })
 
