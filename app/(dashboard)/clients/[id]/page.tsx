@@ -40,6 +40,7 @@ import { ClientForm } from '@/components/forms/client-form'
 import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
 import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
+import { ClientProfileCard } from '@/components/clients/profile-card'
 import { tone, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { projectTotal } from '@/lib/utils/project-money'
@@ -76,6 +77,7 @@ interface ClientDetail {
   address?: string | null
   taxId?: string | null
   notes?: string | null
+  profileHe?: string | null
   createdAt: string
   formToken: string | null
   contacts: ClientContact[]
@@ -418,6 +420,8 @@ export default function ClientDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <ClientProfileCard clientId={client.id} profileHe={client.profileHe ?? null} onSaved={fetchClient} />
 
       <RequestListCard
         requests={requests}

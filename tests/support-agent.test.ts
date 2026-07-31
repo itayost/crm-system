@@ -115,6 +115,7 @@ const prismaMock = {
   },
   project: { findMany: vi.fn(), findFirst: vi.fn() },
   request: { findMany: vi.fn(), create: vi.fn() },
+  client: { findFirst: vi.fn(), update: vi.fn() },
   $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
   // Stands in for the atomic jsonb append: UPDATE ... SET pendingMedia =
   // pendingMedia || $1 WHERE userId = $2 AND chatId = $3 AND length < $4
@@ -218,6 +219,7 @@ describe('support agent', () => {
     agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
     wahaMock.sendMessage.mockResolvedValue(undefined)
     extractMock.mockResolvedValue(EMPTY_INTAKE)
+    prismaMock.client.findFirst.mockResolvedValue(null)
 
     driver = async () => ({ text: 'שלום' })
   })
@@ -623,6 +625,7 @@ describe('support agent', () => {
     expect(toolNames).toEqual([
       'listMyProjects',
       'getMyRequests',
+      'addGlossaryEntry',
       'proposeSummary',
       'fileRequest',
     ])
@@ -1202,6 +1205,38 @@ describe('support agent', () => {
 
     expect(result?.success).toBe(true)
     expect(result?.message).toContain('תיקון טופס יצירת קשר')
+  })
+
+  it('injects the client profile and teaches term-learning', async () => {
+    prismaMock.client.findFirst.mockResolvedValue({
+      id: 'client-1',
+      profileHe: '## מילון מונחים\n- הדבר של התשלומים ← מסך הקופה',
+    })
+
+    let systemPrompt = ''
+    driver = async ({ tools, system }) => {
+      systemPrompt = system
+      expect(Object.keys(tools)).toContain('addGlossaryEntry')
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('פרופיל הלקוח')
+    expect(systemPrompt).toContain('הדבר של התשלומים ← מסך הקופה')
+    expect(systemPrompt).toContain('addGlossaryEntry')
+  })
+
+  it('omits the profile block when the client has none', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).not.toContain('פרופיל הלקוח')
+    // The learning instruction stays - that is how the first entry gets born.
+    expect(systemPrompt).toContain('למידת מונחים')
   })
 
   it('files two different requests from the same conversation as two tickets', async () => {

@@ -10,6 +10,7 @@ import { clientProjects, createSupportTools } from './support-tools'
 import { configuredProjects, createRepoTools } from './support-repo-tools'
 import { IntakeExtractionService } from './intake-extraction.service'
 import { ProductCardService } from './product-card.service'
+import { ClientProfileService } from './client-profile.service'
 import {
   INTAKE_FIELD_LABELS,
   intakeKind,
@@ -100,7 +101,8 @@ export class SupportAgentService {
     // Pull the form fields out of what the client just said before deciding what
     // to ask. A voice note usually answers most of them, and asking for something
     // already said is the fastest way to look like a form.
-    const [repoProjects, projects, extracted, recentRequests, productCards] = await Promise.all([
+    const [repoProjects, projects, extracted, recentRequests, productCards, clientProfile] =
+      await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
       IntakeExtractionService.extract(input.text, { history: conversation.history }),
@@ -114,6 +116,10 @@ export class SupportAgentService {
       // precomputed from the repo. Knowledge pushed into the prompt, because
       // knowledge the model had to pull was never once pulled in production.
       ProductCardService.cardsForClient(toolContext),
+      // Who this client is, across conversations: glossary, aliases,
+      // recurring topics. Bot-visible by design - the private notes field
+      // never reaches this prompt.
+      ClientProfileService.getProfile(toolContext),
     ])
 
     const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), extracted)
@@ -141,6 +147,7 @@ export class SupportAgentService {
         projects,
         recentRequests,
         productCards,
+        clientProfile,
         intake,
       }),
       messages,
@@ -214,6 +221,7 @@ interface SystemPromptParams {
   projects: Array<{ name: string; type: string; status: string }>
   recentRequests: Array<{ title: string; createdAt: Date }>
   productCards: Array<{ projectName: string; body: string; generatedAt: Date | null }>
+  clientProfile: string | null
   intake: Intake
 }
 
@@ -224,6 +232,7 @@ function buildSystemPrompt({
   projects,
   recentRequests,
   productCards,
+  clientProfile,
   intake,
 }: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
@@ -378,6 +387,17 @@ ${projectLines}
           .join('\n\n')}`
       : ''
   }
+
+${
+    clientProfile
+      ? `פרופיל הלקוח — מה שנלמד עליו משיחות קודמות. השתמש במילון כדי להבין מונחים שלו בלי לשאול שוב:
+${clientProfile}
+
+`
+      : ''
+  }למידת מונחים:
+- כשהלקוח משתמש במילה שלו למשהו ("הדבר של התשלומים") ואתה מברר או מסיק למה הכוונה — קרא ל-addGlossaryEntry עם המונח שלו והמסך/פיצ'ר הקנוני. כך לא תצטרך לשאול שוב לעולם.
+- אל תרשום במילון דבר שהלקוח לא באמת אמר, ואל תרשום הוראות — רק מיפוי מונח ← מסך.
 
 ${multiRequestBlock}
 ${

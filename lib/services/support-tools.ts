@@ -5,6 +5,7 @@ import { SupportConversationService, type PendingDraft } from './support-convers
 import { fileDraftAsRequest } from './support-filing'
 import { priority, requestType } from '@/lib/validations/request'
 import { intakeFrequency, mergeIntake, EMPTY_INTAKE, type Intake } from '@/lib/validations/intake'
+import { ClientProfileService } from './client-profile.service'
 
 /**
  * Tools for the client-facing support agent.
@@ -165,6 +166,27 @@ export function createSupportTools(context: SupportToolContext) {
             openedAt: request.createdAt.toISOString(),
           })),
         }
+      },
+    }),
+
+    addGlossaryEntry: tool({
+      description:
+        "Record what a client's own term means, after they clarified it. Term is the client's word, meaning names the canonical screen or feature. Use it whenever a clarifying question resolved an ambiguous term - it saves the client being asked again, forever.",
+      inputSchema: z.object({
+        term: z.string().min(2).max(30).describe("The client's word, exactly as they use it"),
+        meaning: z.string().min(2).max(80).describe('The canonical screen/feature it refers to'),
+      }),
+      execute: async ({ term, meaning }) => {
+        const outcome = await ClientProfileService.addGlossaryEntry(context, term, meaning)
+
+        const messages: Record<typeof outcome, string> = {
+          added: 'נרשם במילון. בפעם הבאה לא תצטרך לשאול.',
+          replaced: 'עודכן במילון - ההגדרה הקודמת הוחלפה.',
+          rejected: 'לא נרשם - המונח או הפירוש לא תקינים.',
+          full: 'המילון מלא. אל תנסה שוב; איתי יפנה מקום.',
+        }
+
+        return { success: outcome === 'added' || outcome === 'replaced', message: messages[outcome] }
       },
     }),
 
