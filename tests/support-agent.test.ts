@@ -1021,4 +1021,143 @@ describe('support agent', () => {
       'קיבלתי. אעביר לאיתי ואחזור אליך.'
     )
   })
+
+  // One chat carries many requests over months. A client opened a third request
+  // with "בנוסף" and was told "זו בדיוק הבקשה שפתחנו בתחילת השיחה" - it was not,
+  // and it was never filed. These pin the contract that prevents a repeat.
+
+  it('tells the agent that a chat holds many separate requests', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('שיחה אחת מכילה הרבה פניות נפרדות')
+    expect(systemPrompt).toContain('דומה זה לא אותו דבר')
+    expect(systemPrompt).toContain('"בנוסף"')
+    expect(systemPrompt).toContain('אסור לך להחליט לבד שהודעה חדשה היא כפילות')
+  })
+
+  it('keeps the multi-request rules in force while a summary awaits confirmation', async () => {
+    await proposeInOwnTurn()
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'רשמתי' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'בנוסף, הדוחות לא נטענים' })
+
+    // The confirmation-stage branch used to replace the whole checklist with
+    // prohibitions, leaving "the client raised something new" unrepresentable.
+    expect(systemPrompt).toContain('שיחה אחת מכילה הרבה פניות נפרדות')
+    expect(systemPrompt).toContain('מעלה נושא חדש — זו בקשה נוספת')
+    expect(systemPrompt).toContain('אל תמזג את שתי הבקשות לפנייה אחת')
+  })
+
+  it('allows "הפנייה נקלטה" only for a success in the current turn', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('success שקיבלת בתור הנוכחי')
+    expect(systemPrompt).toContain('לעולם אינו תשובה להודעה חדשה')
+  })
+
+  it('lists the client already-filed requests as data the model can read', async () => {
+    // Tool calls never reach the saved history, so without this block the
+    // model's only evidence of past filings is its own "הפנייה נקלטה" prose.
+    prismaMock.request.findMany.mockResolvedValue([
+      { title: 'הוספת פריסת תשלומים לתזרים', createdAt: new Date('2026-07-31') },
+      { title: 'החלפת שדה תדירות אימונים', createdAt: new Date('2026-07-31') },
+    ])
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('פניות שכבר נפתחו ללקוח הזה לאחרונה')
+    expect(systemPrompt).toContain('הוספת פריסת תשלומים לתזרים')
+    expect(systemPrompt).toContain('החלפת שדה תדירות אימונים')
+    expect(systemPrompt).toContain('כל דבר אחר הוא פנייה חדשה')
+  })
+
+  it('omits the filed-requests block when nothing was ever filed', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).not.toContain('פניות שכבר נפתחו ללקוח הזה לאחרונה')
+  })
+
+  it('never feeds dismissed requests into the filed-requests block', async () => {
+    driver = async () => ({ text: 'שלום' })
+
+    await SupportAgentService.handleMessage(input)
+
+    // The first findMany call is the prompt's facts query.
+    const { where } = prismaMock.request.findMany.mock.calls[0][0]
+    expect(where.status.in).not.toContain('DISMISSED')
+  })
+
+  it('names the filed request in the fileRequest success message', async () => {
+    await proposeInOwnTurn({ title: 'תיקון טופס יצירת קשר' })
+
+    let result: { success: boolean; message: string } | undefined
+    driver = async ({ tools }) => {
+      result = (await tools.fileRequest.execute({})) as typeof result
+      return { text: 'נקלטה!' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    expect(result?.success).toBe(true)
+    expect(result?.message).toContain('תיקון טופס יצירת קשר')
+  })
+
+  it('files two different requests from the same conversation as two tickets', async () => {
+    prismaMock.request.create
+      .mockResolvedValueOnce({ id: 'request-1' })
+      .mockResolvedValueOnce({ id: 'request-2' })
+
+    // Request A: propose, then confirm on the next turn.
+    await proposeInOwnTurn({ title: 'תיקון כפתור בעמוד הבית' })
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'הפנייה נקלטה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    // Request B, same chat, overlapping vocabulary: same flow.
+    await proposeInOwnTurn({
+      title: 'דוח כפתורים לפי עמוד',
+      description: 'טבלה של כל הכפתורים בעמודים עם סטטוס תקינות',
+    })
+    driver = async ({ tools }) => {
+      await tools.fileRequest.execute({})
+      return { text: 'הפנייה נקלטה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן' })
+
+    // Two confirmations, two tickets. Nothing in the tool layer may treat the
+    // second as a repeat of the first.
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(2)
+    const titles = prismaMock.request.create.mock.calls.map(([args]) => args.data.title)
+    expect(titles).toEqual(['תיקון כפתור בעמוד הבית', 'דוח כפתורים לפי עמוד'])
+    expect(storedConversation().pendingDraft).toBeNull()
+  })
 })

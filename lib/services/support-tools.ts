@@ -289,16 +289,23 @@ export function createSupportTools(context: SupportToolContext) {
         const { requestId, skipped } = await fileDraftAsRequest(context, draft)
 
         if (skipped) {
+          // Scoped to this draft on purpose. The old wording - "אל תפתח פנייה
+          // נוספת" - read as a standing ban on ever opening another request,
+          // when all it means is that this one draft was already claimed.
           return {
             success: false,
             reason: 'already_filed',
-            message: 'הפנייה כבר נפתחה. אשר ללקוח שהיא נקלטה ואל תפתח פנייה נוספת.',
+            message:
+              'הטיוטה הזו כבר נפתחה כפנייה, אין צורך לפתוח אותה שוב. אשר ללקוח שהיא נקלטה. פנייה חדשה על נושא אחר פותחים כרגיל.',
           }
         }
 
+        // The title rides back so the model's visible reply can echo which
+        // request was filed. Tool results never reach the saved history, so
+        // without this the history only records that something was filed.
         return {
           success: true,
-          message: 'הפנייה נפתחה וממתינה לאישור של איתי. אשר ללקוח שהבקשה נקלטה.',
+          message: `הפנייה "${draft.title}" נפתחה וממתינה לאישור של איתי. אשר ללקוח שהבקשה נקלטה, ונקוב בנושא שלה.`,
           requestId,
         }
       },

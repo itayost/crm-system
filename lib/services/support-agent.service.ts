@@ -1,5 +1,6 @@
 import { generateText, stepCountIs } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { prisma } from '@/lib/db/prisma'
 import {
   SupportConversationService,
   type PendingMedia,
@@ -97,10 +98,16 @@ export class SupportAgentService {
     // Pull the form fields out of what the client just said before deciding what
     // to ask. A voice note usually answers most of them, and asking for something
     // already said is the fastest way to look like a form.
-    const [repoProjects, projects, extracted] = await Promise.all([
+    const [repoProjects, projects, extracted, recentRequests] = await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
       IntakeExtractionService.extract(input.text),
+      // What was actually filed for this client, straight from the database.
+      // Tool calls never enter the saved history, so without this the model's
+      // only evidence about past filings is its own prose - and "did I already
+      // open this?" answered from memory is how a new request got waved away
+      // as "זו בדיוק הבקשה שפתחנו בתחילת השיחה".
+      recentClientRequests(toolContext),
     ])
 
     const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), extracted)
@@ -127,6 +134,7 @@ export class SupportAgentService {
         hasPendingSummary: !!conversation.pendingDraft,
         hasRepoTools: repoProjects.length > 0,
         projects,
+        recentRequests,
         intake,
         screens,
       }),
@@ -144,6 +152,26 @@ export class SupportAgentService {
 
     return reply
   }
+}
+
+/**
+ * The client's latest filed requests, for the prompt's facts block. Small on
+ * purpose: five titles are enough to answer "is this the same as something we
+ * already opened?", which is the only question this exists to ground.
+ */
+async function recentClientRequests(context: { clientId: string; userId: string }) {
+  return prisma.request.findMany({
+    where: {
+      clientId: context.clientId,
+      userId: context.userId,
+      // A dismissed ticket must not ground "כבר נפתחה" - a client re-raising a
+      // dismissed topic is starting over, not repeating themselves.
+      status: { in: ['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { title: true, createdAt: true },
+  })
 }
 
 /**
@@ -184,6 +212,7 @@ interface SystemPromptParams {
   hasPendingSummary: boolean
   hasRepoTools: boolean
   projects: Array<{ name: string; type: string; status: string }>
+  recentRequests: Array<{ title: string; createdAt: Date }>
   intake: Intake
   screens: string[]
 }
@@ -193,6 +222,7 @@ function buildSystemPrompt({
   hasPendingSummary,
   hasRepoTools,
   projects,
+  recentRequests,
   intake,
   screens,
 }: SystemPromptParams): string {
@@ -211,6 +241,7 @@ function buildSystemPrompt({
 - אם ההודעה הנוכחית מאשרת את הסיכום ("כן", "מדויק", "נכון", "אוקיי", "בסדר", "סבבה") — קרא ל-fileRequest מיד. אל תקרא ל-proposeSummary, אל תנסח את הסיכום מחדש ואל תציג אותו שוב.
 - אחרי ש-fileRequest החזיר success — אמור ללקוח שהפנייה נקלטה ושאיתי יעבור עליה, וזהו.
 - קרא שוב ל-proposeSummary רק אם הלקוח תיקן משהו בסיכום. אז הצג את הגרסה המתוקנת ובקש אישור עליה.
+- אם ההודעה לא מאשרת ולא מתקנת אלא מעלה נושא חדש — זו בקשה נוספת, לא תיקון לסיכום. סגור קודם את הסיכום הממתין בהודעה קצרה אחת (בקש עליו כן/לא), ורק אחרי שהוא נסגר התחל את התהליך המלא עבור הבקשה החדשה. אל תמזג את שתי הבקשות לפנייה אחת.
 - לקוח שכבר אישר ונשאל שוב "זה מדויק?" על אותו סיכום — זו תקלה. אל תעשה את זה.`
     : `תהליך פתיחת פנייה (חובה, בלי קיצורי דרך):
 1. הבן את הבקשה, שאל אם צריך.
@@ -218,6 +249,32 @@ function buildSystemPrompt({
 3. הצג את הסיכום ללקוח בהודעה ובקש אישור מפורש ("זה מדויק?").
 4. רק אחרי שהלקוח אישר — קרא ל-fileRequest, ואז עדכן אותו שהפנייה נקלטה ושאיתי יעבור עליה.
 לעולם אל תקרא ל-fileRequest לפני אישור מפורש של הלקוח.`
+
+  // One chat, many requests over months. Without this the model has no state
+  // for "the client is starting another request", and a new ask that shares
+  // vocabulary with a filed one gets waved away as already handled - which is
+  // exactly how a client was told "זו בדיוק הבקשה שפתחנו" about a request that
+  // was never opened.
+  const multiRequestBlock = `שיחה אחת מכילה הרבה פניות נפרדות:
+- השיחה הזו נמשכת חודשים והלקוח פותח דרכה פניות רבות. כל הודעה שמתארת רצון, בעיה או רעיון היא פנייה חדשה — אלא אם היא תשובה לשאלה ששאלת על הפנייה הנוכחית.
+- דומה זה לא אותו דבר. שתי בקשות על אותו מסך או אותו תחום (הכנסות, טבלאות, דוחות) הן עדיין שתי פניות נפרדות.
+- פתיחים כמו "בנוסף", "עוד משהו", "דבר נוסף", "ועוד דבר" אומרים במפורש שמדובר בפנייה חדשה. לעולם אל תתייחס למה שאחריהם כחזרה על פנייה קיימת.
+- אסור לך להחליט לבד שהודעה חדשה היא כפילות של פנייה שכבר נפתחה. אם אתה חושד שכן — שאל את הלקוח ונקוב בשם הפנייה הקיימת ("זה אותו נושא כמו הפנייה על X, או משהו נפרד?"). אם ענה שנפרד, או אם אינך בטוח — פתח פנייה חדשה בתהליך המלא.`
+
+  // Titles are agent-composed and Itay-reviewed, unlike the pending summary's
+  // client-dictated wording that the comment above refuses to interpolate, and
+  // the model already reads them through getMyRequests. Flattened and capped
+  // anyway - a title's job here is recognition, not detail.
+  const recentRequestsBlock = recentRequests.length
+    ? `פניות שכבר נפתחו ללקוח הזה לאחרונה (מהחדשה לישנה):
+${recentRequests
+        .map(
+          (request) =>
+            `- "${request.title.replace(/\s+/g, ' ').slice(0, 80)}" (${request.createdAt.toLocaleDateString('he-IL')})`
+        )
+        .join('\n')}
+אם ההודעה הנוכחית באמת חוזרת על אחת מאלו — אמור שהיא כבר נפתחה ונקוב בשמה. כל דבר אחר הוא פנייה חדשה.`
+    : ''
 
   const projectLines = projects.length
     ? projects
@@ -307,10 +364,12 @@ ${projectLines}
 - אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
 - שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.
 
+${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${multiRequestBlock}
+
 ${intakeBlock}${questionBlock}
 
 ${processBlock}
-אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. אם הוא החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.
+אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. "הפנייה נקלטה" מותר להגיד רק על success שקיבלת בתור הנוכחי — success מוקדם יותר בשיחה שייך לפנייה אחרת, ולעולם אינו תשובה להודעה חדשה. אם fileRequest החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.
 ${
   hasRepoTools
     ? `
