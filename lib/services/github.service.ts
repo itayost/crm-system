@@ -86,6 +86,19 @@ async function request<T>(path: string): Promise<RepoResult<T>> {
 }
 
 export class GitHubService {
+  /**
+   * HEAD of the configured branch - one cheap call that lets the nightly card
+   * refresh skip every repo that has not moved.
+   */
+  static async getBranchHead({ owner, repo, branch }: RepoRef): Promise<RepoResult<{ sha: string }>> {
+    const result = await request<{ commit: { sha: string } }>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches/${encodeURIComponent(branch)}`
+    )
+
+    if (!result.ok) return result
+    return { ok: true, data: { sha: result.data.commit.sha } }
+  }
+
   /** Files in the repository, capped so a large monorepo cannot flood the model. */
   static async listTree(
     { owner, repo, branch }: RepoRef,
@@ -135,6 +148,31 @@ export class GitHubService {
       .slice(0, MAX_ROUTE_FILES)
 
     return { ok: true, data: { routes, truncated: result.data.truncated } }
+  }
+
+  /**
+   * Every blob path in the repository, uncapped by MAX_TREE_ENTRIES. For the
+   * offline card generator, which filters locally - never for the live agent,
+   * whose context a full tree would flood.
+   */
+  static async listAllPaths({
+    owner,
+    repo,
+    branch,
+  }: RepoRef): Promise<RepoResult<{ paths: string[]; truncated: boolean }>> {
+    const result = await request<{ tree: TreeEntry[]; truncated: boolean }>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`
+    )
+
+    if (!result.ok) return result
+
+    return {
+      ok: true,
+      data: {
+        paths: result.data.tree.filter((e) => e.type === 'blob').map((e) => e.path),
+        truncated: result.data.truncated,
+      },
+    }
   }
 
   static async searchCode(

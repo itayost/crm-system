@@ -9,7 +9,7 @@ import {
 import { clientProjects, createSupportTools } from './support-tools'
 import { configuredProjects, createRepoTools } from './support-repo-tools'
 import { IntakeExtractionService } from './intake-extraction.service'
-import { projectScreens } from './project-screens.service'
+import { ProductCardService } from './product-card.service'
 import {
   INTAKE_FIELD_LABELS,
   intakeKind,
@@ -28,7 +28,9 @@ import {
  */
 
 const MODEL = 'anthropic/claude-sonnet-4.6'
-const MAX_STEPS = 8
+// Six, down from eight: with the product card already in the prompt, a long
+// step budget mostly bought latency and GitHub code-search 429s (10 req/min).
+const MAX_STEPS = 6
 
 const FALLBACK_REPLY = 'קיבלתי. אעביר לאיתי ואחזור אליך.'
 
@@ -98,7 +100,7 @@ export class SupportAgentService {
     // Pull the form fields out of what the client just said before deciding what
     // to ask. A voice note usually answers most of them, and asking for something
     // already said is the fastest way to look like a form.
-    const [repoProjects, projects, extracted, recentRequests] = await Promise.all([
+    const [repoProjects, projects, extracted, recentRequests, productCards] = await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
       IntakeExtractionService.extract(input.text, { history: conversation.history }),
@@ -108,14 +110,14 @@ export class SupportAgentService {
       // open this?" answered from memory is how a new request got waved away
       // as "זו בדיוק הבקשה שפתחנו בתחילת השיחה".
       recentClientRequests(toolContext),
+      // What each of this client's products IS - screens, flows, vocabulary -
+      // precomputed from the repo. Knowledge pushed into the prompt, because
+      // knowledge the model had to pull was never once pulled in production.
+      ProductCardService.cardsForClient(toolContext),
     ])
 
     const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), extracted)
 
-    // Screens for the project the client is most likely talking about, so a
-    // question about "where" can offer real places instead of asking them to
-    // describe one.
-    const screens = await screensForConversation(projects, intake, repoProjects)
     // Any turn with repo access short of a plain change request may end up
     // reading code before a single word gets written. It used to fire only for
     // questions, so a bug report that triggered three uncached tree fetches
@@ -138,8 +140,8 @@ export class SupportAgentService {
         hasRepoTools: repoProjects.length > 0,
         projects,
         recentRequests,
+        productCards,
         intake,
-        screens,
       }),
       messages,
       tools,
@@ -195,29 +197,6 @@ async function recentClientRequests(context: { clientId: string; userId: string 
   })
 }
 
-/**
- * Screens are only useful when we know which project is meant. With one project
- * it is unambiguous; with several, the intake's own "where" is not enough to
- * pick one, so we stay quiet rather than offer the wrong site's pages.
- */
-async function screensForConversation(
-  projects: Array<{ id: string; name: string; type: string }>,
-  intake: Intake,
-  repoProjects: Array<{ id: string }>
-): Promise<string[]> {
-  const configured = projects.filter((project) =>
-    repoProjects.some((repoProject) => repoProject.id === project.id)
-  )
-  if (configured.length !== 1) return []
-
-  try {
-    return await projectScreens(configured[0].id)
-  } catch (error) {
-    console.error('Could not load project screens:', error)
-    return []
-  }
-}
-
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   LANDING_PAGE: 'דף נחיתה',
   WEBSITE: 'אתר',
@@ -234,8 +213,8 @@ interface SystemPromptParams {
   hasRepoTools: boolean
   projects: Array<{ name: string; type: string; status: string }>
   recentRequests: Array<{ title: string; createdAt: Date }>
+  productCards: Array<{ projectName: string; body: string; generatedAt: Date | null }>
   intake: Intake
-  screens: string[]
 }
 
 function buildSystemPrompt({
@@ -244,8 +223,8 @@ function buildSystemPrompt({
   hasRepoTools,
   projects,
   recentRequests,
+  productCards,
   intake,
-  screens,
 }: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
   // the client dictated, and anything interpolated into a system prompt is read
@@ -331,12 +310,19 @@ ${recentRequests
       ? `
 הלקוח שאל שאלה, לא דיווח על תקלה. שאלה היא לרוב הסימן הראשון לבאג או לבקשה, אז אל תסכם אותה לפני שבדקת.
 ${
-          hasRepoTools
-            ? `- קודם כל חפש בקוד: searchProjectCode ו-readProjectFile. אתה מחפש אם הדבר שהוא שואל עליו בכלל קיים במוצר, ואיפה.
+          productCards.length
+            ? `- קודם כל בדוק בכרטיס המוצר. אם התשובה שם — ענה מיד, במילים של מי שמשתמש במוצר: שם המסך ואיפה להסתכל בו. אל תפתח פנייה, רק שאל אם זה עזר.
+- אם משהו מופיע ברשימת "מה לא קיים" — זו בקשה לפיצ'ר, לא שאלה. תגיד שאיתי יחזור אליו וסכם כבקשה (suggestedType=REQUEST).${
+                hasRepoTools
+                  ? '\n- רק כשהכרטיס לא עונה — חפש בקוד (searchProjectCode, readProjectFile).'
+                  : ''
+              }`
+            : hasRepoTools
+              ? `- קודם כל חפש בקוד: searchProjectCode ו-readProjectFile. אתה מחפש אם הדבר שהוא שואל עליו בכלל קיים במוצר, ואיפה.
 - אם זה קיים והוא פשוט לא מצא — ענה לו איפה זה, במילים של מי שמשתמש במוצר: שם המסך ואיפה להסתכל בו. בלי שמות קבצים, נתיבים או רכיבים. אל תפתח פנייה, רק שאל אם זה עזר.
 - אם זה קיים אבל מוסתר, קשה למצוא או לא עובד כמו שהוא מתאר — זו לא שאלה, זו תקלה. סכם כתקלה (suggestedType=BUG) וציין איפה זה אמור להיות.
 - אם זה לא קיים בכלל בקוד — זו לא שאלה, זו בקשה לפיצ'ר. אל תגיד לו "זה לא קיים" כעובדה מוחלטת; תגיד שאיתי יחזור אליו, וסכם כבקשה (suggestedType=REQUEST) עם מה שהוא רוצה להשיג.`
-            : `- אין לך גישה לקוד של הפרויקט הזה, אז אל תנחש אם משהו קיים או לא.
+              : `- אין לך גישה לקוד של הפרויקט הזה, אז אל תנחש אם משהו קיים או לא.
 - ענה רק ממה שאתה יודע בוודאות. אחרת תגיד שאיתי יחזור אליו, וסכם את השאלה.`
         }
 - מה שמצאת בקוד נשמר לאיתי בכל מקרה, גם כשענית ולא פתחת פנייה.
@@ -383,10 +369,13 @@ ${projectLines}
 - "האתר" מתאים לאתר או לדף נחיתה. "המערכת" למערכת ניהול או לאפליקציית ווב. "האפליקציה" לאפליקציה. "החנות" לחנות אונליין.
 - אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
 - שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.${
-    screens.length
-      ? `\n\nהמסכים של הפרויקט (השתמש בשמות האלה כשאתה שואל "איפה"):\n${screens
-          .map((screen) => `- ${screen}`)
-          .join('\n')}`
+    productCards.length
+      ? `\n\n${productCards
+          .map(
+            (card) =>
+              `כרטיס המוצר של "${card.projectName}" — התיאור הסמכותי של המוצר. סמוך עליו לפני כל בדיקה אחרת; קרא למסכים בשמות שמופיעים בו:\n${card.body}`
+          )
+          .join('\n\n')}`
       : ''
   }
 
@@ -395,7 +384,7 @@ ${
   hasRepoTools
     ? `
 בדיקה פנימית בקוד:
-- לחלק מהפרויקטים יש גישת קריאה לקוד (listProjectFiles, searchProjectCode, readProjectFile). השתמש בהם כדי להבין על מה הלקוח מדבר ולשאול שאלה ממוקדת יותר.
+- לחלק מהפרויקטים יש גישת קריאה לקוד (listProjectFiles, searchProjectCode, readProjectFile). השתמש בהם רק כשכרטיס המוצר לא עונה — פרט מימוש ספציפי, הודעת שגיאה מדויקת. אל תחפש בקוד מה שכתוב בכרטיס.
 - כל מה שאתה רואה שם הוא פנימי. אסור בהחלט להזכיר ללקוח שמות קבצים, נתיבים, קוד, שמות פונקציות או מונחים טכניים, ואסור לרמוז שקראת את הקוד.
 - אם הבדיקה נכשלת, פשוט המשך בשיחה רגילה בלי להזכיר את זה.`
     : ''

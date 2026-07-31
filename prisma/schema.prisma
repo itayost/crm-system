@@ -55,8 +55,8 @@ model Contact {
   client    Client? @relation(fields: [clientId], references: [id])
 
   userId           String
-  user             User               @relation(fields: [userId], references: [id])
-  projects         Project[]          @relation("ProjectPrimaryContact")
+  user             User              @relation(fields: [userId], references: [id])
+  projects         Project[]         @relation("ProjectPrimaryContact")
   whatsappMessages WhatsAppMessage[]
   requests         Request[]
 
@@ -89,15 +89,16 @@ model Project {
   retentionFrequency RetentionFrequency?
 
   clientId         String
-  client           Client   @relation(fields: [clientId], references: [id])
+  client           Client              @relation(fields: [clientId], references: [id])
   primaryContactId String?
-  primaryContact   Contact? @relation("ProjectPrimaryContact", fields: [primaryContactId], references: [id])
-  userId    String
-  user      User    @relation(fields: [userId], references: [id])
-  tasks       Task[]
-  requests    Request[]
-  phases      ProjectPhase[]
-  agentConfig AgentProjectConfig?
+  primaryContact   Contact?            @relation("ProjectPrimaryContact", fields: [primaryContactId], references: [id])
+  userId           String
+  user             User                @relation(fields: [userId], references: [id])
+  tasks            Task[]
+  requests         Request[]
+  phases           ProjectPhase[]
+  agentConfig      AgentProjectConfig?
+  productCard      ProductCard?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,6 +135,34 @@ model ProjectPhase {
   @@index([status])
 }
 
+/// The support bot's authoritative description of the delivered product a
+/// client uses - screens, flows, vocabulary, what does not exist - written in
+/// Hebrew and injected whole into the support prompt. Regenerated from the
+/// repo when its HEAD moves; the owner's manual notes survive regeneration
+/// and win on conflict. Scoped through the project, like AgentProjectConfig.
+model ProductCard {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The generated card body, Hebrew prose with English identifiers.
+  cardHe        String  @db.Text
+  /// Owner-authored additions appended after the generated body - e.g. the
+  /// Android app's screens, which no page.tsx glob can see.
+  manualNotesHe String? @db.Text
+
+  /// HEAD of the configured branch when the card was generated. The nightly
+  /// refresh skips repos whose HEAD has not moved.
+  commitSha   String?
+  generatedAt DateTime?
+  /// What inputs built it (routes counted, i18n found, README length) - for
+  /// debugging a bad card, not for the prompt.
+  sourceNote  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Task {
   id          String       @id @default(cuid())
   title       String
@@ -168,11 +197,16 @@ model Client {
   address    String?
   taxId      String?
   notes      String? @db.Text
+  /// What the support bot may know about this client - and may therefore say.
+  /// Bot-visible by design; `notes` above stays owner-private and never
+  /// reaches a prompt. Fixed Markdown sections, מילון being the one the bot
+  /// itself appends to.
+  profileHe  String? @db.Text
   isInternal Boolean @default(false)
   formToken  String? @unique
 
   userId String
-  user   User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 
   contacts Contact[]
   projects Project[]
@@ -269,7 +303,7 @@ enum MessageDirection {
 }
 
 model WhatsAppMessage {
-  id String @id @default(cuid())
+  id          String           @id @default(cuid())
   /// WAHA's own message id. Lets a redelivered webhook be recognised rather
   /// than archived and answered twice.
   externalId  String?          @unique
@@ -288,10 +322,10 @@ model WhatsAppMessage {
   mediaPath     String?
   mediaMimeType String?
   /// What the media said or showed, as understood by the transcription model.
-  transcript String? @db.Text
-  createdAt   DateTime         @default(now())
+  transcript    String?  @db.Text
+  createdAt     DateTime @default(now())
 
-  requests    Request[]
+  requests Request[]
 
   @@index([phoneNumber])
   @@index([contactId])
@@ -323,7 +357,7 @@ model SupportConversation {
   user      User    @relation(fields: [userId], references: [id])
 
   /// Trimmed rolling history: [{ role, content }]
-  messages Json @default("[]")
+  messages            Json      @default("[]")
   /// The request summary awaiting the client's confirmation, if any.
   pendingDraft        Json?
   confirmationAskedAt DateTime?
@@ -333,9 +367,9 @@ model SupportConversation {
   confirmationRounds  Int       @default(0)
   /// Media sent in this conversation that the next filed request should carry:
   /// [{ path, mimeType, transcribed }]
-  pendingMedia Json @default("[]")
+  pendingMedia        Json      @default("[]")
   /// Internal repository findings for the next filed request's AI note.
-  repoFindings Json @default("[]")
+  repoFindings        Json      @default("[]")
 
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())
@@ -348,16 +382,16 @@ model SupportConversation {
 }
 
 model AgentProjectConfig {
-  id        String   @id @default(cuid())
-  projectId String   @unique
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  agentSlug String   @unique
+  agentSlug String                @unique
   status    AgentMonitoringStatus @default(ACTIVE)
 
   githubOwner  String
   githubRepo   String
-  githubBranch String  @default("main")
+  githubBranch String @default("main")
 
   vercelTeamId    String
   vercelProjectId String
@@ -391,13 +425,13 @@ model Request {
   priority    Priority      @default(MEDIUM)
   source      RequestSource @default(MANUAL)
 
-  isAiGenerated Boolean @default(false)
+  isAiGenerated Boolean  @default(false)
   aiConfidence  Float?
-  aiNote        String? @db.Text
+  aiNote        String?  @db.Text
   attachments   String[] @default([])
   /// Structured intake gathered by the support agent:
   /// { where, whatHappened, expected, frequency, workedBefore, blocking, goal, today, suggestedType }
-  intake Json?
+  intake        Json?
 
   sourceMessageId String?
   sourceMessage   WhatsAppMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)

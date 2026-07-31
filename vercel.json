@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/support-followups",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/refresh-product-cards",
+      "schedule": "0 3 * * *"
     }
   ]
 }

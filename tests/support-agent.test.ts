@@ -137,7 +137,6 @@ const wahaMock = { sendMessage: vi.fn() }
 const agentMock = { resolveOwnerChatId: vi.fn() }
 const githubMock = { listTree: vi.fn(), searchCode: vi.fn(), readFile: vi.fn() }
 const extractMock = vi.fn()
-const screensMock = vi.fn()
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/services/waha.service', () => ({
@@ -148,9 +147,6 @@ vi.mock('@/lib/services/waha.service', () => ({
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
 vi.mock('@/lib/services/intake-extraction.service', () => ({
   IntakeExtractionService: { extract: (...args: unknown[]) => extractMock(...args) },
-}))
-vi.mock('@/lib/services/project-screens.service', () => ({
-  projectScreens: (...args: unknown[]) => screensMock(...args),
 }))
 vi.mock('@/lib/services/github.service', async () => {
   const actual = await vi.importActual<typeof import('@/lib/services/github.service')>(
@@ -222,7 +218,6 @@ describe('support agent', () => {
     agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
     wahaMock.sendMessage.mockResolvedValue(undefined)
     extractMock.mockResolvedValue(EMPTY_INTAKE)
-    screensMock.mockResolvedValue([])
 
     driver = async () => ({ text: 'שלום' })
   })
@@ -538,19 +533,23 @@ describe('support agent', () => {
     expect(missingBlock).not.toContain('מה קרה')
   })
 
-  it('offers the project real screens when there is one repo-backed project', async () => {
-    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
-      where.agentConfig
-        ? [
-            {
-              id: 'project-1',
-              name: 'האתר',
-              agentConfig: { githubOwner: 'itayost', githubRepo: 'site', githubBranch: 'main' },
+  it('injects the product card as the authoritative product description', async () => {
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => {
+      if (where.productCard) {
+        return [
+          {
+            name: 'האתר',
+            productCard: {
+              cardHe: '## מה המוצר\nמערכת דוחות לסטודיו.\n## מסכים\n- /reports -> מסך הדוחות',
+              manualNotesHe: 'הערה ידנית: יש גם אפליקציית אנדרואיד.',
+              generatedAt: new Date('2026-07-30'),
             },
-          ]
-        : [{ id: 'project-1', name: 'האתר', status: 'ACTIVE', type: 'WEBSITE' }]
-    )
-    screensMock.mockResolvedValue(['עמוד הבית', 'צור קשר', 'שירותים'])
+          },
+        ]
+      }
+      if (where.agentConfig) return []
+      return [{ id: 'project-1', name: 'האתר', status: 'ACTIVE', type: 'WEBSITE' }]
+    })
 
     let systemPrompt = ''
     driver = async ({ system }) => {
@@ -559,9 +558,10 @@ describe('support agent', () => {
     }
     await SupportAgentService.handleMessage(input)
 
-    expect(screensMock).toHaveBeenCalledWith('project-1')
-    expect(systemPrompt).toContain('המסכים של הפרויקט')
-    expect(systemPrompt).toContain('- צור קשר')
+    expect(systemPrompt).toContain('כרטיס המוצר של "האתר"')
+    expect(systemPrompt).toContain('מסך הדוחות')
+    // The owner's manual notes ride after the generated body and win.
+    expect(systemPrompt).toContain('אפליקציית אנדרואיד')
   })
 
   it('never asks the client to classify the request', async () => {
