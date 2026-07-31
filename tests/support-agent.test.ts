@@ -218,7 +218,7 @@ describe('support agent', () => {
     prismaMock.request.create.mockResolvedValue({ id: 'request-1' })
     agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
     wahaMock.sendMessage.mockResolvedValue(undefined)
-    extractMock.mockResolvedValue(EMPTY_INTAKE)
+    extractMock.mockResolvedValue({ intake: EMPTY_INTAKE, relation: null })
     prismaMock.client.findFirst.mockResolvedValue(null)
 
     driver = async () => ({ text: 'שלום' })
@@ -497,11 +497,14 @@ describe('support agent', () => {
 
   it('asks for nothing when the voice note already answered everything', async () => {
     extractMock.mockResolvedValue({
-      ...EMPTY_INTAKE,
-      suggestedType: 'BUG',
-      where: 'עמוד הבית',
-      whatHappened: 'התמונה יוצאת מהמסגרת',
-      expected: 'שתישאר בתוך המסגרת',
+      intake: {
+        ...EMPTY_INTAKE,
+        suggestedType: 'BUG',
+        where: 'עמוד הבית',
+        whatHappened: 'התמונה יוצאת מהמסגרת',
+        expected: 'שתישאר בתוך המסגרת',
+      },
+      relation: null,
     })
 
     let systemPrompt = ''
@@ -517,10 +520,13 @@ describe('support agent', () => {
 
   it('names exactly the field the client left out', async () => {
     extractMock.mockResolvedValue({
-      ...EMPTY_INTAKE,
-      suggestedType: 'BUG',
-      whatHappened: 'התמונה יוצאת מהמסגרת',
-      expected: 'שתישאר בתוך המסגרת',
+      intake: {
+        ...EMPTY_INTAKE,
+        suggestedType: 'BUG',
+        whatHappened: 'התמונה יוצאת מהמסגרת',
+        expected: 'שתישאר בתוך המסגרת',
+      },
+      relation: null,
     })
 
     let systemPrompt = ''
@@ -578,7 +584,7 @@ describe('support agent', () => {
   })
 
   it('asks a change request what it is for, and never how often', async () => {
-    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'IMPROVEMENT' })
+    extractMock.mockResolvedValue({ intake: { ...EMPTY_INTAKE, suggestedType: 'IMPROVEMENT' }, relation: null })
 
     let systemPrompt = ''
     driver = async ({ system }) => {
@@ -676,10 +682,13 @@ describe('support agent', () => {
     // The client's voice note answered the whole form; the model only re-types
     // some of it. The extractor's fields must reach the draft anyway.
     extractMock.mockResolvedValue({
-      ...EMPTY_INTAKE,
-      where: 'עמוד התשלום',
-      frequency: 'ALWAYS',
-      blocking: true,
+      intake: {
+        ...EMPTY_INTAKE,
+        where: 'עמוד התשלום',
+        frequency: 'ALWAYS',
+        blocking: true,
+      },
+      relation: null,
     })
 
     await proposeInOwnTurn({ where: 'המסך של הקופה' })
@@ -937,7 +946,7 @@ describe('support agent', () => {
   })
 
   it('tells the agent to answer a question before turning it into a ticket', async () => {
-    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'QUESTION' })
+    extractMock.mockResolvedValue({ intake: { ...EMPTY_INTAKE, suggestedType: 'QUESTION' }, relation: null })
     prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
       where.agentConfig
         ? [
@@ -967,7 +976,7 @@ describe('support agent', () => {
   })
 
   it('does not let the agent guess what exists when it cannot read the repo', async () => {
-    extractMock.mockResolvedValue({ ...EMPTY_INTAKE, suggestedType: 'QUESTION' })
+    extractMock.mockResolvedValue({ intake: { ...EMPTY_INTAKE, suggestedType: 'QUESTION' }, relation: null })
     prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) =>
       where.agentConfig ? [] : [{ id: 'project-1', name: 'האתר', status: 'ACTIVE', type: 'WEBSITE' }]
     )
@@ -1237,6 +1246,72 @@ describe('support agent', () => {
     expect(systemPrompt).not.toContain('פרופיל הלקוח')
     // The learning instruction stays - that is how the first entry gets born.
     expect(systemPrompt).toContain('למידת מונחים')
+  })
+
+  it('grounds the relation judgment in the filed titles', async () => {
+    prismaMock.request.findMany.mockResolvedValue([
+      { title: 'הוספת פריסת תשלומים לתזרים', createdAt: new Date('2026-07-31') },
+    ])
+
+    driver = async () => ({ text: 'שלום' })
+    await SupportAgentService.handleMessage(input)
+
+    expect(extractMock).toHaveBeenCalledWith(
+      input.text,
+      expect.objectContaining({
+        recentRequestTitles: ['הוספת פריסת תשלומים לתזרים'],
+        hasPendingSummary: false,
+      })
+    )
+  })
+
+  it('renders a possibly-related judgment as a question, never a verdict', async () => {
+    extractMock.mockResolvedValue({
+      intake: EMPTY_INTAKE,
+      relation: {
+        relation: 'POSSIBLY_RELATED',
+        relatedTitle: 'הוספת פריסת תשלומים לתזרים',
+        rationaleHe: 'שתיהן עוסקות בהכנסות',
+      },
+    })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('אולי קשורה לפנייה קיימת "הוספת פריסת תשלומים לתזרים"')
+    expect(systemPrompt).toContain('שאל את הלקוח')
+    expect(systemPrompt).toContain('לעולם אל תחליט לבד')
+  })
+
+  it('renders a NEW judgment as a start-the-flow instruction', async () => {
+    extractMock.mockResolvedValue({
+      intake: EMPTY_INTAKE,
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).toContain('פנייה חדשה — התחל את התהליך המלא')
+  })
+
+  it('says nothing about relation when the pre-pass had no verdict', async () => {
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'שלום' }
+    }
+    await SupportAgentService.handleMessage(input)
+
+    expect(systemPrompt).not.toContain('סיווג ההודעה הנוכחית')
   })
 
   it('files two different requests from the same conversation as two tickets', async () => {

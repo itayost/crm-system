@@ -8,7 +8,7 @@ import {
 } from './support-conversation.service'
 import { clientProjects, createSupportTools } from './support-tools'
 import { configuredProjects, createRepoTools } from './support-repo-tools'
-import { IntakeExtractionService } from './intake-extraction.service'
+import { IntakeExtractionService, type TurnRelation } from './intake-extraction.service'
 import { ProductCardService } from './product-card.service'
 import { ClientProfileService } from './client-profile.service'
 import {
@@ -101,17 +101,25 @@ export class SupportAgentService {
     // Pull the form fields out of what the client just said before deciding what
     // to ask. A voice note usually answers most of them, and asking for something
     // already said is the fastest way to look like a form.
-    const [repoProjects, projects, extracted, recentRequests, productCards, clientProfile] =
-      await Promise.all([
+    // Fetched first (one indexed 5-row query) because the extractor's
+    // relation judgment needs the filed titles as candidates. Tool calls never
+    // enter the saved history, so without this list the model's only evidence
+    // about past filings is its own prose - and "did I already open this?"
+    // answered from memory is how a new request got waved away as "זו בדיוק
+    // הבקשה שפתחנו בתחילת השיחה".
+    const recentRequests = await recentClientRequests(toolContext)
+
+    const [repoProjects, projects, analysis, productCards, clientProfile] = await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
-      IntakeExtractionService.extract(input.text, { history: conversation.history }),
-      // What was actually filed for this client, straight from the database.
-      // Tool calls never enter the saved history, so without this the model's
-      // only evidence about past filings is its own prose - and "did I already
-      // open this?" answered from memory is how a new request got waved away
-      // as "זו בדיוק הבקשה שפתחנו בתחילת השיחה".
-      recentClientRequests(toolContext),
+      // One structured pre-pass per message: the intake form, and the relation
+      // judgment (new / continues / possibly-related) grounded in the filed
+      // titles. One call deciding what used to be guessed in three places.
+      IntakeExtractionService.extract(input.text, {
+        history: conversation.history,
+        recentRequestTitles: recentRequests.map((request) => request.title),
+        hasPendingSummary: !!conversation.pendingDraft,
+      }),
       // What each of this client's products IS - screens, flows, vocabulary -
       // precomputed from the repo. Knowledge pushed into the prompt, because
       // knowledge the model had to pull was never once pulled in production.
@@ -122,7 +130,7 @@ export class SupportAgentService {
       ClientProfileService.getProfile(toolContext),
     ])
 
-    const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), extracted)
+    const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), analysis.intake)
 
     // Any turn with repo access short of a plain change request may end up
     // reading code before a single word gets written. It used to fire only for
@@ -149,6 +157,7 @@ export class SupportAgentService {
         productCards,
         clientProfile,
         intake,
+        turnRelation: analysis.relation,
       }),
       messages,
       tools,
@@ -223,6 +232,7 @@ interface SystemPromptParams {
   productCards: Array<{ projectName: string; body: string; generatedAt: Date | null }>
   clientProfile: string | null
   intake: Intake
+  turnRelation: TurnRelation | null
 }
 
 function buildSystemPrompt({
@@ -234,6 +244,7 @@ function buildSystemPrompt({
   productCards,
   clientProfile,
   intake,
+  turnRelation,
 }: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
   // the client dictated, and anything interpolated into a system prompt is read
@@ -413,7 +424,19 @@ ${
 
 פורמט וואטסאפ: *מודגש* עם כוכבית אחת, _נטוי_ עם קו תחתון. בלי Markdown ובלי כותרות.
 
-${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${intakeBlock}${questionBlock}
+${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${
+    turnRelation
+      ? `סיווג ההודעה הנוכחית (קביעת עזר מובנית, לא החלטה סופית): ${
+          turnRelation.relation === 'NEW'
+            ? 'פנייה חדשה — התחל את התהליך המלא עבורה.'
+            : turnRelation.relation === 'CONTINUES_PENDING'
+              ? 'המשך לפנייה שבתהליך — התייחס אליה, אל תפתח נושא חדש.'
+              : `אולי קשורה לפנייה קיימת "${turnRelation.relatedTitle ?? ''}"${
+                  turnRelation.rationaleHe ? ` (${turnRelation.rationaleHe})` : ''
+                } — שאל את הלקוח אם זה אותו נושא או משהו נפרד. לעולם אל תחליט לבד.`
+        }\n\n`
+      : ''
+  }${intakeBlock}${questionBlock}
 
 ${processBlock}
 אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. "הפנייה נקלטה" מותר להגיד רק על success שקיבלת בתור הנוכחי — success מוקדם יותר בשיחה שייך לפנייה אחרת, ולעולם אינו תשובה להודעה חדשה. אם fileRequest החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.`

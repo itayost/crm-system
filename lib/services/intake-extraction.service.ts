@@ -1,5 +1,6 @@
 import { generateObject } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { z } from 'zod'
 import { EMPTY_INTAKE, intakeSchema, type Intake } from '@/lib/validations/intake'
 
 /**
@@ -30,13 +31,40 @@ const SYSTEM_PROMPT = `אתה ממלא טופס פנייה של לקוח מתו�
 - blocking: true אם זה חוסם אותו מלעבוד או דחוף לו, false אם אמר שזה יכול לחכות, null אם לא הוזכר.
 - goal: כשמדובר בשינוי או תוספת — מה הוא מנסה להשיג.
 - today: כשמדובר בשינוי או תוספת — איך הוא מסתדר עם זה היום.
-- suggestedType: הקריאה שלך לסוג הפנייה. BUG כשמשהו שבור, IMPROVEMENT או REQUEST כשרוצים שינוי או תוספת, QUESTION כששואלים שאלה. זו הצעה פנימית בלבד.`
+- suggestedType: הקריאה שלך לסוג הפנייה. BUG כשמשהו שבור, IMPROVEMENT או REQUEST כשרוצים שינוי או תוספת, QUESTION כששואלים שאלה. זו הצעה פנימית בלבד.
+
+בנוסף לטופס, סווג את היחס של ההודעה לפניות הקיימות (relation):
+- NEW: נושא חדש. גם "בנוסף", "עוד משהו" ודומיהם הם תמיד NEW. זו ברירת המחדל בכל ספק - פנייה מיותרת זולה, מיזוג שגוי מוחק מידע.
+- CONTINUES_PENDING: ההודעה עונה לשאלה על הפנייה שבתהליך עכשיו (אישור, תיקון, פרט שנשאל עליו).
+- POSSIBLY_RELATED: ההודעה אולי חוזרת על אחת מהפניות שכבר נפתחו (מהרשימה שסופקה). מלא את relatedTitle בכותרת המדויקת מהרשימה, ואת relationRationaleHe במשפט הסבר אחד בעברית. לעולם אל תחליט שזו כפילות ודאית - זו שאלה ללקוח.
+אם אין הודעה ברורה או שאין פניות קיימות - NEW.`
+
+const turnAnalysisSchema = intakeSchema.extend({
+  relation: z.enum(['NEW', 'CONTINUES_PENDING', 'POSSIBLY_RELATED']).nullable(),
+  relatedTitle: z.string().nullable(),
+  relationRationaleHe: z.string().nullable(),
+})
+
+export interface TurnRelation {
+  relation: 'NEW' | 'CONTINUES_PENDING' | 'POSSIBLY_RELATED'
+  relatedTitle: string | null
+  rationaleHe: string | null
+}
+
+export interface TurnAnalysis {
+  intake: Intake
+  relation: TurnRelation | null
+}
 
 /** The handful of turns the extractor may read for context. More adds noise. */
 const MAX_CONTEXT_TURNS = 6
 
 export interface IntakeContext {
   history?: Array<{ role: string; content: string }>
+  /** Titles already filed for this client - candidates for POSSIBLY_RELATED. */
+  recentRequestTitles?: string[]
+  /** Whether a summary is currently awaiting the client's confirmation. */
+  hasPendingSummary?: boolean
 }
 
 export class IntakeExtractionService {
@@ -48,28 +76,45 @@ export class IntakeExtractionService {
    * message in isolation, so "לא, זה בעמוד ההזמנות" extracted a null `where`
    * and the wrong value from two turns ago survived the merge.
    */
-  static async extract(text: string, context: IntakeContext = {}): Promise<Intake> {
-    if (!text.trim()) return EMPTY_INTAKE
+  static async extract(text: string, context: IntakeContext = {}): Promise<TurnAnalysis> {
+    if (!text.trim()) return { intake: EMPTY_INTAKE, relation: null }
 
     const recent = (context.history ?? []).slice(-MAX_CONTEXT_TURNS)
-    const prompt = recent.length
-      ? `היסטוריית שיחה אחרונה:\n${recent
-          .map((m) => `${m.role === 'user' ? 'לקוח' : 'נציג'}: ${m.content}`)
-          .join('\n')}\n\nההודעה האחרונה של הלקוח (מלא את הטופס עבורה):\n${text}`
-      : text
+    const parts = [
+      recent.length
+        ? `היסטוריית שיחה אחרונה:\n${recent
+            .map((m) => `${m.role === 'user' ? 'לקוח' : 'נציג'}: ${m.content}`)
+            .join('\n')}`
+        : null,
+      context.recentRequestTitles?.length
+        ? `פניות שכבר נפתחו ללקוח (לשיקול POSSIBLY_RELATED בלבד):\n${context.recentRequestTitles
+            .map((title) => `- ${title}`)
+            .join('\n')}`
+        : null,
+      context.hasPendingSummary
+        ? 'יש כרגע סיכום שממתין לאישור הלקוח (רלוונטי ל-CONTINUES_PENDING).'
+        : null,
+      `ההודעה האחרונה של הלקוח (מלא את הטופס עבורה):\n${text}`,
+    ].filter((part): part is string => part !== null)
 
     try {
       const result = await generateObject({
         model: gateway(MODEL),
-        schema: intakeSchema,
+        schema: turnAnalysisSchema,
         system: SYSTEM_PROMPT,
-        prompt,
+        prompt: parts.join('\n\n'),
       })
 
-      return result.object
+      const { relation, relatedTitle, relationRationaleHe, ...intake } = result.object
+      return {
+        intake,
+        relation: relation
+          ? { relation, relatedTitle, rationaleHe: relationRationaleHe }
+          : null,
+      }
     } catch (error) {
       console.error('Intake extraction failed:', error)
-      return EMPTY_INTAKE
+      return { intake: EMPTY_INTAKE, relation: null }
     }
   }
 }
