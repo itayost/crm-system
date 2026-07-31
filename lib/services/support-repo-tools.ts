@@ -57,7 +57,13 @@ export async function configuredProjects(
   )
 }
 
-export function createRepoTools(context: SupportToolContext, projects: ConfiguredProject[]) {
+export function createRepoTools(
+  context: SupportToolContext,
+  projects: ConfiguredProject[],
+  /** Set when any repo tool runs this turn; the caller uses it to decide
+   *  whether findings on the conversation are fresh or leftovers. */
+  activity?: { fired: boolean }
+) {
   /** Exact name, or a single unambiguous partial match. Never a guess. */
   const byName = (projectName: string) => {
     const needle = projectName.trim().toLowerCase()
@@ -78,6 +84,7 @@ export function createRepoTools(context: SupportToolContext, projects: Configure
   }
 
   const remember = async (finding: string) => {
+    if (activity) activity.fired = true
     await SupportConversationService.addRepoFinding(context, finding)
   }
 
@@ -115,8 +122,13 @@ export function createRepoTools(context: SupportToolContext, projects: Configure
       inputSchema: z.object({
         projectName: z.string(),
         query: z.string().min(2).describe('What to look for, e.g. a visible label or error text'),
+        purpose: z
+          .string()
+          .max(120)
+          .optional()
+          .describe('One short Hebrew line: what you are trying to establish with this search'),
       }),
-      execute: async ({ projectName, query }) => {
+      execute: async ({ projectName, query, purpose }) => {
         const project = byName(projectName)
         if (!project) return unknownProject
 
@@ -126,7 +138,7 @@ export function createRepoTools(context: SupportToolContext, projects: Configure
         await remember(
           `חיפוש "${query}" ב-${project.name}: ${result.data.total} תוצאות${
             result.data.paths.length ? ` (${result.data.paths.slice(0, 3).join(', ')})` : ''
-          }`
+          }${purpose ? ` — ${purpose}` : ''}`
         )
 
         return {
@@ -143,15 +155,25 @@ export function createRepoTools(context: SupportToolContext, projects: Configure
       inputSchema: z.object({
         projectName: z.string(),
         path: z.string().describe('Repository-relative file path, as returned by the other tools'),
+        conclusion: z
+          .string()
+          .max(160)
+          .optional()
+          .describe(
+            'One short Hebrew line for Itay: what this file told you about the client issue. Fill it whenever the read taught you something.'
+          ),
       }),
-      execute: async ({ projectName, path }) => {
+      execute: async ({ projectName, path, conclusion }) => {
         const project = byName(projectName)
         if (!project) return unknownProject
 
         const result = await GitHubService.readFile(project.repo, path)
         if (!result.ok) return degraded(result.error)
 
-        await remember(`נקרא ${path} ב-${project.name}`)
+        // The finding used to record only the act ("נקרא path") - what the
+        // model concluded from the file died with the turn. The conclusion is
+        // what reaches Itay on the ticket.
+        await remember(`נקרא ${path} ב-${project.name}${conclusion ? ` — ${conclusion}` : ''}`)
 
         return {
           success: true,

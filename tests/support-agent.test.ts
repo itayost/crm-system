@@ -178,8 +178,9 @@ const input = {
 function storedConversation() {
   return conversations.get(`${input.userId}:${CHAT_ID}`) as {
     messages: Array<{ role: string; content: string }>
-    pendingDraft: Record<string, unknown> | null
+    pendingDraft: (Record<string, unknown> & { intake?: unknown }) | null
     pendingMedia?: Array<Record<string, unknown>>
+    repoFindings?: string[]
     confirmationAskedAt?: Date
     remindersSent?: number
   }
@@ -666,6 +667,80 @@ describe('support agent', () => {
     await SupportAgentService.handleMessage({ ...input, text: 'כן' })
 
     expect(createdRequestData().aiNote).toContain('ממצאים מהקוד')
+  })
+
+  it('folds the extractor fields under the model summary so nothing said is lost', async () => {
+    // The client's voice note answered the whole form; the model only re-types
+    // some of it. The extractor's fields must reach the draft anyway.
+    extractMock.mockResolvedValue({
+      ...EMPTY_INTAKE,
+      where: 'עמוד התשלום',
+      frequency: 'ALWAYS',
+      blocking: true,
+    })
+
+    await proposeInOwnTurn({ where: 'המסך של הקופה' })
+
+    const intake = storedConversation().pendingDraft?.intake as Record<string, unknown>
+    // Model's wording wins where it typed something...
+    expect(intake.where).toBe('המסך של הקופה')
+    // ...and the extractor fills what it forgot.
+    expect(intake.frequency).toBe('ALWAYS')
+    expect(intake.blocking).toBe(true)
+  })
+
+  it('hands the extractor the conversation so corrections can win', async () => {
+    conversations.set(`${input.userId}:${CHAT_ID}`, {
+      id: 'conv-1',
+      pendingDraft: null,
+      confirmationAskedAt: null,
+      messages: [
+        { role: 'user', content: 'יש באג בעגלה' },
+        { role: 'assistant', content: 'באיזה עמוד?' },
+      ],
+    })
+
+    await SupportAgentService.handleMessage({ ...input, text: 'לא, זה בעמוד ההזמנות' })
+
+    expect(extractMock).toHaveBeenCalledWith(
+      'לא, זה בעמוד ההזמנות',
+      expect.objectContaining({
+        history: expect.arrayContaining([
+          expect.objectContaining({ content: 'יש באג בעגלה' }),
+        ]),
+      })
+    )
+  })
+
+  it('drops findings from an investigation that died without a ticket', async () => {
+    prismaMock.project.findMany.mockImplementation(async ({ where }: { where: Record<string, unknown> }) => {
+      if (where.agentConfig) {
+        return [
+          {
+            id: 'project-1',
+            name: 'האתר',
+            agentConfig: { githubOwner: 'itayost', githubRepo: 'garden-site', githubBranch: 'main' },
+          },
+        ]
+      }
+      return [{ id: 'project-1', name: 'האתר', status: 'ACTIVE' }]
+    })
+    githubMock.searchCode.mockResolvedValue({ ok: true, data: { paths: [], total: 0 } })
+
+    // Turn 1: the agent searches while answering a question. Findings stay -
+    // the next turn may still turn this into a ticket.
+    driver = async ({ tools }) => {
+      await tools.searchProjectCode.execute({ projectName: 'האתר', query: 'ייצוא דוח' })
+      return { text: 'זה קיים במסך הדוחות' }
+    }
+    await SupportAgentService.handleMessage(input)
+    expect(storedConversation().repoFindings ?? []).toHaveLength(1)
+
+    // Turn 2: unrelated chitchat, no search, no draft. The thread is dead and
+    // the findings must not ride the next unrelated ticket's note.
+    driver = async () => ({ text: 'בשמחה!' })
+    await SupportAgentService.handleMessage({ ...input, text: 'תודה רבה' })
+    expect(storedConversation().repoFindings ?? []).toHaveLength(0)
   })
 
   it('restarts the confirmation clock when the client writes again', async () => {

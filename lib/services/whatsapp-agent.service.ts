@@ -100,6 +100,9 @@ export class WhatsAppAgentService {
       messages,
       tools,
       stopWhen: stepCountIs(15),
+      // 15-step loop over a static system prompt and 13 tool definitions:
+      // the prefix is identical on every step, so cache reads at 0.1x.
+      providerOptions: { gateway: { caching: 'auto' } },
     })
 
     const assistantMessage = result.text

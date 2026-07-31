@@ -32,12 +32,15 @@ const createSchema = z.object({
   githubOwner: z.string().min(1),
   githubRepo: z.string().min(1),
   githubBranch: z.string().min(1).default('main'),
-  vercelTeamId: z.string().min(1),
-  vercelProjectId: z.string().min(1),
+  // Optional with empty defaults: what the support bot needs from this config
+  // is only the GitHub coordinates, and requiring Vercel ids that nothing
+  // reads meant inventing values just to unlock a read-only repo token.
+  vercelTeamId: z.string().default(''),
+  vercelProjectId: z.string().default(''),
   supabaseProjectRef: z.string().min(1).nullable().optional(),
   smokeUrl: z.string().url().nullable().optional(),
   domains: z.array(z.string().min(1)).default([]),
-  safetyConfig: z.record(z.string(), z.unknown()),
+  safetyConfig: z.record(z.string(), z.unknown()).default({}),
   morningReportInclude: z.boolean().default(true),
   ingestionConfig: z.record(z.string(), z.unknown()).nullable().optional(),
 })

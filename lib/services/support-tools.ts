@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma'
 import { SupportConversationService, type PendingDraft } from './support-conversation.service'
 import { fileDraftAsRequest } from './support-filing'
 import { priority, requestType } from '@/lib/validations/request'
-import { intakeFrequency } from '@/lib/validations/intake'
+import { intakeFrequency, mergeIntake, EMPTY_INTAKE, type Intake } from '@/lib/validations/intake'
 
 /**
  * Tools for the client-facing support agent.
@@ -28,6 +28,12 @@ export interface SupportToolContext {
    * response to it - the only thing that makes filing legitimate.
    */
   confirmableDraft?: PendingDraft | null
+  /**
+   * What the intake extractor pulled from this turn's message. Folded under
+   * the model's proposeSummary fields so nothing the client already said is
+   * lost to the model forgetting to re-type it.
+   */
+  turnIntake?: Intake | null
   /**
    * How many summaries this client has already been asked to confirm without a
    * ticket coming out of it. Past MAX_CONFIRMATION_ROUNDS the exchange has
@@ -212,7 +218,11 @@ export function createSupportTools(context: SupportToolContext) {
           priority: requestPriority,
           projectId,
           sourceMessageId: context.sourceMessageId,
-          intake: {
+          // The extractor's fields underneath, the model's on top. The
+          // extractor runs on every message and used to be thrown away unless
+          // the model happened to re-type each field here - a voice note that
+          // answered the whole form lost whatever the model forgot to copy.
+          intake: mergeIntake(context.turnIntake ?? EMPTY_INTAKE, {
             where: fields.where ?? null,
             whatHappened: fields.whatHappened ?? null,
             expected: fields.expected ?? null,
@@ -222,7 +232,7 @@ export function createSupportTools(context: SupportToolContext) {
             goal: fields.goal ?? null,
             today: fields.today ?? null,
             suggestedType,
-          },
+          }),
         }
 
         await SupportConversationService.setPendingDraft(context, draft)

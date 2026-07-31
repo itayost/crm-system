@@ -252,6 +252,18 @@ export class SupportConversationService {
     })
   }
 
+  /**
+   * Findings belong to the request being investigated. When a turn ends with
+   * nothing pending - a question answered, no summary proposed - they must not
+   * sit around waiting to ride the next unrelated ticket's aiNote.
+   */
+  static async clearRepoFindings(context: SupportConversationContext) {
+    await prisma.supportConversation.updateMany({
+      where: { userId: context.userId, chatId: context.chatId },
+      data: { repoFindings: [] },
+    })
+  }
+
   static async getRepoFindings(context: SupportConversationContext): Promise<string[]> {
     const conversation = await prisma.supportConversation.findUnique({
       where: identity(context),

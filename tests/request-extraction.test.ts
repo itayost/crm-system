@@ -8,10 +8,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  */
 
 let extraction: { requests: Array<Record<string, unknown>> }
-const generateObjectSpy = vi.fn(async () => ({ object: extraction }))
+const generateObjectSpy = vi.fn(async (_args: { prompt?: string }) => ({ object: extraction }))
 
 vi.mock('ai', () => ({
-  generateObject: () => generateObjectSpy(),
+  generateObject: (args: { prompt?: string }) => generateObjectSpy(args),
   tool: <T>(definition: T) => definition,
 }))
 vi.mock('@ai-sdk/gateway', () => ({ gateway: (id: string) => id }))
@@ -33,6 +33,7 @@ const MESSAGES = [
   {
     id: 'msg-real',
     content: 'הכפתור בעמוד הבית לא עובד',
+    transcript: null,
     timestamp: new Date('2026-07-25T09:00:00Z'),
     phoneNumber: '0521234567',
     contact: { id: 'contact-1', name: 'דנה' },
@@ -111,6 +112,23 @@ describe('request extraction', () => {
     const stats = await RequestExtractionService.runForOwner('user-1')
 
     expect(stats.requestsDrafted).toBe(0)
+  })
+
+  it('shows the model what a voice note actually said', async () => {
+    // `content` for media is just a marker; the transcript is the words. The
+    // batch pass used to send only content, so spoken requests were invisible.
+    prismaMock.whatsAppMessage.findMany.mockResolvedValue([
+      {
+        ...MESSAGES[0],
+        content: '[הודעה קולית]',
+        transcript: 'אני רוצה שהדוח החודשי יישלח אליי במייל',
+      },
+    ])
+
+    await RequestExtractionService.runForOwner('user-1')
+
+    const { prompt } = generateObjectSpy.mock.calls[0][0]
+    expect(prompt).toContain('אני רוצה שהדוח החודשי יישלח אליי במייל')
   })
 
   it('does not mark messages processed when the model call fails', async () => {

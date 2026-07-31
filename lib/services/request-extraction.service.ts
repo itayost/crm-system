@@ -198,6 +198,7 @@ export class RequestExtractionService {
     messages: Array<{
       id: string
       content: string
+      transcript: string | null
       timestamp: Date
       phoneNumber: string
       contact: { id: string; name: string } | null
@@ -227,7 +228,10 @@ export class RequestExtractionService {
       `הודעות נכנסות (סדר כרונולוגי):`,
       ...messages.map(
         (m) =>
-          `[msgId=${m.id}] [${m.timestamp.toISOString()}] [contactId=${m.contact?.id ?? '?'} ${m.contact?.name ?? m.phoneNumber}]: ${m.content}`
+          // The transcript is what a voice note or screenshot actually said;
+          // `content` for those is just a media marker. Without it the batch
+          // pass was blind to every request a client spoke instead of typed.
+          `[msgId=${m.id}] [${m.timestamp.toISOString()}] [contactId=${m.contact?.id ?? '?'} ${m.contact?.name ?? m.phoneNumber}]: ${m.content}${m.transcript ? `\n  [תמלול]: ${m.transcript}` : ''}`
       ),
     ].join('\n')
   }

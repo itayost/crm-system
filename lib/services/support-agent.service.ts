@@ -101,7 +101,7 @@ export class SupportAgentService {
     const [repoProjects, projects, extracted, recentRequests] = await Promise.all([
       configuredProjects(toolContext),
       clientProjects(toolContext),
-      IntakeExtractionService.extract(input.text),
+      IntakeExtractionService.extract(input.text, { history: conversation.history }),
       // What was actually filed for this client, straight from the database.
       // Tool calls never enter the saved history, so without this the model's
       // only evidence about past filings is its own prose - and "did I already
@@ -116,15 +116,18 @@ export class SupportAgentService {
     // question about "where" can offer real places instead of asking them to
     // describe one.
     const screens = await screensForConversation(projects, intake, repoProjects)
-    // A question with repo access means a code search before a single word gets
-    // written. That is the turn worth warning the client about.
-    if (intakeKind(intake) === 'question' && repoProjects.length > 0) {
+    // Any turn with repo access short of a plain change request may end up
+    // reading code before a single word gets written. It used to fire only for
+    // questions, so a bug report that triggered three uncached tree fetches
+    // left the client staring at nothing.
+    if (intakeKind(intake) !== 'change' && repoProjects.length > 0) {
       await input.onAcknowledge?.()
     }
 
+    const repoActivity = { fired: false }
     const tools = {
-      ...createSupportTools(toolContext),
-      ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects) : {}),
+      ...createSupportTools({ ...toolContext, turnIntake: intake }),
+      ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects, repoActivity) : {}),
     }
 
     const result = await generateText({
@@ -141,6 +144,12 @@ export class SupportAgentService {
       messages,
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
+      // Anthropic prompt caching via the gateway. The 8-step loop resends the
+      // whole prompt every step; with caching, steps 2..n read the prefix at
+      // a tenth of the price. Requires the prompt's stable blocks to come
+      // before the volatile ones, and the tool definitions to stay frozen -
+      // editing a tool description invalidates the entire cache.
+      providerOptions: { gateway: { caching: 'auto' } },
     })
 
     const reply = result.text?.trim() || FALLBACK_REPLY
@@ -149,6 +158,18 @@ export class SupportAgentService {
       ...messages,
       { role: 'assistant', content: reply },
     ])
+
+    // Findings from a dead investigation must not ride the next unrelated
+    // ticket's aiNote. "Dead" is judged conservatively: this turn neither
+    // touched the repo nor left a draft, so whatever findings remain belong to
+    // an earlier thread that ended without a ticket. A turn that searched and
+    // will propose next turn keeps its findings; filing clears them itself.
+    if (!repoActivity.fired) {
+      const remainingDraft = await SupportConversationService.getPendingDraft(conversationContext)
+      if (!remainingDraft) {
+        await SupportConversationService.clearRepoFindings(conversationContext)
+      }
+    }
 
     return reply
   }
@@ -336,15 +357,14 @@ ${missing.length ? missing.map((label) => `- ${label}`).join('\n') : '- כלום
 - לעולם אל תשאל את הלקוח לאיזה סוג הפנייה שייכת (תקלה / שיפור / שאלה). זו החלטה של איתי.
 - אל תבקש צילום מסך אם הלקוח כבר שלח קובץ, הקלטה או תמונה.${
     optional.length ? `\n${optional.map((line) => `- ${line}`).join('\n')}` : ''
-  }${
-    screens.length
-      ? `\n\nהמסכים של הפרויקט (השתמש בשמות האלה כשאתה שואל "איפה"):\n${screens
-          .map((screen) => `- ${screen}`)
-          .join('\n')}`
-      : ''
   }
 `
 
+  // Ordered for the prefix cache: everything up to the volatile marker is
+  // stable across a conversation's turns (persona, projects, screens, rules),
+  // so every agent step and every follow-up message reuses the cached prefix.
+  // The per-turn state - recent requests, intake, process stage - lives at
+  // the end, where changing it only invalidates itself.
   return `אתה עוזר התמיכה של איתי אוסטרייך, פרילנסר שבונה אתרים, אפליקציות ומערכות.
 אתה מדבר עם ${input.contactName} מהעסק "${input.clientName}" בוואטסאפ.
 
@@ -362,14 +382,15 @@ ${projectLines}
 בחירת פרויקט — הסק בעצמך, אל תשאל סתם:
 - "האתר" מתאים לאתר או לדף נחיתה. "המערכת" למערכת ניהול או לאפליקציית ווב. "האפליקציה" לאפליקציה. "החנות" לחנות אונליין.
 - אם רק פרויקט אחד מהרשימה מתאים למה שהלקוח אמר — זה הפרויקט. אל תשאל עליו בכלל.
-- שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.
+- שאל לאיזה פרויקט הכוונה רק אם באמת שניים או יותר מתאימים.${
+    screens.length
+      ? `\n\nהמסכים של הפרויקט (השתמש בשמות האלה כשאתה שואל "איפה"):\n${screens
+          .map((screen) => `- ${screen}`)
+          .join('\n')}`
+      : ''
+  }
 
-${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${multiRequestBlock}
-
-${intakeBlock}${questionBlock}
-
-${processBlock}
-אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. "הפנייה נקלטה" מותר להגיד רק על success שקיבלת בתור הנוכחי — success מוקדם יותר בשיחה שייך לפנייה אחרת, ולעולם אינו תשובה להודעה חדשה. אם fileRequest החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.
+${multiRequestBlock}
 ${
   hasRepoTools
     ? `
@@ -379,8 +400,12 @@ ${
 - אם הבדיקה נכשלת, פשוט המשך בשיחה רגילה בלי להזכיר את זה.`
     : ''
 }
-
 שאלות סטטוס ("מה קורה עם הבאג שדיווחתי?") — קרא ל-getMyRequests וענה בשפה פשוטה, בלי מזהים ובלי מונחים מהמערכת.
 
-פורמט וואטסאפ: *מודגש* עם כוכבית אחת, _נטוי_ עם קו תחתון. בלי Markdown ובלי כותרות.`
+פורמט וואטסאפ: *מודגש* עם כוכבית אחת, _נטוי_ עם קו תחתון. בלי Markdown ובלי כותרות.
+
+${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${intakeBlock}${questionBlock}
+
+${processBlock}
+אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. "הפנייה נקלטה" מותר להגיד רק על success שקיבלת בתור הנוכחי — success מוקדם יותר בשיחה שייך לפנייה אחרת, ולעולם אינו תשובה להודעה חדשה. אם fileRequest החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.`
 }
