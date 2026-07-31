@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * Approval is the shared seam: the dashboard route and the owner agent's review
- * tool both come through RequestsService.approve, so it is tested directly.
+ * Everything the client hears when Itay acts on their request.
+ *
+ * Both the dashboard routes and the owner agent's WhatsApp tools come through
+ * RequestsService, so the service is tested directly rather than through either
+ * caller: approve() for the approval notice, update() for the progress ones.
  */
 
 const requests = new Map<string, Record<string, unknown>>()
@@ -66,7 +69,16 @@ const PERSONAL_SOURCE = { sessionName: 'personal', rawChatId: '972521234567@c.us
 
 function seedRequest(overrides: Record<string, unknown> = {}) {
   requests.clear()
-  requests.set('request-1', { ...BASE_REQUEST, sourceMessage: SUPPORT_SOURCE, ...overrides })
+  requests.set('request-1', {
+    ...BASE_REQUEST,
+    sourceMessage: SUPPORT_SOURCE,
+    contact: { name: 'עדן בן חמו' },
+    ...overrides,
+  })
+}
+
+function sentText() {
+  return (wahaMock.sendMessage.mock.calls[0][0] as { chatId: string; text: string }).text
 }
 
 describe('approving a request', () => {
@@ -175,6 +187,109 @@ describe('approving a request', () => {
 
     expect(result.status).toBe('OPEN')
     expect(requests.get('request-1')).toMatchObject({ taskId: 'task-1' })
+  })
+})
+
+describe('telling the client how their request is going', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    seedRequest({ status: 'OPEN', taskId: 'task-1' })
+    wahaMock.sendMessage.mockResolvedValue(undefined)
+  })
+
+  it('tells the client by name when Itay picks the request up', async () => {
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
+    const message = wahaMock.sendMessage.mock.calls[0][0] as { chatId: string; text: string }
+    expect(message.chatId).toBe('client-chat@lid')
+    // First name only: the bot is not reading her a form.
+    expect(message.text).toContain('היי עדן')
+    expect(message.text).not.toContain('בן חמו')
+    expect(message.text).toContain('התחלתי לטפל')
+    expect(message.text).toContain('תיקון כפתור בעמוד הבית')
+  })
+
+  it('tells the client when the request is done', async () => {
+    seedRequest({ status: 'IN_PROGRESS', taskId: 'task-1' })
+
+    await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+
+    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
+    expect(sentText()).toContain('סיימתי לטפל')
+    expect(sentText()).toContain('תיקון כפתור בעמוד הבית')
+  })
+
+  it('says nothing when the status is set to what it already was', async () => {
+    seedRequest({ status: 'IN_PROGRESS', taskId: 'task-1' })
+
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('says nothing when the edit never mentions the status', async () => {
+    await RequestsService.update('user-1', 'request-1', { title: 'כותרת מתוקנת' })
+
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('stays silent on the statuses the client has no business hearing about', async () => {
+    seedRequest({ status: 'IN_PROGRESS', taskId: 'task-1' })
+    await RequestsService.update('user-1', 'request-1', { status: 'OPEN' })
+
+    seedRequest({ status: 'OPEN', taskId: 'task-1' })
+    await RequestsService.update('user-1', 'request-1', { status: 'DISMISSED' })
+
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('says nothing to a client who never spoke to the bot', async () => {
+    seedRequest({ status: 'OPEN', taskId: 'task-1', sourceMessage: PERSONAL_SOURCE })
+
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+    expect(requests.get('request-1')).toMatchObject({ status: 'IN_PROGRESS' })
+  })
+
+  it('greets a request with no contact on it without a dangling name', async () => {
+    seedRequest({ status: 'OPEN', taskId: 'task-1', contact: null })
+
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(sentText()).toContain('היי,')
+    expect(sentText()).toContain('התחלתי לטפל')
+  })
+
+  it('still records the status when WhatsApp is down', async () => {
+    wahaMock.sendMessage.mockRejectedValue(new Error('waha down'))
+
+    const result = await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(result.status).toBe('IN_PROGRESS')
+    expect(requests.get('request-1')).toMatchObject({ status: 'IN_PROGRESS' })
+  })
+
+  it('says it once per real transition, and again only if the work reopens', async () => {
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+    await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+    await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+    // Reopened: the client was told it was done, so they are owed the correction.
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not announce work on a draft nobody approved', async () => {
+    seedRequest({ status: 'PENDING_REVIEW' })
+
+    await expect(
+      RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+    ).rejects.toThrow('יש לאשר את הבקשה')
+
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
   })
 })
 

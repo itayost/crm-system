@@ -19,8 +19,18 @@ export const PROCESSING_ERROR_MESSAGE = 'שגיאה בעיבוד ההודעה. �
  * minute of nothing while the agent reads the repo.
  */
 export function greetingMessage(contactName: string): string {
-  const firstName = contactName.trim().split(/\s+/)[0]
-  return `היי ${firstName}! קיבלתי את ההודעה שלך, בודק את זה ואחזור אליך עוד רגע 🙏`
+  return `היי ${firstName(contactName)}! קיבלתי את ההודעה שלך, בודק את זה ואחזור אליך עוד רגע 🙏`
+}
+
+/** People are greeted the way a person would greet them, not by their full record. */
+function firstName(contactName: string): string {
+  return contactName.trim().split(/\s+/)[0]
+}
+
+/** "היי דנה, " when we know who is on the other side, plain "היי, " when we do not. */
+function greeting(contactName: string | null): string {
+  const name = contactName?.trim() ? firstName(contactName) : null
+  return name ? `היי ${name}, ` : 'היי, '
 }
 
 /** Mid-conversation, when this particular turn is going to take a while. */
@@ -36,6 +46,19 @@ export const OWNER_MEDIA_UNSUPPORTED_MESSAGE =
 /** Sent to the client when Itay approves what they asked for. Dismissals stay silent. */
 export function approvedRequestClientNotice(title: string): string {
   return `הבקשה שלך אושרה ונכנסה לתוכנית העבודה:\n*${title}*\n\nנעדכן אותך כשהיא תטופל.`
+}
+
+/**
+ * The two updates a client actually wants: someone has started, and someone has
+ * finished. Written the way Itay would write them himself, because as far as the
+ * client is concerned that is who is typing.
+ */
+export function startedWorkClientNotice(contactName: string | null, title: string): string {
+  return `${greeting(contactName)}רציתי לעדכן שהתחלתי לטפל בפנייה שלך בנושא *${title}*.\nאעדכן אותך כשאסיים 🔧`
+}
+
+export function resolvedRequestClientNotice(contactName: string | null, title: string): string {
+  return `${greeting(contactName)}סיימתי לטפל בפנייה שלך בנושא *${title}* ✅\nאם יש עוד משהו, אני כאן.`
 }
 
 interface FiledRequestNoticeParams {

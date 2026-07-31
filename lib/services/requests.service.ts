@@ -3,7 +3,11 @@ import { Prisma } from '@prisma/client'
 import { StorageService } from './storage.service'
 import { WahaService, botSessionName } from './waha.service'
 import { INTAKE_FIELD_LABELS, INTAKE_FREQUENCY_LABELS, readIntake, type Intake } from '@/lib/validations/intake'
-import { approvedRequestClientNotice } from './whatsapp-messages'
+import {
+  approvedRequestClientNotice,
+  resolvedRequestClientNotice,
+  startedWorkClientNotice,
+} from './whatsapp-messages'
 import type {
   CreateRequestInput,
   UpdateRequestInput,
@@ -28,31 +32,84 @@ const REQUEST_INCLUDE = {
 } satisfies Prisma.RequestInclude
 
 /**
- * Tell the client their request was approved - but only a client who asked
- * through the support agent. A batch-extracted request from Itay's personal
- * number was never a conversation with the bot, so answering it would come out
- * of nowhere. The source message's session is the exact signal.
+ * The chat this request can be answered on, or null if it cannot.
+ *
+ * Only a client who asked through the support agent has one. A batch-extracted
+ * request from Itay's personal number was never a conversation with the bot, so
+ * writing to it would come out of nowhere. The source message's session is the
+ * exact signal.
  */
+async function clientBotChat(userId: string, requestId: string) {
+  const request = await prisma.request.findFirst({
+    where: { id: requestId, userId },
+    select: {
+      title: true,
+      contact: { select: { name: true } },
+      sourceMessage: { select: { sessionName: true, rawChatId: true } },
+    },
+  })
+
+  const source = request?.sourceMessage
+  if (!source || source.sessionName !== botSessionName() || !source.rawChatId) return null
+
+  return {
+    chatId: source.rawChatId,
+    title: request.title,
+    contactName: request.contact?.name ?? null,
+  }
+}
+
+/** Tell the client their request was approved. */
 async function notifyClientOfApproval(userId: string, requestId: string) {
   try {
-    const request = await prisma.request.findFirst({
-      where: { id: requestId, userId },
-      select: {
-        title: true,
-        sourceMessage: { select: { sessionName: true, rawChatId: true } },
-      },
-    })
-
-    const source = request?.sourceMessage
-    if (!source || source.sessionName !== botSessionName() || !source.rawChatId) return
+    const chat = await clientBotChat(userId, requestId)
+    if (!chat) return
 
     await WahaService.sendMessage({
-      chatId: source.rawChatId,
-      text: approvedRequestClientNotice(request.title),
+      chatId: chat.chatId,
+      text: approvedRequestClientNotice(chat.title),
     })
   } catch (error) {
     // The approval already happened; a WhatsApp hiccup must not undo it.
     console.error('Failed to notify client about an approved request:', error)
+  }
+}
+
+/** The statuses a client is told about. OPEN and DISMISSED stay between Itay and the CRM. */
+const CLIENT_ANNOUNCED_STATUSES = ['IN_PROGRESS', 'RESOLVED'] as const
+
+type AnnouncedStatus = (typeof CLIENT_ANNOUNCED_STATUSES)[number]
+
+function isAnnounced(status: string | undefined): status is AnnouncedStatus {
+  return !!status && (CLIENT_ANNOUNCED_STATUSES as readonly string[]).includes(status)
+}
+
+/**
+ * Tell the client work has started, or finished.
+ *
+ * The client asked for something and then heard nothing until it was done; these
+ * are the two moments worth breaking that silence for.
+ */
+async function notifyClientOfProgress(
+  userId: string,
+  requestId: string,
+  status: AnnouncedStatus
+) {
+  try {
+    const chat = await clientBotChat(userId, requestId)
+    if (!chat) return
+
+    await WahaService.sendMessage({
+      chatId: chat.chatId,
+      text:
+        status === 'IN_PROGRESS'
+          ? startedWorkClientNotice(chat.contactName, chat.title)
+          : resolvedRequestClientNotice(chat.contactName, chat.title),
+    })
+  } catch (error) {
+    // The status change is already recorded; the client missing a nicety must
+    // not turn into a failed update for Itay.
+    console.error('Failed to notify client about a status change:', error)
   }
 }
 
@@ -243,11 +300,21 @@ export class RequestsService {
       updateData.resolvedAt = null
     }
 
-    return prisma.request.update({
+    const request = await prisma.request.update({
       where: { id },
       data: updateData,
       include: REQUEST_INCLUDE,
     })
+
+    // Only a status that actually moved is news. Saving IN_PROGRESS over
+    // IN_PROGRESS, or editing a title, tells the client nothing they have not
+    // already been told - and this is the one guard against saying it twice,
+    // since every caller that can change a status comes through here.
+    if (isAnnounced(data.status) && data.status !== existing.status) {
+      await notifyClientOfProgress(userId, id, data.status)
+    }
+
+    return request
   }
 
   /**
