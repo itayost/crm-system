@@ -269,6 +269,20 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
 - `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
 - `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
+- `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/claude-sonnet-4.6`)
+
+## Prompt caching
+
+Both agent loops send `providerOptions: { gateway: { caching: 'auto' } }`.
+Measured 2026-07-31: caching works through the gateway (7,112-token prefix
+written once, read back at 0.1x on the next call), but the TTL is
+**effectively 5 minutes** -- a probe 6.5 minutes after the last hit had to
+re-write the full prefix. The 1-hour Anthropic TTL does not survive the
+AI SDK -> Gateway path. Consequences: the intra-turn agent steps and rapid
+message bursts get cache reads; a WhatsApp reply gap longer than ~5 minutes
+pays one fresh cache write (1.25x) on the next turn. Editing any tool
+description invalidates the whole cache (tools -> system -> messages cascade),
+so batch tool-wording changes.
 
 ## E2E Testing
 
