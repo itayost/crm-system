@@ -120,9 +120,9 @@
     "semantic_hash": "a7874a67c769ece523a33a73a535be80"
   },
   "app/api/cron/morning-brief/route.ts": {
-    "mtime": 1784969168.5530705,
-    "ast_hash": "beeac98ac7f3bea7b36dc84a5dc4d287",
-    "semantic_hash": "beeac98ac7f3bea7b36dc84a5dc4d287"
+    "mtime": 1785579318.2345433,
+    "ast_hash": "6d7ac3ac0bfbc226e2cc0d63594b6fce",
+    "semantic_hash": ""
   },
   "app/api/cron/refresh-product-cards/route.ts": {
     "mtime": 1785495775.0278773,
@@ -520,9 +520,9 @@
     "semantic_hash": "f1e80e839db34357a0e228efe227e759"
   },
   "lib/ai/resilient-model.ts": {
-    "mtime": 1785579226.795814,
-    "ast_hash": "507ea29d476954753d63a5336ae0dca6",
-    "semantic_hash": "507ea29d476954753d63a5336ae0dca6"
+    "mtime": 1785579458.441683,
+    "ast_hash": "36acaaa1a77c3b3a6c7d4a0e89de774f",
+    "semantic_hash": ""
   },
   "lib/api/api-handler.ts": {
     "mtime": 1784972971.5088248,
@@ -610,9 +610,9 @@
     "semantic_hash": "63c685d4a949d2b2e40cf90b380f02a6"
   },
   "lib/services/morning-brief.service.ts": {
-    "mtime": 1785579305.8849874,
-    "ast_hash": "686715e982b34b663d1c6d134eb439b0",
-    "semantic_hash": "686715e982b34b663d1c6d134eb439b0"
+    "mtime": 1785579316.2548318,
+    "ast_hash": "a18196892460122dcc52dd350a0a5632",
+    "semantic_hash": ""
   },
   "lib/services/phases.service.ts": {
     "mtime": 1785236481.1729064,
@@ -995,9 +995,9 @@
     "semantic_hash": "af23d3ae870f4625be50f16aab47bc92"
   },
   "tests/morning-brief-next-actions.test.ts": {
-    "mtime": 1785405499.827487,
-    "ast_hash": "a5ec03fe4cd4876befefbda928962a82",
-    "semantic_hash": "a5ec03fe4cd4876befefbda928962a82"
+    "mtime": 1785579500.2036524,
+    "ast_hash": "acd8533d6e072d583b21a59c36003e8d",
+    "semantic_hash": ""
   },
   "tests/phases.test.ts": {
     "mtime": 1785237152.7643762,
@@ -1055,9 +1055,9 @@
     "semantic_hash": "a43a522757ba8f532e51439dffc19e47"
   },
   "tests/whatsapp-bot-webhook.test.ts": {
-    "mtime": 1785008824.9078867,
-    "ast_hash": "6ad332d7fa2b2db77bbe23d1415bdc24",
-    "semantic_hash": "6ad332d7fa2b2db77bbe23d1415bdc24"
+    "mtime": 1785579405.2632442,
+    "ast_hash": "a2352f32fe7670307555301b8a24a537",
+    "semantic_hash": ""
   },
   "tests/whatsapp-identity.test.ts": {
     "mtime": 1784964341.2445536,
@@ -1088,5 +1088,260 @@
     "mtime": 1784964341.2449677,
     "ast_hash": "da413cf9f5e1dc18da6913e2ca6c416c",
     "semantic_hash": "da413cf9f5e1dc18da6913e2ca6c416c"
+  },
+  "tests/resilient-model.test.ts": {
+    "mtime": 1785579424.3010004,
+    "ast_hash": "0479b8cff1326ce5bc14fb0815c756ff",
+    "semantic_hash": ""
+  },
+  "API_DOCUMENTATION.md": {
+    "mtime": 1758188029.0685854,
+    "ast_hash": "51f7fa65f670b664b805f2d8d26a0b92",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1785579537.5836468,
+    "ast_hash": "156a3d037e4ded5bbc13cda5bd948055",
+    "semantic_hash": ""
+  },
+  "CONTEXT.md": {
+    "mtime": 1785495984.773819,
+    "ast_hash": "e93e983ca8238a75d8a89384783a7587",
+    "semantic_hash": ""
+  },
+  "DEVPLAN.md": {
+    "mtime": 1774096065.7005045,
+    "ast_hash": "0d891d23b06981fdd223c6c5a200f9bd",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1757808061.5565293,
+    "ast_hash": "f15aaa42d5d299d091b1171097ea56ad",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-clients-screen.html": {
+    "mtime": 1757795331.5060983,
+    "ast_hash": "2491970b1f6db546f22d9616f8ca15ef",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-development-guide.md": {
+    "mtime": 1757801697.4974625,
+    "ast_hash": "2cfd448b5d63af4d35fbceb33926b163",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-development-plan.md": {
+    "mtime": 1757795376.587479,
+    "ast_hash": "40b8cd00d2332cae9d3812ebbdb4838f",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-leads-screen.html": {
+    "mtime": 1757795308.1052608,
+    "ast_hash": "3821785ac6064767e146bccd88eaa0d8",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-payments-screen.html": {
+    "mtime": 1757795338.6585746,
+    "ast_hash": "5f7ceb1e1f17d5d7081852cb3cac88d0",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-projects-screen.html": {
+    "mtime": 1757795299.7732155,
+    "ast_hash": "abf86cbe7398d810476b043170d01b94",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-reports-screen.html": {
+    "mtime": 1757795612.3780904,
+    "ast_hash": "2852fbc6e1e5e67f17afb05df2a6f618",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-requirements-doc.md": {
+    "mtime": 1757795362.8699272,
+    "ast_hash": "5fe9a2e0b938e5c18da76aec8808c893",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-technical-architecture.md": {
+    "mtime": 1757795369.9714684,
+    "ast_hash": "9bdcc10fa2454646bf7ca14953a886bc",
+    "semantic_hash": ""
+  },
+  "claude-context/crm-wireframe-dashboard.html": {
+    "mtime": 1757795289.7760997,
+    "ast_hash": "68029debfecf4ac4b57b1801fba7c2da",
+    "semantic_hash": ""
+  },
+  "docs/CODEMAPS/architecture.md": {
+    "mtime": 1774540061.8926587,
+    "ast_hash": "18ed2c7eda5f88e932765ffa3a4f8aaa",
+    "semantic_hash": ""
+  },
+  "docs/CODEMAPS/backend.md": {
+    "mtime": 1774540061.8929145,
+    "ast_hash": "6b1593ec194597cfa89e01a20dab8e49",
+    "semantic_hash": ""
+  },
+  "docs/CODEMAPS/data.md": {
+    "mtime": 1785250236.7731059,
+    "ast_hash": "97c5d98f52dc2ddc2cfb1dc64d7ff64b",
+    "semantic_hash": ""
+  },
+  "docs/CODEMAPS/dependencies.md": {
+    "mtime": 1774540061.8932626,
+    "ast_hash": "f19a3030ea918eb715f5faa01fa3ac54",
+    "semantic_hash": ""
+  },
+  "docs/CODEMAPS/frontend.md": {
+    "mtime": 1774540061.8934317,
+    "ast_hash": "4d4e8553a9527f26e7f2597ca01f259f",
+    "semantic_hash": ""
+  },
+  "docs/adr/0001-precomputed-product-cards.md": {
+    "mtime": 1785576715.0545785,
+    "ast_hash": "dbdb7161b205655d9c1e1364df7ad1de",
+    "semantic_hash": ""
+  },
+  "docs/adr/0002-degrade-dont-die.md": {
+    "mtime": 1785579533.815214,
+    "ast_hash": "3d2e4feae31f358769410bbd9a432255",
+    "semantic_hash": ""
+  },
+  "docs/agents/domain.md": {
+    "mtime": 1784964341.237794,
+    "ast_hash": "35089ed6a70a657c91fd100ade31b642",
+    "semantic_hash": ""
+  },
+  "docs/agents/issue-tracker.md": {
+    "mtime": 1784964341.2379062,
+    "ast_hash": "9a1c8331578845eba5859f0886468fd6",
+    "semantic_hash": ""
+  },
+  "docs/agents/triage-labels.md": {
+    "mtime": 1784964341.2380192,
+    "ast_hash": "22add54cb98451c55b20e6b7992d4a85",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-03-21-remove-time-tracking.md": {
+    "mtime": 1774091491.869017,
+    "ast_hash": "8db4949d6658509d366be803355203bc",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-03-25-crm-architecture-redesign.md": {
+    "mtime": 1774540061.8937273,
+    "ast_hash": "2a13af6f447748035b776b450ad4ef1d",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-03-25-e2e-testing.md": {
+    "mtime": 1774540061.8941278,
+    "ast_hash": "f6fa2903a2f46f26b6bb12332641200a",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-03-26-whatsapp-bot.md": {
+    "mtime": 1774549209.2687216,
+    "ast_hash": "7f4b3a83a655f772ed14b140807c00c1",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-06-26-customer-issue-form.md": {
+    "mtime": 1782468408.2388575,
+    "ast_hash": "2728055781bbc0b9816d016cd3e8989f",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-21-remove-time-tracking-design.md": {
+    "mtime": 1774091036.289428,
+    "ast_hash": "54681bd65ad6770543ddf8f50de7097f",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-25-crm-architecture-redesign.md": {
+    "mtime": 1774540061.8946526,
+    "ast_hash": "2f700d1ae9c975cdbb2969785f96b229",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-25-e2e-testing-design.md": {
+    "mtime": 1774540061.894867,
+    "ast_hash": "e6b57ad1bcb9f36872a539c1004099a0",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-26-task-system-upgrade-design.md": {
+    "mtime": 1774543559.6240585,
+    "ast_hash": "c7f237e8b09d1e3812420ecd41da982c",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-26-whatsapp-bot-design.md": {
+    "mtime": 1774548820.886948,
+    "ast_hash": "1fbfc2e02fa9b11bfd331ae7d6b0944c",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-03-27-morning-brief-design.md": {
+    "mtime": 1774623737.855486,
+    "ast_hash": "7d3aaede03ac82c63963b420d1cdc290",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-06-26-customer-issue-form-design.md": {
+    "mtime": 1782468408.2390141,
+    "ast_hash": "a2499605c7cd84aadc2953968cf096f3",
+    "semantic_hash": ""
+  },
+  "public/lead-form-demo.html": {
+    "mtime": 1758176749.657499,
+    "ast_hash": "990ed65a7b44c0df97f28f8514b994d7",
+    "semantic_hash": ""
+  },
+  "public/lead-form.html": {
+    "mtime": 1758177522.8941011,
+    "ast_hash": "27bf5de50c6ad12678cbedb7b9d645b2",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/clients-main-darwin.png": {
+    "mtime": 1784996349.1211524,
+    "ast_hash": "d710be4e048fa19307dd5559e2f24733",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/contacts-main-darwin.png": {
+    "mtime": 1784996345.553159,
+    "ast_hash": "31341557d70947700e318056c882465f",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/dashboard-main-darwin.png": {
+    "mtime": 1784996341.4213345,
+    "ast_hash": "bac306a5c43b92c36bc214a8d3925e83",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/projects-main-darwin.png": {
+    "mtime": 1784996353.0035493,
+    "ast_hash": "b4f8207c0cfe1f4c46fee29ebf26d81a",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/requests-main-darwin.png": {
+    "mtime": 1785230494.3349166,
+    "ast_hash": "52345c4e90084ee0e6cbcb831a8c5e12",
+    "semantic_hash": ""
+  },
+  "e2e/visual.spec.ts-snapshots/tasks-main-darwin.png": {
+    "mtime": 1784996356.9384925,
+    "ast_hash": "f99f5e253c078df7cd4c0fb3ff8fde86",
+    "semantic_hash": ""
+  },
+  "public/file.svg": {
+    "mtime": 1757808061.557437,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": ""
+  },
+  "public/globe.svg": {
+    "mtime": 1757808061.557908,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": ""
+  },
+  "public/next.svg": {
+    "mtime": 1757808061.55791,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": ""
+  },
+  "public/vercel.svg": {
+    "mtime": 1757808061.5580678,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": ""
+  },
+  "public/window.svg": {
+    "mtime": 1757808061.5580964,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
   }
 }
