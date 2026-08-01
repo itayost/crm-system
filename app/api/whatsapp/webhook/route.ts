@@ -11,6 +11,7 @@ import { SupportConversationService } from '@/lib/services/support-conversation.
 import {
   CHECKING_MESSAGE,
   CLIENT_ACK_MESSAGE,
+  degradedTurnOwnerNotice,
   greetingMessage,
   MEDIA_ONLY_PLACEHOLDER,
   OWNER_MEDIA_UNSUPPORTED_MESSAGE,
@@ -18,11 +19,12 @@ import {
   UNKNOWN_SENDER_HOLD_MESSAGE,
   unknownSenderOwnerNotice,
 } from '@/lib/services/whatsapp-messages'
+import { degradedSupportReply, describeModelError } from '@/lib/ai/resilient-model'
 import { parseWahaMessageEvent, type WahaMessage } from '@/lib/validations/whatsapp'
 
-// The agent can spend half a minute on a repo search, and that now happens
-// after the response rather than inside it.
-export const maxDuration = 120
+// The agent can spend half a minute on a repo search, and a degraded turn can
+// spend two more waiting on the local model - all after the response.
+export const maxDuration = 300
 
 /**
  * Bot-session webhook. Every sender is classified before anything happens:
@@ -232,13 +234,13 @@ async function runSupportTurn(
       onAcknowledge: () => acknowledge(CHECKING_MESSAGE),
     })
   } catch (error) {
-    console.error('Support agent error:', error)
+    console.error('Support agent error:', describeModelError(error), error)
     // Hand the message back to the batch extraction, which skips anything already
     // marked processed - otherwise a gateway outage would lose the request entirely.
     await releaseArchivedMessage(sourceMessageId).catch((releaseError) => {
       console.error('Failed to release archived message for extraction:', releaseError)
     })
-    reply = CLIENT_ACK_MESSAGE
+    reply = await degradedTurn({ contact, chatId: sender.chatId, lastMessage: agentText })
   }
 
   try {
@@ -251,6 +253,65 @@ async function runSupportTurn(
     await releaseArchivedMessage(sourceMessageId).catch(() => {})
     throw error
   }
+}
+
+/**
+ * The degraded tier of a support turn: the agent (and with it the gateway) is
+ * down, so a short local-model acknowledgement stands in - or the canned line
+ * when the local model is unavailable too. Whatever the client hears, Itay is
+ * told a turn went unfiled; WAHA does not depend on the gateway, so the ping
+ * works precisely when everything else is failing.
+ */
+async function degradedTurn(params: {
+  contact: Extract<WhatsAppSender, { kind: 'CLIENT' }>['contact']
+  chatId: string
+  lastMessage: string
+}): Promise<string> {
+  const { contact, chatId, lastMessage } = params
+
+  const projectNames = await prisma.project
+    .findMany({
+      where: { clientId: contact.clientId, userId: contact.userId, status: 'ACTIVE' },
+      select: { name: true },
+    })
+    .then((projects) => projects.map((p) => p.name))
+    .catch(() => [] as string[])
+
+  const degraded = await degradedSupportReply({
+    contactName: contact.name,
+    clientName: contact.clientName,
+    projectNames,
+    lastMessage,
+  })
+  const reply = degraded ?? CLIENT_ACK_MESSAGE
+
+  // The conversation exists by now, so the record can stay truthful - but the
+  // database may be the very thing that failed, so nothing here may throw.
+  await SupportConversationService.appendHistory(
+    { chatId, clientId: contact.clientId, contactId: contact.id, userId: contact.userId },
+    [
+      { role: 'user', content: lastMessage },
+      { role: 'assistant', content: reply },
+    ]
+  ).catch(() => {})
+
+  try {
+    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
+    if (ownerChatId && ownerChatId !== chatId) {
+      await WahaService.sendMessage({
+        chatId: ownerChatId,
+        text: degradedTurnOwnerNotice({
+          contactName: contact.name,
+          clientName: contact.clientName,
+          snippet: lastMessage,
+        }),
+      })
+    }
+  } catch (notifyError) {
+    console.error('Failed to notify the owner about a degraded turn:', notifyError)
+  }
+
+  return reply
 }
 
 async function handleUnknownSender(

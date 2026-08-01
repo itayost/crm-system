@@ -4,7 +4,10 @@ const prismaMock = {
   user: { findFirst: vi.fn() },
   contact: { findMany: vi.fn(), update: vi.fn() },
   whatsAppMessage: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
+  project: { findMany: vi.fn() },
 }
+
+const degradedMock = vi.fn()
 
 const wahaMock = {
   sendMessage: vi.fn(),
@@ -29,7 +32,7 @@ const mediaMock = {
   processIncomingMedia: vi.fn(),
 }
 
-const conversationMock = { exists: vi.fn() }
+const conversationMock = { exists: vi.fn(), appendHistory: vi.fn() }
 
 /**
  * The client turn now runs in after(), so the route answers the webhook before
@@ -82,6 +85,10 @@ vi.mock('@/lib/services/support-conversation.service', () => ({
 vi.mock('@/lib/services/support-media.service', () => ({
   processIncomingMedia: (...args: unknown[]) => mediaMock.processIncomingMedia(...args),
 }))
+vi.mock('@/lib/ai/resilient-model', () => ({
+  degradedSupportReply: (...args: unknown[]) => degradedMock(...args),
+  describeModelError: (error: unknown) => String(error),
+}))
 
 const { POST } = await import('@/app/api/whatsapp/webhook/route')
 const { CLIENT_ACK_MESSAGE, UNKNOWN_SENDER_HOLD_MESSAGE } = await import(
@@ -131,6 +138,10 @@ describe('bot webhook identity routing', () => {
     agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
     supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
     mediaMock.processIncomingMedia.mockResolvedValue(null)
+    prismaMock.project.findMany.mockResolvedValue([])
+    conversationMock.appendHistory.mockResolvedValue(undefined)
+    // The local model is unavailable unless a test says otherwise.
+    degradedMock.mockResolvedValue(null)
     // Existing conversation by default, so only the tests that care about the
     // greeting have to think about it.
     conversationMock.exists.mockResolvedValue(true)
@@ -391,7 +402,7 @@ describe('bot webhook identity routing', () => {
     })
   })
 
-  it('still answers the client when the support agent fails', async () => {
+  it('still answers the client when the support agent fails, and tells the owner', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
     prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
     supportMock.handleMessage.mockRejectedValue(new Error('gateway down'))
@@ -399,9 +410,48 @@ describe('bot webhook identity routing', () => {
     await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
     await flushAfter()
 
-    expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE }])
+    // Local model unavailable -> the canned tier, plus the owner handoff ping.
+    expect(sentTexts()).toEqual([
+      { chatId: OWNER_CHAT_ID, text: expect.stringContaining('לא נפתחה פנייה') },
+      { chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE },
+    ])
     expect(prismaMock.whatsAppMessage.create).toHaveBeenCalled()
     // Handed back to the batch extraction so the request is not lost by both paths.
+    expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
+      where: { id: 'msg-1' },
+      data: { processedAt: null },
+    })
+  })
+
+  it('answers with the local model when the agent fails and the fallback is up', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+    prismaMock.project.findMany.mockResolvedValue([{ name: 'אתר הזמנות' }])
+    supportMock.handleMessage.mockRejectedValue(new Error('gateway down'))
+    degradedMock.mockResolvedValue('קיבלתי את ההודעה, איתי יראה אותה ויחזור אליך.')
+
+    await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
+
+    expect(degradedMock).toHaveBeenCalledWith({
+      contactName: 'דנה',
+      clientName: 'מסעדת הגן',
+      projectNames: ['אתר הזמנות'],
+      lastMessage: 'יש באג באתר',
+    })
+    expect(sentTexts()).toEqual([
+      { chatId: OWNER_CHAT_ID, text: expect.stringContaining('מסעדת הגן') },
+      { chatId: 'client-chat@lid', text: 'קיבלתי את ההודעה, איתי יראה אותה ויחזור אליך.' },
+    ])
+    // The exchange still lands in the conversation record.
+    expect(conversationMock.appendHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: 'client-chat@lid' }),
+      [
+        { role: 'user', content: 'יש באג באתר' },
+        { role: 'assistant', content: 'קיבלתי את ההודעה, איתי יראה אותה ויחזור אליך.' },
+      ]
+    )
+    // Degraded or not, nothing was filed - the batch pass must get the message.
     expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
       where: { id: 'msg-1' },
       data: { processedAt: null },

@@ -122,6 +122,31 @@ export function filedRequestOwnerNotice({
   return lines.join('\n')
 }
 
+interface DegradedTurnNoticeParams {
+  contactName: string
+  clientName: string
+  snippet: string
+}
+
+/**
+ * Sent to Itay on every turn the support agent could not run (gateway outage).
+ * The client got a receipt but nothing was filed - this is the handoff.
+ */
+export function degradedTurnOwnerNotice({
+  contactName,
+  clientName,
+  snippet,
+}: DegradedTurnNoticeParams): string {
+  return [
+    '⚠️ *הבוט במצב חירום (תקלת AI Gateway)*',
+    '',
+    `עניתי ל-${contactName} (${clientName}) בתשובה מוגבלת ולא נפתחה פנייה.`,
+    `ההודעה: "${snippet.slice(0, 120)}"`,
+    '',
+    'צריך טיפול ידני.',
+  ].join('\n')
+}
+
 interface UnknownSenderNoticeParams {
   phone: string | null
   chatId: string

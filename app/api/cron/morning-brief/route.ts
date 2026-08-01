@@ -5,6 +5,9 @@ import { WahaService } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 import { isCronAuthorized } from '@/lib/api/cron-auth'
 
+// The brief now prefers the VPS's local model; CPU inference runs 1-2 minutes.
+export const maxDuration = 300
+
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

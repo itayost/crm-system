@@ -270,6 +270,7 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
 - `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
 - `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/claude-sonnet-4.6`)
+- `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL` -- the local-model tier on the VPS (Ollama behind an authenticated proxy; base URL includes `/v1`). Fallback for the support bot when the gateway fails, primary for the morning brief. Unset disables the tier and the chain still works (gateway -> canned reply). See `docs/adr/0002-degrade-dont-die.md`
 
 ## Prompt caching
 

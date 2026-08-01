@@ -1,6 +1,7 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
+import { describeModelError, ollamaModel, withModelFallback } from '@/lib/ai/resilient-model'
 import {
   REQUEST_TYPE_LABELS,
   REQUEST_STATUS_LABELS,
@@ -302,9 +303,7 @@ export class MorningBriefService {
       `משימות שיווק ב-14 ימים אחרונים: ${recentMarketingTasks}`,
     ].join('\n\n')
 
-    const result = await generateText({
-      model: gateway('anthropic/claude-sonnet-4.6'),
-      system: `You write a daily morning brief for a Hebrew-speaking freelancer (Itay).
+    const system = `You write a daily morning brief for a Hebrew-speaking freelancer (Itay).
 You receive CRM data and write a natural WhatsApp message in Hebrew.
 
 IMPORTANT — the data only contains sections that have something in them.
@@ -344,9 +343,32 @@ should read like a message from a colleague, not a form.
 Use WhatsApp formatting: *bold* (single asterisk), _italic_ (underscore).
 NEVER use Markdown syntax. NEVER escape underscores with backslash.
 Every label in the data is already Hebrew — keep it that way and never write an
-English enum value such as HIGH, WEBSITE or PENDING_REVIEW.`,
-      prompt: briefData,
-    })
+English enum value such as HIGH, WEBSITE or PENDING_REVIEW.`
+
+    // Background work runs on the local model by default and pays the gateway
+    // only when the VPS cannot answer - the reverse of the client-facing chain.
+    // One brief a day is latency-free, so slow CPU inference costs nothing.
+    const result = await withModelFallback(
+      async () => {
+        const local = ollamaModel()
+        if (!local) throw new Error('Ollama not configured')
+        return generateText({
+          model: local,
+          system,
+          prompt: briefData,
+          maxOutputTokens: 1024,
+          abortSignal: AbortSignal.timeout(240_000),
+        })
+      },
+      () =>
+        generateText({
+          model: gateway('anthropic/claude-sonnet-4.6'),
+          system,
+          prompt: briefData,
+        }),
+      (error) =>
+        console.warn('Morning brief: local model unavailable, using gateway:', describeModelError(error))
+    )
 
     return result.text
   }

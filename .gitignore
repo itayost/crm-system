@@ -54,3 +54,7 @@ next-env.d.ts
 .cursor/rules/codacy.mdc
 
 .claude/
+
+# graphify knowledge graph: commit graph.json/GRAPH_REPORT.md, skip local-only artifacts
+graphify-out/cost.json
+graphify-out/cache/

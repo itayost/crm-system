@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * The brief's job is to be worth reading.
@@ -21,7 +21,10 @@ const generateText = vi.fn()
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 vi.mock('ai', () => ({ generateText: (...args: unknown[]) => generateText(...args) }))
-vi.mock('@ai-sdk/gateway', () => ({ gateway: (id: string) => id }))
+vi.mock('@ai-sdk/gateway', () => ({
+  gateway: (id: string) => id,
+  GatewayError: { isInstance: () => false },
+}))
 
 const { MorningBriefService } = await import('@/lib/services/morning-brief.service')
 
@@ -296,5 +299,42 @@ describe('date windows follow the Israel day boundary', () => {
     expect(from.getUTCMinutes()).toBe(0)
     expect(from.getUTCSeconds()).toBe(0)
     expect(from.getUTCMilliseconds()).toBe(0)
+  })
+})
+
+describe('the brief prefers the local model', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    quietDay()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('runs on Ollama when configured, and falls back to the gateway when it fails', async () => {
+    vi.stubEnv('OLLAMA_BASE_URL', 'https://ollama.example.com/v1')
+    vi.stubEnv('OLLAMA_API_KEY', 'test-key')
+    generateText.mockRejectedValueOnce(new Error('vps down'))
+
+    const brief = await MorningBriefService.generateBrief('user-1')
+
+    expect(brief).toBe('בוקר טוב!')
+    expect(generateText).toHaveBeenCalledTimes(2)
+    const [local] = generateText.mock.calls[0]
+    const [viaGateway] = generateText.mock.calls[1]
+    // Same brief either way: identical instructions and data on both tiers.
+    expect(viaGateway.model).toBe('anthropic/claude-sonnet-4.6')
+    expect(local.system).toBe(viaGateway.system)
+    expect(local.prompt).toBe(viaGateway.prompt)
+    expect(local.maxOutputTokens).toBe(1024)
+    expect(local.abortSignal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('goes straight to the gateway when Ollama is not configured', async () => {
+    await MorningBriefService.generateBrief('user-1')
+
+    expect(generateText).toHaveBeenCalledTimes(1)
+    expect(generateText.mock.calls[0][0].model).toBe('anthropic/claude-sonnet-4.6')
   })
 })
