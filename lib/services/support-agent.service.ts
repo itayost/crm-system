@@ -117,7 +117,10 @@ export class SupportAgentService {
       // titles. One call deciding what used to be guessed in three places.
       IntakeExtractionService.extract(input.text, {
         history: conversation.history,
-        recentRequestTitles: recentRequests.map((request) => request.title),
+        // Closed tickets are deliberately not candidates: even a genuinely
+        // similar new message about a RESOLVED topic is a NEW פנייה (usually
+        // a bug in the shipped feature), never "already handled".
+        recentRequestTitles: openStatuses(recentRequests).map((request) => request.title),
         hasPendingSummary: !!conversation.pendingDraft,
       }),
       // What each of this client's products IS - screens, flows, vocabulary -
@@ -132,17 +135,34 @@ export class SupportAgentService {
 
     const intake = mergeIntake(readIntake(conversation.pendingDraft?.intake), analysis.intake)
 
+    // A bare "כן" on a pending summary is not a judgment call, so it is not
+    // left to one. On 2026-08-01 the judge defaulted a "כן" to NEW, the
+    // rendered "start the full flow" line contradicted the file-now branch,
+    // and the client was asked to confirm the same summary twice - the exact
+    // loop 034c4da fixed. Detected in code, the turn gets one unambiguous
+    // instruction and no classification line at all.
+    const isPlainConfirmation = !!conversation.pendingDraft && isAffirmation(input.text)
+
+    // The judge is diagnostic gold: this incident had to be reconstructed
+    // from DB rows because turns left no observable trace.
+    console.log(
+      `Support turn ${input.chatId}: relation=${analysis.relation?.relation ?? 'none'} ` +
+        `kind=${intakeKind(intake)} pending=${!!conversation.pendingDraft} ` +
+        `confirmFastPath=${isPlainConfirmation} rounds=${conversation.confirmationRounds ?? 0}`
+    )
+
     // Any turn with repo access short of a plain change request may end up
     // reading code before a single word gets written. It used to fire only for
     // questions, so a bug report that triggered three uncached tree fetches
     // left the client staring at nothing.
-    if (intakeKind(intake) !== 'change' && repoProjects.length > 0) {
+    if (intakeKind(intake) !== 'change' && repoProjects.length > 0 && !isPlainConfirmation) {
       await input.onAcknowledge?.()
     }
 
     const repoActivity = { fired: false }
+    const filingActivity = { filed: false }
     const tools = {
-      ...createSupportTools({ ...toolContext, turnIntake: intake }),
+      ...createSupportTools({ ...toolContext, turnIntake: intake, filingActivity }),
       ...(repoProjects.length > 0 ? createRepoTools(toolContext, repoProjects, repoActivity) : {}),
     }
 
@@ -158,6 +178,7 @@ export class SupportAgentService {
         clientProfile,
         intake,
         turnRelation: analysis.relation,
+        isPlainConfirmation,
       }),
       messages,
       tools,
@@ -172,24 +193,80 @@ export class SupportAgentService {
 
     const reply = result.text?.trim() || FALLBACK_REPLY
 
-    await SupportConversationService.saveHistory(conversationContext, [
-      ...messages,
+    // Only the turn's delta: appended atomically so two messages arriving
+    // seconds apart cannot erase each other's exchange (last-writer-wins on
+    // the whole array is how the 07:38 Dual-Tasking exchange vanished).
+    await SupportConversationService.appendHistory(conversationContext, [
+      { role: 'user', content: input.text },
       { role: 'assistant', content: reply },
     ])
+
+    const remainingDraft = await SupportConversationService.getPendingDraft(conversationContext)
 
     // Findings from a dead investigation must not ride the next unrelated
     // ticket's aiNote. "Dead" is judged conservatively: this turn neither
     // touched the repo nor left a draft, so whatever findings remain belong to
     // an earlier thread that ended without a ticket. A turn that searched and
     // will propose next turn keeps its findings; filing clears them itself.
-    if (!repoActivity.fired) {
-      const remainingDraft = await SupportConversationService.getPendingDraft(conversationContext)
-      if (!remainingDraft) {
-        await SupportConversationService.clearRepoFindings(conversationContext)
-      }
+    if (!repoActivity.fired && !remainingDraft) {
+      await SupportConversationService.clearRepoFindings(conversationContext)
+    }
+
+    // The safety net: silent loss becomes a ping. Twice now a message the
+    // judge would call NEW ended a turn with nothing filed, nothing pending,
+    // and nobody told - the model waved it away as already handled. When that
+    // shape occurs, Itay gets one WhatsApp line instead of silence. Questions
+    // legitimately end ticketless, so they stay quiet.
+    const kind = intakeKind(intake)
+    if (
+      analysis.relation?.relation === 'NEW' &&
+      (kind === 'broken' || kind === 'change') &&
+      !remainingDraft &&
+      !filingActivity.filed
+    ) {
+      console.warn(
+        `Support turn ${input.chatId}: NEW ${kind} message ended with no draft and no filing - notifying owner`
+      )
+      await notifyPossiblyMissedRequest(input)
     }
 
     return reply
+  }
+}
+
+/**
+ * A message that is an answer, not a judgment call: short, affirmative, while
+ * a summary awaits confirmation. Deliberately narrow - anything longer or
+ * mixed ("כן אבל...") goes through the model as before.
+ */
+const AFFIRMATIONS = ['כן', 'מדויק', 'נכון', 'אוקיי', 'אוקי', 'בסדר', 'סבבה', 'מאשר', 'מאשרת', 'אישור', 'יאללה']
+
+export function isAffirmation(text: string): boolean {
+  const stripped = text
+    .replace(/[\p{P}\p{S}\p{Emoji_Presentation}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!stripped || stripped.length > 14) return false
+
+  const words = stripped.split(' ')
+  return words.every((word) => AFFIRMATIONS.includes(word))
+}
+
+/** One line to Itay's own chat; a failure here must never break the client reply. */
+async function notifyPossiblyMissedRequest(input: SupportAgentInput) {
+  try {
+    const { WhatsAppAgentService } = await import('./whatsapp-agent.service')
+    const { WahaService } = await import('./waha.service')
+    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
+    if (!ownerChatId) return
+
+    const snippet = input.text.replace(/\s+/g, ' ').slice(0, 80)
+    await WahaService.sendMessage({
+      chatId: ownerChatId,
+      text: `⚠️ יתכן שפנייה מ-${input.contactName} (${input.clientName}) לא נקלטה: "${snippet}" — שווה הצצה בשיחה.`,
+    })
+  } catch (error) {
+    console.error('Missed-request notice failed:', error)
   }
 }
 
@@ -209,8 +286,13 @@ async function recentClientRequests(context: { clientId: string; userId: string 
     },
     orderBy: { createdAt: 'desc' },
     take: 5,
-    select: { title: true, createdAt: true },
+    select: { title: true, status: true, createdAt: true },
   })
+}
+
+/** Only an open ticket can be duplicated. A closed one is history. */
+export function openStatuses<T extends { status: string }>(requests: T[]): T[] {
+  return requests.filter((r) => r.status !== 'RESOLVED')
 }
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
@@ -223,16 +305,59 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   CONSULTATION: 'ייעוץ',
 }
 
+/**
+ * What the pre-pass judgment renders into the prompt, if anything.
+ *
+ * The rules exist because each was violated in production:
+ * - A plain "כן" gets one unambiguous file-now line and nothing else. The
+ *   judge once classified a bare confirmation as NEW, its "start the full
+ *   flow" line outvoted the file-now branch by recency, and the client was
+ *   asked to confirm the same summary twice.
+ * - A NEW verdict is never rendered while a summary is pending - it can only
+ *   contradict the pending branch, whose new-topic arm already handles a
+ *   genuine topic change.
+ * - The NEW line is a prohibition, not advice: the model has twice answered a
+ *   fresh request with "כבר נקלטה".
+ */
+function relationLine({
+  turnRelation,
+  hasPendingSummary,
+  isPlainConfirmation,
+}: {
+  turnRelation: TurnRelation | null
+  hasPendingSummary: boolean
+  isPlainConfirmation: boolean
+}): string {
+  if (isPlainConfirmation) {
+    return `ההודעה היא אישור לסיכום הממתין — קרא ל-fileRequest מיד. אל תציג את הסיכום שוב ואל תשאל שוב.\n\n`
+  }
+
+  if (!turnRelation) return ''
+  if (turnRelation.relation === 'NEW' && hasPendingSummary) return ''
+
+  const text =
+    turnRelation.relation === 'NEW'
+      ? 'פנייה חדשה — אסור לענות שהיא כבר נקלטה, מוכרת או טופלה. פתח עבורה את התהליך המלא.'
+      : turnRelation.relation === 'CONTINUES_PENDING'
+        ? 'המשך לפנייה שבתהליך — התייחס אליה, אל תפתח נושא חדש.'
+        : `אולי קשורה לפנייה פתוחה "${turnRelation.relatedTitle ?? ''}"${
+            turnRelation.rationaleHe ? ` (${turnRelation.rationaleHe})` : ''
+          } — שאל את הלקוח אם זה אותו נושא או משהו נפרד. לעולם אל תחליט לבד.`
+
+  return `סיווג ההודעה הנוכחית (קביעת עזר מובנית, לא החלטה סופית): ${text}\n\n`
+}
+
 interface SystemPromptParams {
   input: SupportAgentInput
   hasPendingSummary: boolean
   hasRepoTools: boolean
   projects: Array<{ name: string; type: string; status: string }>
-  recentRequests: Array<{ title: string; createdAt: Date }>
+  recentRequests: Array<{ title: string; status: string; createdAt: Date }>
   productCards: Array<{ projectName: string; body: string; generatedAt: Date | null }>
   clientProfile: string | null
   intake: Intake
   turnRelation: TurnRelation | null
+  isPlainConfirmation: boolean
 }
 
 function buildSystemPrompt({
@@ -245,6 +370,7 @@ function buildSystemPrompt({
   clientProfile,
   intake,
   turnRelation,
+  isPlainConfirmation,
 }: SystemPromptParams): string {
   // The summary's own wording is never repeated here. It is derived from text
   // the client dictated, and anything interpolated into a system prompt is read
@@ -285,15 +411,26 @@ function buildSystemPrompt({
   // client-dictated wording that the comment above refuses to interpolate, and
   // the model already reads them through getMyRequests. Flattened and capped
   // anyway - a title's job here is recognition, not detail.
+  const requestLine = (request: { title: string; createdAt: Date }) =>
+    `- "${request.title.replace(/\s+/g, ' ').slice(0, 80)}" (${request.createdAt.toLocaleDateString('he-IL')})`
+  const openRequests = openStatuses(recentRequests)
+  const closedRequests = recentRequests.filter((request) => request.status === 'RESOLVED')
+
+  // Open tickets are the only dedup candidates. Closed ones are background,
+  // and the model must never map a new message onto them: it matched a new
+  // billing bug onto a RESOLVED report screen because both said "אבחון", and
+  // told the client it was already handled.
   const recentRequestsBlock = recentRequests.length
-    ? `פניות שכבר נפתחו ללקוח הזה לאחרונה (מהחדשה לישנה):
-${recentRequests
-        .map(
-          (request) =>
-            `- "${request.title.replace(/\s+/g, ' ').slice(0, 80)}" (${request.createdAt.toLocaleDateString('he-IL')})`
-        )
-        .join('\n')}
-אם ההודעה הנוכחית באמת חוזרת על אחת מאלו — אמור שהיא כבר נפתחה ונקוב בשמה. כל דבר אחר הוא פנייה חדשה.`
+    ? [
+        openRequests.length
+          ? `פניות פתוחות של הלקוח (מהחדשה לישנה):\n${openRequests.map(requestLine).join('\n')}\nרק אם ההודעה באמת חוזרת על אחת מאלו — אמור שהיא כבר נפתחה ונקוב בשמה. בכל ספק — פנייה חדשה.`
+          : null,
+        closedRequests.length
+          ? `פניות שכבר טופלו ונסגרו (רקע בלבד):\n${closedRequests.map(requestLine).join('\n')}\nהודעה חדשה שדומה לפנייה סגורה היא לעולם פנייה חדשה — פיצ'ר שנמסר יכול להישבר, ודיווח חדש עליו הוא באג חדש. אסור לענות עליה "כבר נקלטה" או "כבר טופל".`
+          : null,
+      ]
+        .filter((part): part is string => part !== null)
+        .join('\n\n')
     : ''
 
   const projectLines = projects.length
@@ -424,19 +561,11 @@ ${
 
 פורמט וואטסאפ: *מודגש* עם כוכבית אחת, _נטוי_ עם קו תחתון. בלי Markdown ובלי כותרות.
 
-${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${
-    turnRelation
-      ? `סיווג ההודעה הנוכחית (קביעת עזר מובנית, לא החלטה סופית): ${
-          turnRelation.relation === 'NEW'
-            ? 'פנייה חדשה — התחל את התהליך המלא עבורה.'
-            : turnRelation.relation === 'CONTINUES_PENDING'
-              ? 'המשך לפנייה שבתהליך — התייחס אליה, אל תפתח נושא חדש.'
-              : `אולי קשורה לפנייה קיימת "${turnRelation.relatedTitle ?? ''}"${
-                  turnRelation.rationaleHe ? ` (${turnRelation.rationaleHe})` : ''
-                } — שאל את הלקוח אם זה אותו נושא או משהו נפרד. לעולם אל תחליט לבד.`
-        }\n\n`
-      : ''
-  }${intakeBlock}${questionBlock}
+${recentRequestsBlock ? `${recentRequestsBlock}\n\n` : ''}${relationLine({
+    turnRelation,
+    hasPendingSummary,
+    isPlainConfirmation,
+  })}${intakeBlock}${questionBlock}
 
 ${processBlock}
 אל תגיד ללקוח שהפנייה נפתחה לפני ש-fileRequest החזיר success. "הפנייה נקלטה" מותר להגיד רק על success שקיבלת בתור הנוכחי — success מוקדם יותר בשיחה שייך לפנייה אחרת, ולעולם אינו תשובה להודעה חדשה. אם fileRequest החזיר שגיאה — עשה מה שכתוב בה ואל תספר ללקוח שנפתחה פנייה.`

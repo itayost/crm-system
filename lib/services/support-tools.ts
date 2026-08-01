@@ -35,6 +35,8 @@ export interface SupportToolContext {
    * lost to the model forgetting to re-type it.
    */
   turnIntake?: Intake | null
+  /** Set when fileRequest succeeds this turn; the agent's safety net reads it. */
+  filingActivity?: { filed: boolean }
   /**
    * How many summaries this client has already been asked to confirm without a
    * ticket coming out of it. Past MAX_CONFIRMATION_ROUNDS the exchange has
@@ -331,6 +333,8 @@ export function createSupportTools(context: SupportToolContext) {
               'הטיוטה הזו כבר נפתחה כפנייה, אין צורך לפתוח אותה שוב. אשר ללקוח שהיא נקלטה. פנייה חדשה על נושא אחר פותחים כרגיל.',
           }
         }
+
+        if (context.filingActivity) context.filingActivity.filed = true
 
         // The title rides back so the model's visible reply can echo which
         // request was filed. Tool results never reach the saved history, so

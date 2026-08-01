@@ -317,6 +317,37 @@ export class SupportConversationService {
       },
     })
   }
+
+  /**
+   * Appends the turn's exchange atomically and trims in the same statement.
+   *
+   * saveHistory replaces the whole array with what this turn read at its
+   * start, so two messages arriving seconds apart - two concurrent webhook
+   * turns - end with the slower save erasing the faster turn's exchange.
+   * That is how a client's escalation vanished from history on 2026-08-01.
+   * Concurrent appends interleave instead.
+   */
+  static async appendHistory(context: SupportConversationContext, delta: SupportMessage[]) {
+    await prisma.$executeRaw`
+      UPDATE "SupportConversation"
+      SET "messages" = COALESCE(
+            (
+              SELECT jsonb_agg(entry ORDER BY idx)
+              FROM (
+                SELECT entry, idx
+                FROM jsonb_array_elements("messages" || ${JSON.stringify(delta)}::jsonb)
+                  WITH ORDINALITY AS combined(entry, idx)
+                ORDER BY idx DESC
+                LIMIT ${MAX_HISTORY_MESSAGES}
+              ) AS latest(entry, idx)
+            ),
+            '[]'::jsonb
+          ),
+          "lastActiveAt" = NOW()
+      WHERE "userId" = ${context.userId}
+        AND "chatId" = ${context.chatId}
+    `
+  }
 }
 
 function identity({ userId, chatId }: SupportConversationContext) {

@@ -117,10 +117,28 @@ const prismaMock = {
   request: { findMany: vi.fn(), create: vi.fn() },
   client: { findFirst: vi.fn(), update: vi.fn() },
   $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
-  // Stands in for the atomic jsonb append: UPDATE ... SET pendingMedia =
-  // pendingMedia || $1 WHERE userId = $2 AND chatId = $3 AND length < $4
+  // Stands in for the atomic jsonb appends (pendingMedia, repoFindings, and
+  // the history delta with its in-SQL trim).
   $executeRaw: vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
-    const column = strings.join('').includes('repoFindings') ? 'repoFindings' : 'pendingMedia'
+    const sql = strings.join('')
+
+    if (sql.includes('"messages"')) {
+      const [json, max, userId, chatId] = values as [string, number, string, string]
+      const key = `${userId}:${chatId}`
+      const row = conversations.get(key)
+      if (!row) return 0
+
+      const current = Array.isArray(row.messages) ? (row.messages as unknown[]) : []
+      const combined = [...current, ...JSON.parse(json)]
+      conversations.set(key, {
+        ...row,
+        messages: combined.slice(-max),
+        lastActiveAt: new Date(),
+      })
+      return 1
+    }
+
+    const column = sql.includes('repoFindings') ? 'repoFindings' : 'pendingMedia'
     const [json, userId, chatId, max] = values as [string, string, string, number]
     const key = `${userId}:${chatId}`
     const row = conversations.get(key)
@@ -1158,12 +1176,14 @@ describe('support agent', () => {
     expect(systemPrompt).toContain('לעולם אינו תשובה להודעה חדשה')
   })
 
-  it('lists the client already-filed requests as data the model can read', async () => {
+  it('separates open tickets (dedup candidates) from closed ones (background)', async () => {
     // Tool calls never reach the saved history, so without this block the
     // model's only evidence of past filings is its own "הפנייה נקלטה" prose.
+    // Closed tickets are background only: a new billing bug was once waved
+    // away because it shared the word אבחון with a RESOLVED report screen.
     prismaMock.request.findMany.mockResolvedValue([
-      { title: 'הוספת פריסת תשלומים לתזרים', createdAt: new Date('2026-07-31') },
-      { title: 'החלפת שדה תדירות אימונים', createdAt: new Date('2026-07-31') },
+      { title: 'הוספת פריסת תשלומים לתזרים', status: 'OPEN', createdAt: new Date('2026-07-31') },
+      { title: 'דוח הכנסות מאבחונים', status: 'RESOLVED', createdAt: new Date('2026-07-31') },
     ])
 
     let systemPrompt = ''
@@ -1174,10 +1194,19 @@ describe('support agent', () => {
 
     await SupportAgentService.handleMessage(input)
 
-    expect(systemPrompt).toContain('פניות שכבר נפתחו ללקוח הזה לאחרונה')
+    const openAt = systemPrompt.indexOf('פניות פתוחות של הלקוח')
+    const closedAt = systemPrompt.indexOf('פניות שכבר טופלו ונסגרו')
+    expect(openAt).toBeGreaterThan(-1)
+    expect(closedAt).toBeGreaterThan(openAt)
     expect(systemPrompt).toContain('הוספת פריסת תשלומים לתזרים')
-    expect(systemPrompt).toContain('החלפת שדה תדירות אימונים')
-    expect(systemPrompt).toContain('כל דבר אחר הוא פנייה חדשה')
+    expect(systemPrompt).toContain('דוח הכנסות מאבחונים')
+    expect(systemPrompt).toContain('הודעה חדשה שדומה לפנייה סגורה היא לעולם פנייה חדשה')
+
+    // And the judge only ever sees the open ones as candidates.
+    expect(extractMock).toHaveBeenCalledWith(
+      input.text,
+      expect.objectContaining({ recentRequestTitles: ['הוספת פריסת תשלומים לתזרים'] })
+    )
   })
 
   it('omits the filed-requests block when nothing was ever filed', async () => {
@@ -1282,12 +1311,12 @@ describe('support agent', () => {
     }
     await SupportAgentService.handleMessage(input)
 
-    expect(systemPrompt).toContain('אולי קשורה לפנייה קיימת "הוספת פריסת תשלומים לתזרים"')
+    expect(systemPrompt).toContain('אולי קשורה לפנייה פתוחה "הוספת פריסת תשלומים לתזרים"')
     expect(systemPrompt).toContain('שאל את הלקוח')
     expect(systemPrompt).toContain('לעולם אל תחליט לבד')
   })
 
-  it('renders a NEW judgment as a start-the-flow instruction', async () => {
+  it('renders a NEW judgment as a prohibition on claiming already-handled', async () => {
     extractMock.mockResolvedValue({
       intake: EMPTY_INTAKE,
       relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
@@ -1300,7 +1329,7 @@ describe('support agent', () => {
     }
     await SupportAgentService.handleMessage(input)
 
-    expect(systemPrompt).toContain('פנייה חדשה — התחל את התהליך המלא')
+    expect(systemPrompt).toContain('אסור לענות שהיא כבר נקלטה, מוכרת או טופלה')
   })
 
   it('says nothing about relation when the pre-pass had no verdict', async () => {
@@ -1312,6 +1341,108 @@ describe('support agent', () => {
     await SupportAgentService.handleMessage(input)
 
     expect(systemPrompt).not.toContain('סיווג ההודעה הנוכחית')
+  })
+
+  // The 2026-08-01 incident: a "כן" turn re-asked for confirmation, a fresh
+  // bug report was waved away as already handled, and a second message erased
+  // the first one's exchange from history. These pin the three fixes.
+
+  it('gives a bare "כן" one file-now instruction and no classification line', async () => {
+    await proposeInOwnTurn()
+
+    // Even a judge that wrongly says NEW must not reach the prompt here.
+    extractMock.mockResolvedValue({
+      intake: EMPTY_INTAKE,
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+
+    let systemPrompt = ''
+    driver = async ({ tools, system }) => {
+      systemPrompt = system
+      await tools.fileRequest.execute({})
+      return { text: 'הפנייה נקלטה' }
+    }
+    await SupportAgentService.handleMessage({ ...input, text: 'כן!' })
+
+    expect(systemPrompt).toContain('ההודעה היא אישור לסיכום הממתין — קרא ל-fileRequest מיד')
+    expect(systemPrompt).not.toContain('סיווג ההודעה הנוכחית')
+    expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('never renders a NEW verdict while a summary is pending', async () => {
+    await proposeInOwnTurn()
+
+    extractMock.mockResolvedValue({
+      intake: EMPTY_INTAKE,
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+
+    let systemPrompt = ''
+    driver = async ({ system }) => {
+      systemPrompt = system
+      return { text: 'רשמתי, נטפל בזה' }
+    }
+    // A long new-topic message: not the fast-path, but still no NEW line.
+    await SupportAgentService.handleMessage({ ...input, text: 'יש עוד בעיה בדוח החודשי שלא נטען' })
+
+    expect(systemPrompt).not.toContain('סיווג ההודעה הנוכחית')
+    expect(systemPrompt).toContain('מעלה נושא חדש — זו בקשה נוספת')
+  })
+
+  it('pings the owner when a NEW report ends a turn with nothing filed', async () => {
+    agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
+    extractMock.mockResolvedValue({
+      intake: { ...EMPTY_INTAKE, suggestedType: 'BUG', whatHappened: 'תמחור לא מתווסף' },
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+
+    // The model waves the report away without proposing anything - the exact
+    // failure that lost the אבחון bug.
+    driver = async () => ({ text: 'זה כבר נקלט אצלנו!' })
+    await SupportAgentService.handleMessage({ ...input, text: 'יש באג בתמחור של אבחון שלא נסגר' })
+
+    expect(wahaMock.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: 'owner-chat@lid',
+        text: expect.stringContaining('יתכן שפנייה מ-דנה'),
+      })
+    )
+  })
+
+  it('stays silent when the turn actually filed or only answered a question', async () => {
+    agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
+
+    // Case 1: question - ticketless turns are legitimate.
+    extractMock.mockResolvedValue({
+      intake: { ...EMPTY_INTAKE, suggestedType: 'QUESTION' },
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+    driver = async () => ({ text: 'זה נמצא במסך הדוחות' })
+    await SupportAgentService.handleMessage({ ...input, text: 'איפה רואים דוחות?' })
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+
+    // Case 2: a summary was proposed - the request is in flight, not lost.
+    extractMock.mockResolvedValue({
+      intake: { ...EMPTY_INTAKE, suggestedType: 'BUG' },
+      relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
+    })
+    await proposeInOwnTurn()
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('keeps both exchanges when two turns race on the same conversation', async () => {
+    // Two messages seconds apart run as two concurrent webhook turns. The old
+    // whole-array save meant the slower turn erased the faster one's exchange -
+    // the vanished Dual-Tasking escalation. Appends interleave instead.
+    driver = async () => ({ text: 'קיבלתי את הראשונה' })
+    const first = SupportAgentService.handleMessage({ ...input, text: 'הודעה ראשונה' })
+    driver = async () => ({ text: 'קיבלתי את השנייה' })
+    const second = SupportAgentService.handleMessage({ ...input, text: 'הודעה שנייה' })
+    await Promise.all([first, second])
+
+    const contents = storedConversation().messages.map((m) => m.content)
+    expect(contents).toContain('הודעה ראשונה')
+    expect(contents).toContain('הודעה שנייה')
   })
 
   it('files two different requests from the same conversation as two tickets', async () => {
