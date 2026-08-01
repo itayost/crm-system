@@ -2,6 +2,7 @@
 
 Date: 2026-07-31
 Status: accepted
+Amended: 2026-08-01 (cards v2 — see below)
 
 ## Context
 
@@ -40,3 +41,18 @@ demoted fallback for implementation specifics only.
   screens hand-written in `manualNotesHe`.
 - Embeddings/pgvector were deliberately not adopted; revisit only if cards
   grow into a multi-document corpus per product.
+
+## Amendment — cards v2 (2026-08-01)
+
+Measured against the client clones, ~75% of the visible Hebrew lived in
+component files the v1 harvest never opened. The decision stands (precomputed,
+pushed, SHA-gated); the harvest widened: component/layout Hebrew grouped by
+folder, the Prisma schema (domain nouns), API route paths (tree only),
+Android `strings.xml` (removing the hand-written-screens consequence above),
+and tiered product docs — `GRAPH_REPORT.md` first, then CLAUDE/CONTEXT/AGENTS,
+then non-dated product docs; dated plans, audits and ADRs are excluded because
+a card must not assert intent that never shipped. The writer gained a bounded
+`readRepoFile` exploration loop (path-validated, ~10 reads, counted in
+`sourceNote`, which is now coverage accounting). Docs describe intent, code is
+reality: doc-only capabilities enter hedged and never override the
+code-derived "מה לא קיים".
