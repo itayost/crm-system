@@ -313,9 +313,10 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
  *   judge once classified a bare confirmation as NEW, its "start the full
  *   flow" line outvoted the file-now branch by recency, and the client was
  *   asked to confirm the same summary twice.
- * - A NEW verdict is never rendered while a summary is pending - it can only
- *   contradict the pending branch, whose new-topic arm already handles a
- *   genuine topic change.
+ * - A NEW verdict while a summary is pending renders only the already-filed
+ *   prohibition and defers the process to the pending branch's new-topic arm.
+ *   The full-flow line would contradict that branch; total silence let the
+ *   model wave a fresh topic away as "כבר נפתחה" (מידד's screenshot, 2026-08-01).
  * - The NEW line is a prohibition, not advice: the model has twice answered a
  *   fresh request with "כבר נקלטה".
  */
@@ -333,7 +334,13 @@ function relationLine({
   }
 
   if (!turnRelation) return ''
-  if (turnRelation.relation === 'NEW' && hasPendingSummary) return ''
+  if (turnRelation.relation === 'NEW' && hasPendingSummary) {
+    // The full-flow NEW line would contradict the pending branch (that is how
+    // the double-confirm loop happened), but dropping it entirely opened the
+    // opposite hole: on a pending turn the model waved a fresh topic away as
+    // "כבר נפתחה". Keep the prohibition, defer the process to the pending arm.
+    return `סיווג ההודעה הנוכחית (קביעת עזר מובנית, לא החלטה סופית): נושא חדש בזמן שסיכום ממתין — נהג לפי סעיף הנושא-החדש של שלב האישור. אסור לענות שהנושא כבר נקלט, מוכר או טופל.\n\n`
+  }
 
   const text =
     turnRelation.relation === 'NEW'
@@ -423,7 +430,7 @@ function buildSystemPrompt({
   const recentRequestsBlock = recentRequests.length
     ? [
         openRequests.length
-          ? `פניות פתוחות של הלקוח (מהחדשה לישנה):\n${openRequests.map(requestLine).join('\n')}\nרק אם ההודעה באמת חוזרת על אחת מאלו — אמור שהיא כבר נפתחה ונקוב בשמה. בכל ספק — פנייה חדשה.`
+          ? `פניות פתוחות של הלקוח (מהחדשה לישנה):\n${openRequests.map(requestLine).join('\n')}\nגם כשהודעה נראית חוזרת על אחת מאלו — אל תקבע שהיא כבר נפתחה. שאל ונקוב בשם הפנייה ("זה אותו נושא כמו הפנייה על X, או משהו נפרד?") — הלקוח מכריע, לא אתה. בכל ספק — פנייה חדשה.`
           : null,
         closedRequests.length
           ? `פניות שכבר טופלו ונסגרו (רקע בלבד):\n${closedRequests.map(requestLine).join('\n')}\nהודעה חדשה שדומה לפנייה סגורה היא לעולם פנייה חדשה — פיצ'ר שנמסר יכול להישבר, ודיווח חדש עליו הוא באג חדש. אסור לענות עליה "כבר נקלטה" או "כבר טופל".`

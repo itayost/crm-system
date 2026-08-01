@@ -1202,6 +1202,13 @@ describe('support agent', () => {
     expect(systemPrompt).toContain('דוח הכנסות מאבחונים')
     expect(systemPrompt).toContain('הודעה חדשה שדומה לפנייה סגורה היא לעולם פנייה חדשה')
 
+    // Even for open tickets, sameness is the client's call: the model asks and
+    // names the ticket, it never asserts "כבר נפתחה" (מידד's screenshot was
+    // waved onto a filed request it did not belong to).
+    expect(systemPrompt).toContain('אל תקבע שהיא כבר נפתחה')
+    expect(systemPrompt).toContain('הלקוח מכריע, לא אתה')
+    expect(systemPrompt).not.toContain('אמור שהיא כבר נפתחה')
+
     // And the judge only ever sees the open ones as candidates.
     expect(extractMock).toHaveBeenCalledWith(
       input.text,
@@ -1369,7 +1376,7 @@ describe('support agent', () => {
     expect(prismaMock.request.create).toHaveBeenCalledTimes(1)
   })
 
-  it('never renders a NEW verdict while a summary is pending', async () => {
+  it('keeps the already-filed prohibition on a NEW verdict while a summary is pending', async () => {
     await proposeInOwnTurn()
 
     extractMock.mockResolvedValue({
@@ -1382,10 +1389,14 @@ describe('support agent', () => {
       systemPrompt = system
       return { text: 'רשמתי, נטפל בזה' }
     }
-    // A long new-topic message: not the fast-path, but still no NEW line.
+    // A long new-topic message: not the fast-path. The full-flow NEW line must
+    // not render (it contradicts the pending branch), but total silence let a
+    // fresh topic get waved away as "כבר נפתחה" - the prohibition stays.
     await SupportAgentService.handleMessage({ ...input, text: 'יש עוד בעיה בדוח החודשי שלא נטען' })
 
-    expect(systemPrompt).not.toContain('סיווג ההודעה הנוכחית')
+    expect(systemPrompt).toContain('נושא חדש בזמן שסיכום ממתין')
+    expect(systemPrompt).toContain('אסור לענות שהנושא כבר נקלט, מוכר או טופל')
+    expect(systemPrompt).not.toContain('פתח עבורה את התהליך המלא')
     expect(systemPrompt).toContain('מעלה נושא חדש — זו בקשה נוספת')
   })
 
