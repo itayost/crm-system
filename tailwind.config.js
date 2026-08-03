@@ -1,9 +1,43 @@
+const TONES = [
+  'neutral',
+  'info',
+  'success',
+  'warning',
+  'caution',
+  'danger',
+  'accent',
+  'progress',
+]
+
+/**
+ * The tone scale as utilities, for the status signals that are not pills - a
+ * completed-task checkbox, an overdue date, a KPI tile. Those used to reach for
+ * whatever raw palette shade looked right, which is how the app ended up with
+ * four greens and three reds all meaning "done" and "late".
+ *
+ * Keep this mirroring lib/design/tones.ts. The pills themselves do not use it;
+ * they use the .tone-* classes, which bind all five roles in one decision.
+ */
+const toneScale = Object.fromEntries(
+  TONES.map((name) => [
+    name,
+    {
+      surface: `hsl(var(--tone-${name}-surface))`,
+      foreground: `hsl(var(--tone-${name}-foreground))`,
+      mark: `hsl(var(--tone-${name}-mark))`,
+      solid: `hsl(var(--tone-${name}-solid))`,
+    },
+  ]),
+)
+
 /** @type {import('tailwindcss').Config} */
 const config = {
+  // `lib` is in here because lib/design/tones.ts is where class-name strings
+  // are chosen. Leaving it out silently purged the whole tone layer.
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -25,6 +59,16 @@ const config = {
           muted: "hsl(var(--foreground-muted))",
           subtle: "hsl(var(--foreground-subtle))",
           faint: "hsl(var(--foreground-faint))",
+        },
+        tone: toneScale,
+        // Money reads as money everywhere, instead of a green and an amber
+        // picked separately at each call site.
+        figure: {
+          paid: "hsl(var(--figure-paid))",
+          due: "hsl(var(--figure-due))",
+        },
+        marker: {
+          vip: "hsl(var(--marker-vip))",
         },
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -64,6 +108,9 @@ const config = {
       },
     },
   },
-  plugins: [],
+  // Radix popovers, selects, dialogs and dropdowns all ship `animate-in` /
+  // `fade-in-0` / `zoom-in-95` classes that this plugin defines. It was a
+  // dependency but never registered, so those classes resolved to nothing.
+  plugins: [require('tailwindcss-animate')],
 }
 module.exports = config

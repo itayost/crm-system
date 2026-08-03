@@ -1,6 +1,7 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { Toaster } from 'react-hot-toast'
+import { TOAST_OPTIONS } from '@/lib/design/toast'
 
 export default function DashboardLayout({
   children,
@@ -26,28 +27,7 @@ export default function DashboardLayout({
       </div>
       
       {/* Toast Notifications */}
-      <Toaster 
-        position="top-left"
-        reverseOrder={false}
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-            direction: 'rtl',
-          },
-          success: {
-            style: {
-              background: '#10b981',
-            },
-          },
-          error: {
-            style: {
-              background: '#ef4444',
-            },
-          },
-        }}
-      />
+      <Toaster position="top-left" reverseOrder={false} toastOptions={TOAST_OPTIONS} />
     </div>
   )
 }

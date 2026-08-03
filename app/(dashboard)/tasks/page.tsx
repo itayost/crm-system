@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -29,43 +29,32 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TaskForm } from '@/components/forms/task-form'
-import { tone, PRIORITY_TONES, TASK_CATEGORY_TONES, TASK_STATUS_TONES } from '@/lib/design/tones'
+import {
+  toneOf,
+  emphasisOf,
+  PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
+  TASK_CATEGORY_TONES,
+  TASK_STATUS_TONES,
+} from '@/lib/design/tones'
+import {
+  label,
+  PRIORITY_LABELS,
+  TASK_CATEGORY_LABELS,
+  TASK_STATUS_LABELS,
+} from '@/lib/design/labels'
 
-const STATUS_LABELS: Record<string, string> = {
-  TODO: 'לביצוע',
-  IN_PROGRESS: 'בתהליך',
-  COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
-}
-
-const PRIORITY_LABELS: Record<string, string> = {
-  LOW: 'נמוך',
-  MEDIUM: 'בינוני',
-  HIGH: 'גבוה',
-  URGENT: 'דחוף',
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  CLIENT_WORK: 'עבודת לקוח',
-  MARKETING: 'שיווק',
-  LEAD_FOLLOWUP: 'מעקב לידים',
-  ADMIN: 'מנהלה',
-}
+/** Derived, so a renamed status cannot go stale in the filter but not the table. */
+const ALL_OPTION = { value: 'ALL', label: 'הכל' }
 
 const STATUS_FILTER_OPTIONS = [
-  { value: 'ALL', label: 'הכל' },
-  { value: 'TODO', label: 'לביצוע' },
-  { value: 'IN_PROGRESS', label: 'בתהליך' },
-  { value: 'COMPLETED', label: 'הושלם' },
-  { value: 'CANCELLED', label: 'בוטל' },
+  ALL_OPTION,
+  ...Object.entries(TASK_STATUS_LABELS).map(([value, text]) => ({ value, label: text })),
 ]
 
 const CATEGORY_FILTER_TABS = [
-  { value: 'ALL', label: 'הכל' },
-  { value: 'CLIENT_WORK', label: 'עבודת לקוח' },
-  { value: 'MARKETING', label: 'שיווק' },
-  { value: 'LEAD_FOLLOWUP', label: 'מעקב לידים' },
-  { value: 'ADMIN', label: 'מנהלה' },
+  ALL_OPTION,
+  ...Object.entries(TASK_CATEGORY_LABELS).map(([value, text]) => ({ value, label: text })),
 ]
 
 interface Task {
@@ -276,7 +265,7 @@ export default function TasksPage() {
             onClick={() => setCategoryFilter(tab.value)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               categoryFilter === tab.value
-                ? 'border-blue-500 text-link'
+                ? 'border-link text-link'
                 : 'border-transparent text-content-subtle hover:text-content-body hover:border-border-strong'
             }`}
           >
@@ -365,8 +354,8 @@ export default function TasksPage() {
                     <button
                       className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                         task.status === 'COMPLETED'
-                          ? 'bg-green-500 border-green-500 text-white'
-                          : 'border-border-strong hover:border-green-400'
+                          ? 'bg-tone-success-solid border-tone-success-solid text-white'
+                          : 'border-border-strong hover:border-tone-success-mark'
                       }`}
                       disabled={togglingId === task.id}
                       onClick={() => handleToggleComplete(task)}
@@ -410,26 +399,23 @@ export default function TasksPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={tone(TASK_STATUS_TONES, task.status)}
-                      variant="secondary"
-                    >
-                      {STATUS_LABELS[task.status] ?? task.status}
-                    </Badge>
+                    <StatusPill tone={toneOf(TASK_STATUS_TONES, task.status)} dot>
+                      {label(TASK_STATUS_LABELS, task.status)}
+                    </StatusPill>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={tone(PRIORITY_TONES, task.priority)}
-                      variant="secondary"
+                    <StatusPill
+                      tone={toneOf(PRIORITY_TONES, task.priority)}
+                      emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
                     >
-                      {PRIORITY_LABELS[task.priority] ?? task.priority}
-                    </Badge>
+                      {label(PRIORITY_LABELS, task.priority)}
+                    </StatusPill>
                   </TableCell>
                   <TableCell>
                     <span
                       className={
                         isOverdue(task.dueDate, task.status)
-                          ? 'text-red-600 font-medium'
+                          ? 'text-tone-danger-mark font-medium'
                           : ''
                       }
                     >
@@ -438,12 +424,9 @@ export default function TasksPage() {
                   </TableCell>
                   <TableCell>
                     {task.category && (
-                      <Badge
-                        className={tone(TASK_CATEGORY_TONES, task.category)}
-                        variant="secondary"
-                      >
-                        {CATEGORY_LABELS[task.category] ?? task.category}
-                      </Badge>
+                      <StatusPill tone={toneOf(TASK_CATEGORY_TONES, task.category)} emphasis="quiet" dot>
+                        {label(TASK_CATEGORY_LABELS, task.category)}
+                      </StatusPill>
                     )}
                   </TableCell>
                   <TableCell className="text-content-subtle">

@@ -89,7 +89,7 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-surface-muted rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium">{getUserInitials()}</span>
                 </div>
                 <span className="text-sm hidden md:inline">{getUserDisplayName()}</span>
@@ -110,7 +110,7 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => signOut()}
-                className="text-red-600"
+                className="text-tone-danger-foreground"
               >
                 <LogOut className="ml-2 h-4 w-4" />
                 התנתק

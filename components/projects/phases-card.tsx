@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Plus, ChevronUp, ChevronDown, Edit, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { tone, toneClass, PHASE_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, PHASE_STATUS_TONES } from '@/lib/design/tones'
 import { label, PHASE_STATUS_LABELS } from '@/lib/design/labels'
 import { phaseStatus } from '@/lib/validations/enums'
 import { formatCurrency } from '@/lib/utils'
@@ -96,12 +96,9 @@ export function PhasesCard({
         <div className="flex items-center justify-between p-3 rounded-lg border bg-surface-subtle">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">מקדמה</span>
-            <Badge
-              variant="secondary"
-              className={advancePaidAt ? toneClass.success : toneClass.neutral}
-            >
+            <StatusPill tone={advancePaidAt ? 'success' : 'neutral'} dot>
               {advancePaidAt ? 'שולם' : 'לא שולם'}
-            </Badge>
+            </StatusPill>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm">{formatCurrency(advanceAmount)}</span>
@@ -174,9 +171,9 @@ export function PhasesCard({
                   <span className="text-sm text-content-subtle">{formatCurrency(phase.price)}</span>
 
                   {phase.paidAt && (
-                    <Badge variant="secondary" className={toneClass.success}>
+                    <StatusPill tone="success" dot>
                       שולם
-                    </Badge>
+                    </StatusPill>
                   )}
                 </div>
 
@@ -197,12 +194,9 @@ export function PhasesCard({
                   >
                     <SelectTrigger className="w-auto gap-1" aria-label={`סטטוס ${phase.name}`}>
                       <SelectValue asChild>
-                        <Badge
-                          className={tone(PHASE_STATUS_TONES, phase.status)}
-                          variant="secondary"
-                        >
+                        <StatusPill tone={toneOf(PHASE_STATUS_TONES, phase.status)} dot interactive>
                           {label(PHASE_STATUS_LABELS, phase.status)}
-                        </Badge>
+                        </StatusPill>
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -291,12 +285,12 @@ export function PhasesCard({
           </div>
           <div>
             <span className="text-content-muted">שולם: </span>
-            <span className="font-medium text-green-700">{formatCurrency(paid)}</span>
+            <span className="font-medium text-figure-paid">{formatCurrency(paid)}</span>
           </div>
           {outstanding > 0 && (
             <div>
               <span className="text-content-muted">ממתין לתשלום: </span>
-              <span className="font-medium text-amber-700">{formatCurrency(outstanding)}</span>
+              <span className="font-medium text-figure-due">{formatCurrency(outstanding)}</span>
             </div>
           )}
         </div>

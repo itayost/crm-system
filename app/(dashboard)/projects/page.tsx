@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -25,7 +25,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ProjectForm } from '@/components/forms/project-form'
-import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import {
+  toneOf,
+  emphasisOf,
+  PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
+  PROJECT_STATUS_TONES,
+} from '@/lib/design/tones'
 import {
   label,
   PROJECT_STATUS_LABELS,
@@ -175,20 +181,17 @@ function ProjectsPageContent() {
                     {label(PROJECT_TYPE_LABELS, project.type)}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={tone(PROJECT_STATUS_TONES, project.status)}
-                      variant="secondary"
-                    >
+                    <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
                       {label(PROJECT_STATUS_LABELS, project.status)}
-                    </Badge>
+                    </StatusPill>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={tone(PRIORITY_TONES, project.priority)}
-                      variant="secondary"
+                    <StatusPill
+                      tone={toneOf(PRIORITY_TONES, project.priority)}
+                      emphasis={emphasisOf(PRIORITY_EMPHASIS, project.priority)}
                     >
                       {label(PRIORITY_LABELS, project.priority)}
-                    </Badge>
+                    </StatusPill>
                   </TableCell>
                   <TableCell>{formatDate(project.deadline)}</TableCell>
                   <TableCell>

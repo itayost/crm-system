@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
-import { Plus, Search, Sparkles, Pencil } from 'lucide-react'
+import { Plus, Search, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -28,8 +28,15 @@ import {
 import { RequestForm } from '@/components/forms/request-form'
 import { PendingReviewCard } from '@/components/requests/pending-review-card'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
-import { SourceBadge } from '@/components/requests/request-badges'
-import { tone, PRIORITY_TONES, REQUEST_STATUS_TONES, REQUEST_TYPE_TONES } from '@/lib/design/tones'
+import { AiMark, SourceIcon } from '@/components/requests/request-badges'
+import {
+  toneOf,
+  emphasisOf,
+  PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
+  REQUEST_STATUS_TONES,
+  REQUEST_TYPE_TONES,
+} from '@/lib/design/tones'
 import {
   label,
   REQUEST_TYPE_LABELS,
@@ -275,33 +282,36 @@ export default function RequestsPage() {
                   onClick={() => router.push(`/requests/${request.id}`)}
                 >
                   <TableCell className="font-medium">
-                    {request.title}
-                    {request.isAiGenerated && (
-                      <Sparkles className="inline w-3 h-3 text-violet-500 mr-1" />
-                    )}
-                    <AttachmentLinks
-                      attachments={request.attachments}
-                      onOpen={(path) => openAttachment(request.id, path)}
-                      className="mr-2"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
-                        {label(REQUEST_TYPE_LABELS, request.type)}
-                      </Badge>
-                      <SourceBadge source={request.source} />
+                    <div className="flex items-center gap-2">
+                      <span>{request.title}</span>
+                      <AiMark isAiGenerated={request.isAiGenerated} />
+                      <SourceIcon source={request.source} />
+                      <AttachmentLinks
+                        attachments={request.attachments}
+                        onOpen={(path) => openAttachment(request.id, path)}
+                      />
                     </div>
                   </TableCell>
+                  {/* Metadata: a dot for the hue, body text for the word. */}
                   <TableCell>
-                    <Badge className={tone(REQUEST_STATUS_TONES, request.status)} variant="secondary">
-                      {label(REQUEST_STATUS_LABELS, request.status)}
-                    </Badge>
+                    <StatusPill tone={toneOf(REQUEST_TYPE_TONES, request.type)} emphasis="quiet" dot>
+                      {label(REQUEST_TYPE_LABELS, request.type)}
+                    </StatusPill>
                   </TableCell>
+                  {/* The one pill in the row, and so the one the eye lands on. */}
                   <TableCell>
-                    <Badge className={tone(PRIORITY_TONES, request.priority)} variant="secondary">
+                    <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
+                      {label(REQUEST_STATUS_LABELS, request.status)}
+                    </StatusPill>
+                  </TableCell>
+                  {/* Silent unless it is not. */}
+                  <TableCell>
+                    <StatusPill
+                      tone={toneOf(PRIORITY_TONES, request.priority)}
+                      emphasis={emphasisOf(PRIORITY_EMPHASIS, request.priority)}
+                    >
                       {label(PRIORITY_LABELS, request.priority)}
-                    </Badge>
+                    </StatusPill>
                   </TableCell>
                   <TableCell>{request.client?.name ?? '-'}</TableCell>
                   <TableCell>{request.project?.name ?? '-'}</TableCell>

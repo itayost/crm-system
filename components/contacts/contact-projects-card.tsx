@@ -2,10 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { Plus, Briefcase } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { tone, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { projectTotal } from '@/lib/utils/project-money'
@@ -58,12 +58,9 @@ export function ContactProjectsCard({
                 <div className="flex items-center gap-3">
                   <Briefcase className="w-4 h-4 text-content-faint" />
                   <span className="text-sm font-medium">{project.name}</span>
-                  <Badge
-                    className={tone(PROJECT_STATUS_TONES, project.status)}
-                    variant="secondary"
-                  >
+                  <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
                     {label(PROJECT_STATUS_LABELS, project.status)}
-                  </Badge>
+                  </StatusPill>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-content-subtle">
                   <span>{formatCurrency(projectTotal(project.advanceAmount, project.phases))}</span>

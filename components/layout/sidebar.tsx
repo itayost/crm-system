@@ -58,7 +58,7 @@ export function Sidebar() {
       {/* Logo Section */}
       <div className="p-6 border-b">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">CRM</span>
           </div>
           <div>
@@ -96,7 +96,7 @@ export function Sidebar() {
                 'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-150',
                 'hover:bg-surface-subtle',
                 isActive ?
-                  'bg-blue-50 text-link border-r-4 border-blue-600' :
+                  'bg-tone-info-surface text-link border-r-4 border-primary' :
                   'text-content-body hover:text-content-strong'
               )}
             >
@@ -113,7 +113,7 @@ export function Sidebar() {
       {/* User Section */}
       <div className="p-4 border-t bg-surface-subtle">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-surface-muted rounded-full flex items-center justify-center">
             <span className="text-content-muted font-medium">
               {session?.user?.name ?
                 session.user.name.split(' ').length >= 2 ?

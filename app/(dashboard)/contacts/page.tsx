@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ContactForm } from '@/components/forms/contact-form'
-import { tone, CONTACT_STATUS_TONES, toneClass } from '@/lib/design/tones'
+import { toneOf, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 import { label, CONTACT_STATUS_LABELS, CONTACT_SOURCE_LABELS } from '@/lib/design/labels'
 import { formatDate } from '@/lib/utils'
 import type { ContactListItem } from '@/lib/types/contact'
@@ -151,27 +151,21 @@ export default function ContactsPage() {
                         {contact.phone}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          className={tone(CONTACT_STATUS_TONES, contact.status)}
-                          variant="secondary"
-                        >
+                        <StatusPill tone={toneOf(CONTACT_STATUS_TONES, contact.status)} dot>
                           {label(CONTACT_STATUS_LABELS, contact.status)}
-                        </Badge>
+                        </StatusPill>
                       </TableCell>
                       {isLeadsTab && (
                         <TableCell>
                           {contact.nextActionAt ? (
                             <div className="flex items-center gap-2">
-                              <Badge
-                                variant="secondary"
-                                className={
-                                  isOverdue(contact.nextActionAt)
-                                    ? toneClass.danger
-                                    : toneClass.neutral
-                                }
+                              <StatusPill
+                                tone={isOverdue(contact.nextActionAt) ? 'danger' : 'neutral'}
+                                emphasis={isOverdue(contact.nextActionAt) ? 'solid' : 'quiet'}
+                                dot={!isOverdue(contact.nextActionAt)}
                               >
                                 {formatDate(contact.nextActionAt)}
-                              </Badge>
+                              </StatusPill>
                               {contact.nextActionNote && (
                                 <span className="text-xs text-content-subtle truncate max-w-[16rem]">
                                   {contact.nextActionNote}

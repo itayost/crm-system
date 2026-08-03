@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { Check, X, Sparkles } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { tone, REQUEST_TYPE_TONES } from '@/lib/design/tones'
+import { toneOf, REQUEST_TYPE_TONES } from '@/lib/design/tones'
 import { label, REQUEST_TYPE_LABELS } from '@/lib/design/labels'
 import { IntakeDetails } from './intake-details'
 import { AttachmentLinks } from './attachment-links'
@@ -31,9 +31,9 @@ export function PendingReviewCard({
   if (pending.length === 0) return null
 
   return (
-    <Card className="border-amber-300 bg-amber-50/50">
+    <Card className="border-tone-caution-mark/40 bg-tone-caution-surface/40">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-amber-900">
+        <CardTitle className="flex items-center gap-2 text-tone-caution-foreground">
           <Sparkles className="w-5 h-5" />
           ממתין לאישור ({pending.length})
         </CardTitle>
@@ -47,9 +47,9 @@ export function PendingReviewCard({
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
+                  <StatusPill tone={toneOf(REQUEST_TYPE_TONES, request.type)} emphasis="quiet" dot>
                     {label(REQUEST_TYPE_LABELS, request.type)}
-                  </Badge>
+                  </StatusPill>
                   <SourceBadge source={request.source} />
                   <AiBadge
                     isAiGenerated={request.isAiGenerated}

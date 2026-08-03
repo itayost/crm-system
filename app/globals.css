@@ -18,41 +18,38 @@
     --gray-500: 220 8.9% 46.1%;
     --gray-600: 215 13.8% 34.1%;
     --gray-700: 216.9 19.1% 26.7%;
-    --gray-800: 215 27.9% 16.9%;
     --gray-900: 220.9 39.3% 11%;
-
-    --blue-50: 213.8 100% 96.9%;
     --blue-100: 214.3 94.6% 92.7%;
     --blue-500: 217.2 91.2% 59.8%;
     --blue-600: 221.2 83.2% 53.3%;
-    --blue-700: 224.3 76.3% 48%;
     --blue-800: 225.9 70.7% 40.2%;
-
-    --green-50: 138.5 76.5% 96.7%;
     --green-100: 140.6 84.2% 92.5%;
+    --green-600: 142.1 76.2% 36.3%;
     --green-700: 142.4 71.8% 29.2%;
     --green-800: 142.8 64.2% 24.1%;
-
-    --red-50: 0 85.7% 97.3%;
     --red-100: 0 93.3% 94.1%;
     --red-600: 0 72.2% 50.6%;
-    --red-700: 0 73.7% 41.8%;
     --red-800: 0 70% 35.3%;
-
     --orange-100: 34.3 100% 91.8%;
+    --orange-600: 20.5 90.2% 48.2%;
     --orange-700: 17.5 88.3% 40.4%;
     --orange-800: 15 79.1% 33.7%;
 
     --yellow-100: 54.9 96.7% 88%;
     --yellow-500: 45.4 93.4% 47.5%;
     --yellow-800: 31.8 81% 28.8%;
-
     --purple-100: 268.7 100% 95.5%;
-    --purple-700: 272.1 71.7% 47.1%;
+    --purple-500: 270.7 91% 65.1%;
+    --purple-600: 271.5 81.3% 55.9%;
     --purple-800: 272.9 67.2% 39.4%;
 
-    --indigo-100: 226.5 100% 93.9%;
-    --indigo-800: 243.7 54.5% 41.4%;
+    /* Teal carries `progress`. It used to be indigo, which sat 18 degrees from
+     * blue and rendered 1.14:1 against it - two dark blues in one status column
+     * that nobody could tell apart at 12px. Teal is 52 degrees off. */
+    --teal-100: 167.2 85.5% 89.2%;
+    --teal-600: 174.7 83.9% 31.6%;
+    --teal-700: 175.3 77.4% 26.1%;
+    --teal-800: 176.1 69.4% 21.8%;
     /* ------------------------------------------------------------------
      * Layer 2 - semantics. What a colour is *for*. Swapping the palette
      * or adding a dark theme happens here, and nowhere else.
@@ -79,7 +76,6 @@
     /* interactive */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    --primary-hover: var(--blue-700);
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --accent: 210 40% 96.1%;
@@ -96,42 +92,132 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
 
-    /* status tones - the vocabulary every badge in the app speaks */
+    /* Status tones - the vocabulary every status in the app speaks.
+     *
+     * Each tone has a quiet side and a loud side. `surface`/`foreground` are
+     * the pale pair a chip sits on. `mark` is the same hue at full chroma: it
+     * is where the eye actually reads the hue, because a -100 wash under -800
+     * text are the two worst places to put one. `solid` is the shout, and it
+     * carries its own foreground because yellow cannot take white text. */
     --tone-neutral-surface: var(--gray-100);
     --tone-neutral-foreground: var(--gray-700);
+    --tone-neutral-mark: var(--gray-500);
+    --tone-neutral-solid: var(--gray-600);
+    --tone-neutral-on-solid: 0 0% 100%;
+
     --tone-info-surface: var(--blue-100);
     --tone-info-foreground: var(--blue-800);
+    --tone-info-mark: var(--blue-500);
+    --tone-info-solid: var(--blue-600);
+    --tone-info-on-solid: 0 0% 100%;
+
     --tone-success-surface: var(--green-100);
     --tone-success-foreground: var(--green-800);
+    --tone-success-mark: var(--green-600);
+    --tone-success-solid: var(--green-700);
+    --tone-success-on-solid: 0 0% 100%;
+
     --tone-warning-surface: var(--orange-100);
     --tone-warning-foreground: var(--orange-800);
+    --tone-warning-mark: var(--orange-600);
+    --tone-warning-solid: var(--orange-700);
+    --tone-warning-on-solid: 0 0% 100%;
+
     --tone-caution-surface: var(--yellow-100);
     --tone-caution-foreground: var(--yellow-800);
+    --tone-caution-mark: var(--yellow-500);
+    --tone-caution-solid: var(--yellow-500);
+    --tone-caution-on-solid: var(--gray-900);
+
     --tone-danger-surface: var(--red-100);
     --tone-danger-foreground: var(--red-800);
+    --tone-danger-mark: var(--red-600);
+    --tone-danger-solid: var(--red-600);
+    --tone-danger-on-solid: 0 0% 100%;
+
     --tone-accent-surface: var(--purple-100);
     --tone-accent-foreground: var(--purple-800);
-    --tone-progress-surface: var(--indigo-100);
-    --tone-progress-foreground: var(--indigo-800);
+    --tone-accent-mark: var(--purple-500);
+    --tone-accent-solid: var(--purple-600);
+    --tone-accent-on-solid: 0 0% 100%;
 
+    --tone-progress-surface: var(--teal-100);
+    --tone-progress-foreground: var(--teal-800);
+    --tone-progress-mark: var(--teal-600);
+    --tone-progress-solid: var(--teal-700);
+    --tone-progress-on-solid: 0 0% 100%;
+
+    /* Money, and the one attribute marker that is not a lifecycle status.
+     * Both used to be raw palette classes picked per call site. */
+    --figure-paid: var(--green-700);
+    --figure-due: var(--orange-700);
+    --marker-vip: var(--yellow-500);
+
+    /* Reserved shadcn hook. Nothing consumes it yet - the primitives use
+     * Tailwind's default radius scale - so wiring it would change every
+     * rounded corner in the app, which is not a colour decision. */
     --radius: 0.5rem;
   }
 }
 
-@layer components {
-  /* ------------------------------------------------------------------
-   * Layer 3 - components. A tone is a surface and its foreground as one
-   * decision, because they are never chosen apart.
-   * ------------------------------------------------------------------ */
-  .tone-neutral  { background-color: hsl(var(--tone-neutral-surface));  color: hsl(var(--tone-neutral-foreground)); }
-  .tone-info     { background-color: hsl(var(--tone-info-surface));     color: hsl(var(--tone-info-foreground)); }
-  .tone-success  { background-color: hsl(var(--tone-success-surface));  color: hsl(var(--tone-success-foreground)); }
-  .tone-warning  { background-color: hsl(var(--tone-warning-surface));  color: hsl(var(--tone-warning-foreground)); }
-  .tone-caution  { background-color: hsl(var(--tone-caution-surface));  color: hsl(var(--tone-caution-foreground)); }
-  .tone-danger   { background-color: hsl(var(--tone-danger-surface));   color: hsl(var(--tone-danger-foreground)); }
-  .tone-accent   { background-color: hsl(var(--tone-accent-surface));   color: hsl(var(--tone-accent-foreground)); }
-  .tone-progress { background-color: hsl(var(--tone-progress-surface)); color: hsl(var(--tone-progress-foreground)); }
+/* --------------------------------------------------------------------
+ * Layer 3 - components. A tone is a surface and its foreground as one
+ * decision, because they are never chosen apart.
+ *
+ * Deliberately NOT inside `@layer components`, for two reasons that both
+ * bit us. Tailwind tree-shakes its own layers against the content globs,
+ * and the only file that names these classes is lib/design/tones.ts - so
+ * in `@layer components` all eight rules were purged from every build and
+ * every badge in the product silently fell through to `bg-secondary`.
+ * Unlayered CSS is never purged. It is also emitted after
+ * `@tailwind utilities`, so a tone beats the `bg-secondary` a Badge
+ * variant brings with it instead of losing a coin-toss on emit order.
+ * -------------------------------------------------------------------- */
+.tone-neutral  { --t-surface: var(--tone-neutral-surface);  --t-foreground: var(--tone-neutral-foreground);  --t-mark: var(--tone-neutral-mark);  --t-solid: var(--tone-neutral-solid);  --t-on-solid: var(--tone-neutral-on-solid); }
+.tone-info     { --t-surface: var(--tone-info-surface);     --t-foreground: var(--tone-info-foreground);     --t-mark: var(--tone-info-mark);     --t-solid: var(--tone-info-solid);     --t-on-solid: var(--tone-info-on-solid); }
+.tone-success  { --t-surface: var(--tone-success-surface);  --t-foreground: var(--tone-success-foreground);  --t-mark: var(--tone-success-mark);  --t-solid: var(--tone-success-solid);  --t-on-solid: var(--tone-success-on-solid); }
+.tone-warning  { --t-surface: var(--tone-warning-surface);  --t-foreground: var(--tone-warning-foreground);  --t-mark: var(--tone-warning-mark);  --t-solid: var(--tone-warning-solid);  --t-on-solid: var(--tone-warning-on-solid); }
+.tone-caution  { --t-surface: var(--tone-caution-surface);  --t-foreground: var(--tone-caution-foreground);  --t-mark: var(--tone-caution-mark);  --t-solid: var(--tone-caution-solid);  --t-on-solid: var(--tone-caution-on-solid); }
+.tone-danger   { --t-surface: var(--tone-danger-surface);   --t-foreground: var(--tone-danger-foreground);   --t-mark: var(--tone-danger-mark);   --t-solid: var(--tone-danger-solid);   --t-on-solid: var(--tone-danger-on-solid); }
+.tone-accent   { --t-surface: var(--tone-accent-surface);   --t-foreground: var(--tone-accent-foreground);   --t-mark: var(--tone-accent-mark);   --t-solid: var(--tone-accent-solid);   --t-on-solid: var(--tone-accent-on-solid); }
+.tone-progress { --t-surface: var(--tone-progress-surface); --t-foreground: var(--tone-progress-foreground); --t-mark: var(--tone-progress-mark); --t-solid: var(--tone-progress-solid); --t-on-solid: var(--tone-progress-on-solid); }
+
+/* A bare tone still paints the soft pill, so anything that names a tone and
+ * forgets an emphasis looks the way it always did rather than going invisible. */
+.tone-neutral, .tone-info, .tone-success, .tone-warning,
+.tone-caution, .tone-danger, .tone-accent, .tone-progress {
+  background-color: hsl(var(--t-surface));
+  color: hsl(var(--t-foreground));
 }
+
+/* Emphasis: how loudly a tone speaks, orthogonal to which tone it is.
+ * Attribute selectors on purpose - (0,2,0) beats a tone class's (0,1,0), so
+ * the pairing never depends on which rule the bundler happens to emit first. */
+.tone-tag[data-emphasis='soft'] {
+  background-color: hsl(var(--t-surface));
+  color: hsl(var(--t-foreground));
+  border-color: hsl(var(--t-mark) / 0.22);
+}
+.tone-tag[data-emphasis='outline'] {
+  background-color: transparent;
+  color: hsl(var(--t-foreground));
+  border-color: hsl(var(--t-mark));
+}
+.tone-tag[data-emphasis='solid'] {
+  background-color: hsl(var(--t-solid));
+  color: hsl(var(--t-on-solid));
+  border-color: transparent;
+}
+/* Quiet drops the tone from the text entirely. In this mode the hue lives only
+ * in the dot and the label is ordinary body text, which is what lets a row
+ * carry four statuses without four things competing to be read first. */
+.tone-tag[data-emphasis='quiet'] {
+  background-color: transparent;
+  color: hsl(var(--foreground-body));
+  border-color: transparent;
+}
+
+.tone-mark { background-color: hsl(var(--t-mark)); }
 
 @layer base {
   * {
@@ -139,8 +225,7 @@
   }
   
   body {
-    font-family: 'Heebo', system-ui, sans-serif;
-    @apply bg-gray-100;
+    @apply bg-surface-app;
   }
   
   /* RTL Support */
@@ -155,23 +240,18 @@
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-gray-200 rounded-lg;
+    @apply bg-surface-muted rounded-lg;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 rounded-lg;
+    @apply bg-content-faint rounded-lg;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-500;
+    @apply bg-content-subtle;
   }
   
-  /* Horizontal scrollbar for kanban boards */
-  .overflow-x-auto::-webkit-scrollbar {
-    height: 12px;
-  }
-  
-  /* Vertical scrollbar for lead columns */
+  /* Scroll areas inside selects and dropdowns */
   .overflow-y-auto::-webkit-scrollbar {
     width: 8px;
   }
@@ -179,81 +259,6 @@
   /* Firefox scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #9ca3af #e5e7eb;
-  }
-}
-
-@layer utilities {
-  /* Custom animations */
-  @keyframes pulse-dot {
-    0% {
-      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-    }
-  }
-
-  .pulse-dot {
-    animation: pulse-dot 2s infinite;
-  }
-
-  /* Status colors */
-  .status-active { 
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  }
-
-  .status-inactive { 
-    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  }
-
-  .status-new { 
-    background: #fef2f2; 
-    border-right: 4px solid #ef4444; 
-  }
-
-  .status-contacted { 
-    background: #fff7ed; 
-    border-right: 4px solid #f97316; 
-  }
-
-  .status-quoted { 
-    background: #fefce8; 
-    border-right: 4px solid #eab308; 
-  }
-
-  .status-negotiating { 
-    background: #eff6ff; 
-    border-right: 4px solid #3b82f6; 
-  }
-
-  .status-converted { 
-    background: #f0fdf4; 
-    border-right: 4px solid #22c55e; 
-  }
-
-  .status-lost { 
-    background: #f3f4f6; 
-    border-right: 4px solid #6b7280; 
-  }
-
-  /* Priority colors */
-  .priority-urgent { 
-    border-right: 4px solid #ef4444; 
-  }
-
-  .priority-high { 
-    border-right: 4px solid #f59e0b; 
-  }
-
-  .priority-medium { 
-    border-right: 4px solid #3b82f6; 
-  }
-
-  .priority-low {
-    border-right: 4px solid #10b981;
+    scrollbar-color: hsl(var(--gray-400)) hsl(var(--gray-200));
   }
 }

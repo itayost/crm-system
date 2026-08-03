@@ -74,7 +74,7 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 - `convertedAt` marks when a lead became a client
 - `nextActionAt` + `nextActionNote`: the one thing owed to this lead next. Drives the leads-table sort and the morning brief's "פעולות להיום". Cleared automatically on reaching CLIENT / LOST / INACTIVE
 - Sources: WEBSITE, PHONE, WHATSAPP, REFERRAL, OTHER
-- Hebrew labels come from `lib/design/labels.ts`, colours from `lib/design/tones.ts` -- never inline either
+- Hebrew labels come from `lib/design/labels.ts`, colours from `lib/design/tones.ts` -- never inline either. `tests/design-tones.test.ts` fails the build on any raw Tailwind palette class (`bg-red-100`, `text-green-600`, ...) under `app/` or `components/`
 
 ### Project
 
@@ -243,6 +243,40 @@ API routes use handler functions from `lib/api/`:
 - UI built with shadcn/ui components (Dialog modals for create/edit)
 - Toast notifications via react-hot-toast
 - All text in Hebrew, all layouts RTL
+
+## Status colours
+
+Three layers, all in `app/globals.css`: primitives (raw palette, meaningless),
+semantics (`--tone-{name}-{surface|foreground|mark|solid|on-solid}`), and the
+`.tone-*` / `.tone-tag[data-emphasis]` rules.
+
+**Every status renders through `<StatusPill>`** (`components/ui/status-pill.tsx`),
+never `<Badge>`. Two orthogonal axes:
+
+- `tone` -- *which* thing it is. From `toneOf(SOME_MAP, value)`.
+- `emphasis` -- *how much it matters*. `solid` (at most one per row), `soft`
+  (the column you scan), `outline` (elevated), `quiet` (a dot plus body text).
+
+The rule a table follows: status gets the one `soft` pill, type/category/source
+go `quiet`, and priority goes through `PRIORITY_EMPHASIS`, which keeps LOW and
+MEDIUM as plain text so only HIGH and URGENT show a chip. Hue lives in the dot,
+not the pale surface -- that is what makes two dark statuses distinguishable at
+12px. `Badge` still exists for non-status chips but has no toned call sites.
+
+**Two traps, both of which already cost us a silent, product-wide outage:**
+
+1. The `.tone-*` rules sit **outside** `@layer components` on purpose. Tailwind
+   tree-shakes its own layers against the content globs, and the only file that
+   names these classes is `lib/design/tones.ts`. When they were inside the layer
+   and `lib/` was not in `content`, all eight rules were purged from every build
+   and every badge in the product rendered `bg-secondary` grey for weeks. Both
+   halves are now fixed; do not undo either.
+2. Unlayered also means the rules are emitted after `@tailwind utilities`, so a
+   tone beats a `bg-*` utility instead of losing a coin-toss on emit order. Never
+   pass a `bg-*` through `StatusPill`'s `className`.
+
+`tests/design-tones.test.ts` guards both, plus "every map value is a real tone"
+and "no raw palette classes anywhere".
 
 ## Hebrew/RTL Support
 

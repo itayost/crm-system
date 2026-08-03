@@ -6,7 +6,7 @@ import { ArrowRight, Edit, Trash2, Calendar, User, CheckSquare } from 'lucide-re
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Card,
@@ -30,7 +30,13 @@ import { TaskForm } from '@/components/forms/task-form'
 import { PhasesCard } from '@/components/projects/phases-card'
 import { ProjectTasksCard } from '@/components/projects/project-tasks-card'
 import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
-import { tone, PRIORITY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import {
+  toneOf,
+  emphasisOf,
+  PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
+  PROJECT_STATUS_TONES,
+} from '@/lib/design/tones'
 import {
   label,
   PROJECT_STATUS_LABELS,
@@ -137,18 +143,15 @@ export default function ProjectDetailPage() {
             <h1 className="text-2xl font-bold text-content-strong">
               {project.name}
             </h1>
-            <Badge
-              className={tone(PROJECT_STATUS_TONES, project.status)}
-              variant="secondary"
-            >
+            <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
               {label(PROJECT_STATUS_LABELS, project.status)}
-            </Badge>
-            <Badge
-              className={tone(PRIORITY_TONES, project.priority)}
-              variant="secondary"
+            </StatusPill>
+            <StatusPill
+              tone={toneOf(PRIORITY_TONES, project.priority)}
+              emphasis={emphasisOf(PRIORITY_EMPHASIS, project.priority)}
             >
               {label(PRIORITY_LABELS, project.priority)}
-            </Badge>
+            </StatusPill>
           </div>
           <p className="text-sm text-content-subtle mt-1">
             {label(PROJECT_TYPE_LABELS, project.type)}
@@ -266,7 +269,7 @@ export default function ProjectDetailPage() {
                   are added rather than being a figure typed once. */}
               <div>
                 <span className="text-sm text-content-muted">סה&quot;כ: </span>
-                <span className="text-sm font-bold text-green-700">
+                <span className="text-sm font-bold text-figure-paid">
                   {formatCurrency(projectTotal(project.advanceAmount, project.phases))}
                 </span>
               </div>

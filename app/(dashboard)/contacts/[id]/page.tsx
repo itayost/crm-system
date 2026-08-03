@@ -6,7 +6,7 @@ import { ArrowRight, Edit, Trash2, Building2, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -26,7 +26,7 @@ import { NextActionEditor } from '@/components/contacts/next-action-editor'
 import { ContactInfoCard } from '@/components/contacts/contact-info-card'
 import { ContactProjectsCard } from '@/components/contacts/contact-projects-card'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
-import { tone, CONTACT_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 import { label, CONTACT_STATUS_LABELS } from '@/lib/design/labels'
 import type { ContactRecord } from '@/lib/types/contact'
 
@@ -124,7 +124,7 @@ export default function ContactDetailPage() {
               {contact.name}
             </h1>
             {contact.isVip && (
-              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              <Star role="img" aria-label="VIP" className="w-5 h-5 text-marker-vip fill-marker-vip" />
             )}
             {isPipeline ? (
               <ContactStatusSelect
@@ -133,12 +133,9 @@ export default function ContactDetailPage() {
                 onChanged={fetchContact}
               />
             ) : (
-              <Badge
-                className={tone(CONTACT_STATUS_TONES, contact.status)}
-                variant="secondary"
-              >
+              <StatusPill tone={toneOf(CONTACT_STATUS_TONES, contact.status)} dot>
                 {label(CONTACT_STATUS_LABELS, contact.status)}
-              </Badge>
+              </StatusPill>
             )}
           </div>
           {contact.company && (
@@ -211,9 +208,9 @@ export default function ContactDetailPage() {
                 {contact.client.name}
               </button>
               {contact.role && (
-                <Badge variant="secondary" className="bg-surface-muted text-content-body">
+                <StatusPill tone="neutral" emphasis="quiet">
                   {contact.role}
-                </Badge>
+                </StatusPill>
               )}
             </div>
           </CardContent>
