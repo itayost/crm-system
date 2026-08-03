@@ -47,9 +47,9 @@ export function PublicRequestForm({ token, clientName, projects }: Props) {
 
   if (done) {
     return (
-      <div className="rounded-lg bg-green-50 p-6 text-center">
-        <h2 className="text-lg font-semibold text-green-800">תודה!</h2>
-        <p className="mt-2 text-green-700">
+      <div className="rounded-lg bg-tone-success-surface p-6 text-center">
+        <h2 className="text-lg font-semibold text-tone-success-foreground">תודה!</h2>
+        <p className="mt-2 text-tone-success-foreground">
           {clientName ? `${clientName}, הפנייה נשלחה ונטפל בה בהקדם.` : 'הפנייה נשלחה ונטפל בה בהקדם.'}
         </p>
       </div>
@@ -128,12 +128,12 @@ export function PublicRequestForm({ token, clientName, projects }: Props) {
         />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-tone-danger-foreground">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+        className="w-full rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
         {submitting ? 'שולח...' : 'שליחה'}
       </button>

@@ -7,7 +7,7 @@ import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { toneClass } from '@/lib/design/tones'
+import { StatusPill } from '@/components/ui/status-pill'
 
 /**
  * The one thing owed to this lead next, and when.
@@ -91,7 +91,7 @@ export function NextActionEditor({
           פעולה הבאה
         </CardTitle>
         {overdue && (
-          <span className={`text-xs px-2 py-1 rounded ${toneClass.danger}`}>באיחור</span>
+          <StatusPill tone="danger" emphasis="solid">באיחור</StatusPill>
         )}
       </CardHeader>
       <CardContent>

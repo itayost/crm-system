@@ -2,10 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { Plus, CheckSquare } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { tone, TASK_STATUS_TONES, PRIORITY_TONES } from '@/lib/design/tones'
+import { toneOf, emphasisOf, TASK_STATUS_TONES, PRIORITY_TONES, PRIORITY_EMPHASIS } from '@/lib/design/tones'
 import { label, TASK_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/design/labels'
 import { formatDate } from '@/lib/utils'
 import type { ProjectTask } from '@/lib/types/project'
@@ -49,7 +49,7 @@ export function ProjectTasksCard({
                 <div className="flex items-center gap-3">
                   <CheckSquare
                     className={`w-4 h-4 ${
-                      task.status === 'COMPLETED' ? 'text-green-500' : 'text-content-faint'
+                      task.status === 'COMPLETED' ? 'text-tone-success-mark' : 'text-content-faint'
                     }`}
                   />
                   <span
@@ -59,14 +59,17 @@ export function ProjectTasksCard({
                   >
                     {task.title}
                   </span>
-                  <Badge className={tone(TASK_STATUS_TONES, task.status)} variant="secondary">
+                  <StatusPill tone={toneOf(TASK_STATUS_TONES, task.status)} dot>
                     {label(TASK_STATUS_LABELS, task.status)}
-                  </Badge>
+                  </StatusPill>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-content-subtle">
-                  <Badge className={tone(PRIORITY_TONES, task.priority)} variant="secondary">
+                  <StatusPill
+                    tone={toneOf(PRIORITY_TONES, task.priority)}
+                    emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
+                  >
                     {label(PRIORITY_LABELS, task.priority)}
-                  </Badge>
+                  </StatusPill>
                   {task.dueDate && <span>{formatDate(task.dueDate)}</span>}
                 </div>
               </div>

@@ -30,6 +30,40 @@ export const toneClass: Record<Tone, string> = {
   progress: 'tone-progress',
 }
 
+/**
+ * How loudly a tone speaks. Orthogonal to which tone it is: danger is the same
+ * red whether it marks a resolved bug or an overdue payment, but only one of
+ * them is allowed to shout.
+ *
+ *   solid   - the exception. At most one per row, usually none.
+ *   soft    - the primary signal. The column you scan.
+ *   outline - elevated, not critical.
+ *   quiet   - metadata. A dot and plain body text, no chip.
+ *
+ * A row with four soft pills says the same as a row with none, which is the
+ * problem this axis exists to solve.
+ */
+export type Emphasis = 'solid' | 'soft' | 'outline' | 'quiet'
+
+/**
+ * Priority is an exception column, not a category column. MEDIUM is the modal
+ * value, so giving it a chip turns the column into a wall of identical pills
+ * that carries no information. Only HIGH and URGENT earn one.
+ */
+export const PRIORITY_EMPHASIS: Record<string, Emphasis> = {
+  LOW: 'quiet',
+  MEDIUM: 'quiet',
+  HIGH: 'outline',
+  URGENT: 'solid',
+}
+
+/** The support agent's own lifecycle. Had no colour at all before. */
+export const AGENT_STATUS_TONES: Record<string, Tone> = {
+  ACTIVE: 'success',
+  PAUSED: 'caution',
+  DISABLED: 'neutral',
+}
+
 /** Rising urgency: quiet, ordinary, notable, critical. */
 export const PRIORITY_TONES: Record<string, Tone> = {
   LOW: 'neutral',
@@ -76,7 +110,10 @@ export const PHASE_STATUS_TONES: Record<string, Tone> = {
 
 export const TASK_STATUS_TONES: Record<string, Tone> = {
   TODO: 'neutral',
-  IN_PROGRESS: 'info',
+  // `progress`, not `info` - "in progress" now reads the same here as it does
+  // on a request and on a billing phase, instead of being blue in one place
+  // and indigo in the other two.
+  IN_PROGRESS: 'progress',
   COMPLETED: 'success',
   CANCELLED: 'danger',
 }
@@ -113,6 +150,26 @@ export const REQUEST_SOURCE_TONES: Record<string, Tone> = {
 }
 
 /** Falls back to neutral so an unmapped value is plain rather than invisible. */
+export function toneOf(map: Record<string, Tone>, value: string | null | undefined): Tone {
+  return map[value ?? ''] ?? 'neutral'
+}
+
+/** Falls back to soft, which is what an un-triaged value should look like. */
+export function emphasisOf(
+  map: Record<string, Emphasis>,
+  value: string | null | undefined,
+): Emphasis {
+  return map[value ?? ''] ?? 'soft'
+}
+
+/**
+ * The class-name form, for the few elements that are not StatusPills.
+ *
+ * Prefer `<StatusPill tone={toneOf(MAP, value)} />` anywhere a pill will do:
+ * the prop is checked against Tone, where this returns a bare string that
+ * nothing verifies, and the pill cannot end up beside a competing background
+ * utility the way a Badge could.
+ */
 export function tone(map: Record<string, Tone>, value: string | null | undefined): string {
-  return toneClass[map[value ?? ''] ?? 'neutral']
+  return toneClass[toneOf(map, value)]
 }

@@ -3,9 +3,9 @@
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Inbox } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { tone, REQUEST_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, REQUEST_STATUS_TONES } from '@/lib/design/tones'
 import { label, REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from '@/lib/design/labels'
 import { SourceBadge, AiBadge } from './request-badges'
 import type { RequestRecord } from '@/lib/types/request'
@@ -74,9 +74,9 @@ export function RequestListCard({
                     aiNote={request.aiNote}
                   />
                 </div>
-                <Badge className={tone(REQUEST_STATUS_TONES, request.status)} variant="secondary">
+                <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
                   {label(REQUEST_STATUS_LABELS, request.status)}
-                </Badge>
+                </StatusPill>
               </div>
             ))}
           </div>

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { AgentProjectConfig } from '@prisma/client'
+import { StatusPill } from '@/components/ui/status-pill'
+import { toneOf, AGENT_STATUS_TONES } from '@/lib/design/tones'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +110,7 @@ function TextInput({
       readOnly={readOnly}
       placeholder={placeholder}
       onChange={readOnly ? undefined : (e) => onChange?.(e.target.value)}
-      className={`rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+      className={`rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
         readOnly
           ? 'bg-surface-muted text-content-subtle cursor-not-allowed'
           : 'bg-white border-border-strong'
@@ -122,7 +124,7 @@ function SaveButton({ saving }: { saving: boolean }) {
     <button
       type="submit"
       disabled={saving}
-      className="rounded bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+      className="rounded bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
     >
       {saving ? 'Saving...' : 'Save'}
     </button>
@@ -157,9 +159,15 @@ function FormBody({
                 value={s}
                 checked={values.status === s}
                 onChange={() => onChange({ status: s })}
-                className="accent-blue-600"
+                className="accent-primary"
               />
-              {s.charAt(0) + s.slice(1).toLowerCase()}
+              <StatusPill
+                tone={toneOf(AGENT_STATUS_TONES, s)}
+                emphasis={values.status === s ? 'soft' : 'quiet'}
+                dot
+              >
+                {s.charAt(0) + s.slice(1).toLowerCase()}
+              </StatusPill>
             </label>
           ))}
         </div>
@@ -168,7 +176,7 @@ function FormBody({
       {/* Agent slug */}
       <Field
         label="Agent slug"
-        hint={!isNew ? '⚠ immutable once saved' : 'lowercase, digits, hyphens'}
+        hint={!isNew ? 'Immutable once saved' : 'lowercase, digits, hyphens'}
       >
         <TextInput
           value={values.agentSlug}
@@ -256,7 +264,7 @@ function FormBody({
           type="checkbox"
           checked={values.morningReportInclude}
           onChange={(e) => onChange({ morningReportInclude: e.target.checked })}
-          className="accent-blue-600 h-4 w-4"
+          className="accent-primary h-4 w-4"
         />
         Include in morning report
       </label>
@@ -278,7 +286,7 @@ function FormBody({
                 value={values.safetyConfig}
                 onChange={(e) => onChange({ safetyConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="Ingestion config (JSON)" hint="Leave blank to clear">
@@ -286,7 +294,7 @@ function FormBody({
                 value={values.ingestionConfig}
                 onChange={(e) => onChange({ ingestionConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
           </div>
@@ -380,14 +388,14 @@ export function AgentConfigForm({ projectId, initial }: Props) {
         } catch {
           // ignore parse error — use status-based message
         }
-        setErrorMsg(`❌ ${msg}`)
+        setErrorMsg(msg)
         return
       }
 
       setSuccessMsg('Saved. Agent will pick up changes within 5 min.')
       router.refresh()
     } catch (err) {
-      setErrorMsg(`❌ ${err instanceof Error ? err.message : 'Network error'}`)
+      setErrorMsg(err instanceof Error ? err.message : 'Network error')
     } finally {
       setSaving(false)
     }
@@ -403,7 +411,7 @@ export function AgentConfigForm({ projectId, initial }: Props) {
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="rounded bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          className="rounded bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           Enable agent monitoring
         </button>
@@ -416,12 +424,12 @@ export function AgentConfigForm({ projectId, initial }: Props) {
       <FormBody values={values} isNew={isNew} onChange={patch} />
 
       {successMsg && (
-        <p className="rounded bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-700">
+        <p className="rounded bg-tone-success-surface border border-tone-success-mark/40 px-4 py-2 text-sm text-tone-success-foreground">
           {successMsg}
         </p>
       )}
       {errorMsg && (
-        <p className="rounded bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">
+        <p className="rounded bg-tone-danger-surface border border-tone-danger-mark/40 px-4 py-2 text-sm text-tone-danger-foreground">
           {errorMsg}
         </p>
       )}

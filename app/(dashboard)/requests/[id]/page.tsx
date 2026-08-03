@@ -18,7 +18,7 @@ import {
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -38,8 +38,10 @@ import { IntakeEditForm } from '@/components/requests/intake-edit-form'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
 import {
-  tone,
+  toneOf,
+  emphasisOf,
   PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
   REQUEST_STATUS_TONES,
   REQUEST_TYPE_TONES,
   TASK_STATUS_TONES,
@@ -49,15 +51,9 @@ import {
   REQUEST_TYPE_LABELS,
   REQUEST_STATUS_LABELS,
   PRIORITY_LABELS,
+  TASK_STATUS_LABELS,
 } from '@/lib/design/labels'
 import type { RequestRecord, RequestStatus } from '@/lib/types/request'
-
-const TASK_STATUS_LABELS: Record<string, string> = {
-  TODO: 'לביצוע',
-  IN_PROGRESS: 'בתהליך',
-  COMPLETED: 'הושלם',
-  CANCELLED: 'בוטל',
-}
 
 export default function RequestDetailPage() {
   const params = useParams()
@@ -204,15 +200,18 @@ export default function RequestDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-content-strong">{request.title}</h1>
           <div className="flex items-center gap-2 flex-wrap mt-2">
-            <Badge className={tone(REQUEST_TYPE_TONES, request.type)} variant="secondary">
-              {label(REQUEST_TYPE_LABELS, request.type)}
-            </Badge>
-            <Badge className={tone(REQUEST_STATUS_TONES, request.status)} variant="secondary">
+            <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
               {label(REQUEST_STATUS_LABELS, request.status)}
-            </Badge>
-            <Badge className={tone(PRIORITY_TONES, request.priority)} variant="secondary">
+            </StatusPill>
+            <StatusPill
+              tone={toneOf(PRIORITY_TONES, request.priority)}
+              emphasis={emphasisOf(PRIORITY_EMPHASIS, request.priority)}
+            >
               {label(PRIORITY_LABELS, request.priority)}
-            </Badge>
+            </StatusPill>
+            <StatusPill tone={toneOf(REQUEST_TYPE_TONES, request.type)} emphasis="quiet" dot>
+              {label(REQUEST_TYPE_LABELS, request.type)}
+            </StatusPill>
             <SourceBadge source={request.source} showManual />
             <AiBadge
               isAiGenerated={request.isAiGenerated}
@@ -412,12 +411,9 @@ export default function RequestDetailPage() {
           <CardContent>
             {request.task ? (
               <div className="flex items-center gap-3">
-                <Badge
-                  className={tone(TASK_STATUS_TONES, request.task.status)}
-                  variant="secondary"
-                >
-                  {TASK_STATUS_LABELS[request.task.status] ?? request.task.status}
-                </Badge>
+                <StatusPill tone={toneOf(TASK_STATUS_TONES, request.task.status)} dot>
+                  {label(TASK_STATUS_LABELS, request.task.status)}
+                </StatusPill>
                 <span className="text-sm font-medium">{request.task.title}</span>
                 <button
                   className="text-sm text-link hover:underline"

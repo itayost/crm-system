@@ -116,7 +116,7 @@ export default function ClientsPage() {
                   <TableCell>{client._count.projects}</TableCell>
                   <TableCell>
                     {client.isVip && (
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <Star role="img" aria-label="VIP" className="w-4 h-4 text-marker-vip fill-marker-vip" />
                     )}
                   </TableCell>
                 </TableRow>

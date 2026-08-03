@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import {
   Select,
   SelectContent,
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { tone, CONTACT_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 import { label, CONTACT_STATUS_LABELS } from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
 
@@ -56,9 +56,9 @@ export function ContactStatusSelect({
     <Select value={status} onValueChange={handleChange} disabled={saving}>
       <SelectTrigger className="w-auto h-auto border-0 p-0 shadow-none focus:ring-0 gap-1">
         <SelectValue asChild>
-          <Badge className={tone(CONTACT_STATUS_TONES, status)} variant="secondary">
+          <StatusPill tone={toneOf(CONTACT_STATUS_TONES, status)} dot interactive>
             {label(CONTACT_STATUS_LABELS, status)}
-          </Badge>
+          </StatusPill>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>

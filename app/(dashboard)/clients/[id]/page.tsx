@@ -17,7 +17,7 @@ import {
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Card,
@@ -41,7 +41,7 @@ import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
 import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
 import { ClientProfileCard } from '@/components/clients/profile-card'
-import { tone, PROJECT_STATUS_TONES } from '@/lib/design/tones'
+import { toneOf, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { projectTotal } from '@/lib/utils/project-money'
 import type { PhaseSummary } from '@/lib/types/project'
@@ -216,12 +216,12 @@ export default function ClientDetailPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-content-strong">{client.name}</h1>
             {client.isVip && (
-              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              <Star role="img" aria-label="VIP" className="w-5 h-5 text-marker-vip fill-marker-vip" />
             )}
             {client.isInternal && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+              <StatusPill tone="info" emphasis="quiet" dot>
                 פנימי
-              </Badge>
+              </StatusPill>
             )}
           </div>
         </div>
@@ -350,9 +350,9 @@ export default function ClientDetailPage() {
                     <User className="w-4 h-4 text-content-faint" />
                     <span className="text-sm font-medium">{contact.name}</span>
                     {contact.isPrimary && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <StatusPill tone="success" emphasis="quiet" dot>
                         ראשי
-                      </Badge>
+                      </StatusPill>
                     )}
                     {contact.role && (
                       <span className="text-xs text-content-subtle">{contact.role}</span>
@@ -403,12 +403,9 @@ export default function ClientDetailPage() {
                   <div className="flex items-center gap-3">
                     <Briefcase className="w-4 h-4 text-content-faint" />
                     <span className="text-sm font-medium">{project.name}</span>
-                    <Badge
-                      className={tone(PROJECT_STATUS_TONES, project.status)}
-                      variant="secondary"
-                    >
+                    <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
                       {label(PROJECT_STATUS_LABELS, project.status)}
-                    </Badge>
+                    </StatusPill>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-content-subtle">
                     <span>{formatCurrency(projectTotal(project.advanceAmount, project.phases))}</span>

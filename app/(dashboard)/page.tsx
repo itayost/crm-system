@@ -16,7 +16,7 @@ import {
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Card,
@@ -24,16 +24,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { tone, TASK_CATEGORY_TONES, PROJECT_STATUS_TONES } from '@/lib/design/tones'
-import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
+import {
+  toneOf,
+  emphasisOf,
+  toneClass,
+  type Tone,
+  TASK_CATEGORY_TONES,
+  PROJECT_STATUS_TONES,
+  PRIORITY_TONES,
+  PRIORITY_EMPHASIS,
+} from '@/lib/design/tones'
+import {
+  label,
+  PROJECT_STATUS_LABELS,
+  PRIORITY_LABELS,
+  TASK_CATEGORY_LABELS,
+} from '@/lib/design/labels'
 import { formatCurrency } from '@/lib/utils'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  CLIENT_WORK: 'עבודת לקוח',
-  MARKETING: 'שיווק',
-  LEAD_FOLLOWUP: 'מעקב לידים',
-  ADMIN: 'מנהלה',
-}
 
 interface PendingTask {
   id: string
@@ -148,8 +155,7 @@ export default function DashboardPage() {
           ? `${data.outstanding.toLocaleString()} ₪ ממתין לתשלום`
           : `${data.projects.completed} פרויקטים שהושלמו`,
       icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      tone: 'success' as Tone,
       href: undefined as string | undefined,
     },
     {
@@ -157,8 +163,7 @@ export default function DashboardPage() {
       value: String(data.projects.active),
       description: `${data.projects.completed} הושלמו`,
       icon: Briefcase,
-      color: 'text-link',
-      bgColor: 'bg-blue-50',
+      tone: 'info' as Tone,
       href: '/projects',
     },
     {
@@ -166,8 +171,7 @@ export default function DashboardPage() {
       value: String(data.contacts.leads),
       description: `${data.contacts.clients} לקוחות`,
       icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      tone: 'accent' as Tone,
       href: '/contacts',
     },
     {
@@ -177,8 +181,9 @@ export default function DashboardPage() {
         ? `${data.tasks.overdue} באיחור`
         : 'אין משימות באיחור',
       icon: CheckSquare,
-      color: data.tasks.overdue > 0 ? 'text-red-600' : 'text-orange-600',
-      bgColor: data.tasks.overdue > 0 ? 'bg-red-50' : 'bg-orange-50',
+      // Only the backlog that is actually late is alarming. The calm state used
+      // to be orange here and amber on the next card, for the same meaning.
+      tone: (data.tasks.overdue > 0 ? 'danger' : 'neutral') as Tone,
       href: '/tasks',
     },
     {
@@ -188,8 +193,7 @@ export default function DashboardPage() {
         ? `${data.requests.pendingReview} ממתינות לאישור`
         : 'אין פניות לאישור',
       icon: Inbox,
-      color: data.requests.pendingReview > 0 ? 'text-red-600' : 'text-amber-600',
-      bgColor: data.requests.pendingReview > 0 ? 'bg-red-50' : 'bg-amber-50',
+      tone: (data.requests.pendingReview > 0 ? 'caution' : 'neutral') as Tone,
       href: '/requests',
     },
   ]
@@ -232,7 +236,7 @@ export default function DashboardPage() {
               key={kpi.title}
               className={
                 kpi.href
-                  ? 'cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  ? 'cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-ring'
                   : ''
               }
               role={kpi.href ? 'link' : undefined}
@@ -257,10 +261,13 @@ export default function DashboardPage() {
                       {kpi.description}
                     </p>
                   </div>
+                  {/* The tile takes its whole colour from one tone, the same
+                      way a status pill does. `.tone-*` sets the surface; the
+                      icon reads the hue at full chroma off the same binding. */}
                   <div
-                    className={`w-12 h-12 rounded-lg ${kpi.bgColor} flex items-center justify-center`}
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${toneClass[kpi.tone]}`}
                   >
-                    <Icon className={`w-6 h-6 ${kpi.color}`} />
+                    <Icon className="w-6 h-6" style={{ color: 'hsl(var(--t-mark))' }} />
                   </div>
                 </div>
               </CardContent>
@@ -313,34 +320,33 @@ export default function DashboardPage() {
                             {task.project?.name ?? 'ללא פרויקט'}
                           </span>
                           {task.category && (
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                tone(TASK_CATEGORY_TONES, task.category)
-                              }`}
+                            <StatusPill
+                              tone={toneOf(TASK_CATEGORY_TONES, task.category)}
+                              emphasis="quiet"
+                              dot
                             >
-                              {CATEGORY_LABELS[task.category] ?? task.category}
-                            </span>
+                              {label(TASK_CATEGORY_LABELS, task.category)}
+                            </StatusPill>
                           )}
                           {task.dueDate && (
-                            <span className={`text-xs ${isOverdue ? 'text-red-500 font-medium' : 'text-content-subtle'}`}>
+                            <span
+                              className={`text-xs ${
+                                isOverdue
+                                  ? 'text-tone-danger-mark font-medium'
+                                  : 'text-content-subtle'
+                              }`}
+                            >
                               | {formatDate(task.dueDate)}
                             </span>
                           )}
                         </div>
                       </div>
-                      <Badge
-                        className={
-                          task.priority === 'URGENT' ? 'bg-red-100 text-red-800' :
-                          task.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                          task.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-surface-muted text-content-muted'
-                        }
-                        variant="secondary"
+                      <StatusPill
+                        tone={toneOf(PRIORITY_TONES, task.priority)}
+                        emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
                       >
-                        {task.priority === 'URGENT' ? 'דחוף' :
-                         task.priority === 'HIGH' ? 'גבוה' :
-                         task.priority === 'MEDIUM' ? 'בינוני' : 'נמוך'}
-                      </Badge>
+                        {label(PRIORITY_LABELS, task.priority)}
+                      </StatusPill>
                     </div>
                   )
                 })}
@@ -385,12 +391,9 @@ export default function DashboardPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium">{project.name}</p>
-                        <Badge
-                          className={tone(PROJECT_STATUS_TONES, project.status)}
-                          variant="secondary"
-                        >
+                        <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
                           {label(PROJECT_STATUS_LABELS, project.status)}
-                        </Badge>
+                        </StatusPill>
                       </div>
                       <p className="text-xs text-content-subtle mt-1">
                         {project.client?.name ?? '-'} | {project._count.tasks} משימות
