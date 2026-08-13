@@ -305,6 +305,28 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
 - `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/claude-sonnet-4.6`)
 - `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL` -- the local-model tier on the VPS (Ollama behind an authenticated proxy; base URL includes `/v1`). Fallback for the support bot when the gateway fails, primary for the morning brief. Unset disables the tier and the chain still works (gateway -> canned reply). See `docs/adr/0002-degrade-dont-die.md`
+- `WHATSAPP_BOT_PAUSED` -- the pause switch, read per request by `isBotPaused()` in `lib/config/bot-pause.ts`. Optional; unset means running
+
+## Pausing the bot
+
+`WHATSAPP_BOT_PAUSED=1` (any value other than `0`/`false`/`off`/`no`/empty) plus a
+redeploy stops the bot talking to clients:
+
+- the bot webhook drops **CLIENT and UNKNOWN** senders whole -- no reply, no
+  `WhatsAppMessage` row, and therefore no ticket from `extract-requests`. A
+  message sent to the bot while it is paused reaches WhatsApp and nothing else
+- the hourly `support-followups` sweep sends no reminders; unanswered
+  confirmations keep waiting and are swept once the bot is back
+
+Deliberately **not** paused: the owner agent (Itay's own line into the CRM), the
+morning brief, the personal-session indexing webhook, and the other crons.
+Sender classification runs before the check -- it is the only way to tell the
+owner from a client, and it reads without sending or writing anything.
+
+Because Vercel env changes only reach new deployments, both pausing and
+resuming cost a redeploy. For an instant stop with no deploy, stop the `bot`
+session on WAHA instead -- but WhatsApp then queues everything and delivers it
+in a burst on restart.
 
 ## Prompt caching
 

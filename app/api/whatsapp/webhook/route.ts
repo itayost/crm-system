@@ -1,6 +1,7 @@
 import { NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { isWebhookAuthorized } from '@/lib/api/webhook-auth'
+import { isBotPaused } from '@/lib/config/bot-pause'
 import { WahaService, botSessionName, withTyping } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 import { identifySender, type WhatsAppSender } from '@/lib/services/whatsapp-identity'
@@ -62,6 +63,15 @@ export async function POST(req: Request) {
         })
       }
       return NextResponse.json({ ok: true })
+    }
+
+    // Paused: the owner above still gets served, everyone else is dropped here,
+    // before a reply, an archive row, or a ticket exists. Sender classification
+    // happens first because that is the only way to tell the owner apart from a
+    // client, and it reads without writing or sending anything.
+    if (isBotPaused()) {
+      console.warn(`WhatsApp bot is paused - dropping a ${sender.kind} message`)
+      return NextResponse.json({ ok: true, paused: true })
     }
 
     if (sender.kind === 'CLIENT') {

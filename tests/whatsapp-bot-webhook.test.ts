@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const prismaMock = {
   user: { findFirst: vi.fn() },
@@ -127,6 +127,7 @@ describe('bot webhook identity routing', () => {
     vi.clearAllMocks()
     process.env.WHATSAPP_WEBHOOK_SECRET = WEBHOOK_SECRET
     process.env.OWNER_PHONE = OWNER_PHONE
+    delete process.env.WHATSAPP_BOT_PAUSED
 
     prismaMock.user.findFirst.mockResolvedValue({ id: 'user-1' })
     prismaMock.contact.findMany.mockResolvedValue([])
@@ -547,10 +548,69 @@ describe('bot webhook identity routing', () => {
   })
 })
 
+describe('bot pause switch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.env.WHATSAPP_WEBHOOK_SECRET = WEBHOOK_SECRET
+    process.env.OWNER_PHONE = OWNER_PHONE
+    process.env.WHATSAPP_BOT_PAUSED = '1'
+
+    prismaMock.user.findFirst.mockResolvedValue({ id: 'user-1' })
+    prismaMock.contact.findMany.mockResolvedValue([])
+    agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
+    agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
+    conversationMock.exists.mockResolvedValue(true)
+    wahaMock.sendMessage.mockResolvedValue(undefined)
+    wahaMock.getPhoneFromChatId.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    delete process.env.WHATSAPP_BOT_PAUSED
+  })
+
+  it('drops a client message without a reply, an archive row, or a support turn', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0521234567')
+    prismaMock.contact.findMany.mockResolvedValue([CLIENT_CONTACT])
+
+    const response = await POST(webhookRequest(incoming('client-chat@lid', 'יש באג באתר')))
+    await flushAfter()
+
+    expect(response.status).toBe(200)
+    expect(supportMock.handleMessage).not.toHaveBeenCalled()
+    expect(prismaMock.whatsAppMessage.create).not.toHaveBeenCalled()
+    expect(prismaMock.contact.update).not.toHaveBeenCalled()
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+    expect(wahaMock.sendSeen).not.toHaveBeenCalled()
+    expect(wahaMock.startTyping).not.toHaveBeenCalled()
+  })
+
+  it('drops an unknown sender without the hold message or the owner notice', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue('0529999999')
+
+    const response = await POST(webhookRequest(incoming('stranger@lid', 'היי')))
+    await flushAfter()
+
+    expect(response.status).toBe(200)
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  // The pause is aimed at the client-facing agent. Itay's own line into the CRM
+  // is not what got paused, and he needs it most while the bot is off.
+  it('still serves the owner', async () => {
+    wahaMock.getPhoneFromChatId.mockResolvedValue(OWNER_LOCAL_PHONE)
+
+    await POST(webhookRequest(incoming(OWNER_CHAT_ID, 'מה יש היום?')))
+
+    expect(agentMock.processMessage).toHaveBeenCalledWith('user-1', 'מה יש היום?')
+    expect(sentTexts()).toEqual([{ chatId: OWNER_CHAT_ID, text: 'תשובת הסוכן' }])
+  })
+})
+
 describe('bot webhook secret enforcement', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.OWNER_PHONE = OWNER_PHONE
+    delete process.env.WHATSAPP_BOT_PAUSED
     prismaMock.user.findFirst.mockResolvedValue({ id: 'user-1' })
   })
 
