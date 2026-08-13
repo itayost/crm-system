@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'crypto'
+import { timingSafeMatch } from '@/lib/api/shared-secret'
 
 /**
  * Shared secret check for the WAHA webhooks.
@@ -14,14 +14,5 @@ export function isWebhookAuthorized(req: Request): boolean {
   const provided = req.headers.get('x-webhook-secret')
   if (!provided) return false
 
-  return safeEqual(provided, configured)
-}
-
-function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a)
-  const right = Buffer.from(b)
-
-  if (left.length !== right.length) return false
-
-  return timingSafeEqual(left, right)
+  return timingSafeMatch(provided, configured)
 }

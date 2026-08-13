@@ -294,6 +294,7 @@ Required environment variables:
 - `DIRECT_URL` -- Direct database URL for migrations
 - `NEXTAUTH_SECRET` -- JWT encryption secret
 - `NEXTAUTH_URL` -- Application URL for auth callbacks
+- `PUBLIC_LEAD_SECRET` -- shared secret for `/api/public/leads`; the endpoint **fails closed** while it is unset. The website holds the same value as `CRM_LEAD_SECRET` and sends it as `x-lead-secret` from its own server route
 
 WhatsApp (WAHA) variables, required for the two webhooks:
 
@@ -327,6 +328,25 @@ Because Vercel env changes only reach new deployments, both pausing and
 resuming cost a redeploy. For an instant stop with no deploy, stop the `bot`
 session on WAHA instead -- but WhatsApp then queues everything and delivers it
 in a burst on restart.
+
+## Website lead intake
+
+`POST /api/public/leads` is unauthenticated by *session*, not open. Three layers,
+all added 2026-08-13 after six leads were written from outside in six minutes:
+
+- **Secret.** `x-lead-secret` must match `PUBLIC_LEAD_SECRET`; unset rejects
+  everything (`lib/api/public-lead-auth.ts`). Server-to-server only, so there is
+  no CORS grant and no `OPTIONS` handler -- a browser cannot hold the secret. The
+  demo files in `public/` (`lead-form.js`, `lead-form-demo.html`) post from the
+  browser and therefore no longer work
+- **Rate limit.** 10/min per caller IP, in memory, per instance
+  (`lib/utils/rate-limit.ts`). Defence in depth for a leaked secret, not the
+  primary gate
+- **One phone, one contact.** `PublicLeadsService` matches on the normalized
+  phone: unknown number creates (201), known number merges into that contact's
+  notes and fills its blank fields (200), and the identical payload again within
+  10 minutes writes nothing and sends no WhatsApp (200). The window is measured
+  from `updatedAt`, so a client resubmitting months later is still heard
 
 ## Prompt caching
 

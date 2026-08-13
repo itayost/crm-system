@@ -2,7 +2,13 @@
 
 ## Overview
 
-The CRM Public API allows external websites and applications to submit leads directly to the CRM system. This documentation covers the public endpoints that don't require authentication.
+The CRM Public API lets a website submit leads to the CRM. "Public" means it takes
+no user session - not that it is open. Every submission must carry the shared
+secret in `x-lead-secret`, so the call belongs on **your server**, never in a
+browser: a secret shipped to the browser is not a secret, and there is no CORS
+grant on this endpoint.
+
+The shape is: visitor form -> your own server route -> this endpoint.
 
 **Base URL:** `https://your-crm-domain.com/api`
 
@@ -11,6 +17,7 @@ The CRM Public API allows external websites and applications to submit leads dir
 ```bash
 curl -X POST https://your-crm-domain.com/api/public/leads \
   -H "Content-Type: application/json" \
+  -H "x-lead-secret: $PUBLIC_LEAD_SECRET" \
   -d '{
     "name": "John Doe",
     "phone": "0501234567",
@@ -31,7 +38,23 @@ Submit a new lead to the CRM system.
 
 **Content-Type:** `application/json`
 
-**CORS:** Enabled - supports cross-origin requests from any domain
+**Authentication:** `x-lead-secret: <PUBLIC_LEAD_SECRET>`, required. A missing or
+wrong secret is `401`, and so is every request while the variable is unset on the
+server - the endpoint fails closed rather than standing open.
+
+**CORS:** none. Server-to-server only.
+
+**Rate limit:** 10 submissions per minute per caller IP, then `429` with
+`Retry-After`.
+
+**One phone, one contact.** A submission whose phone already exists does not
+create a second row:
+
+- new number: the contact is created, `201`
+- known number, something new in the submission: it is appended to that contact's
+  notes and any blank field it fills is filled, `200`
+- the same payload again within 10 minutes: nothing is written and no
+  notification is sent, `200`
 
 #### Request Body
 
@@ -79,25 +102,46 @@ Submit a new lead to the CRM system.
 
 #### Success Response
 
-**Status Code:** `201 Created`
+**Status Code:** `201 Created` (new contact) or `200 OK` (merged into an existing
+contact, or a repeat that was ignored)
 
 ```json
 {
   "success": true,
-  "message": "הליד נוצר בהצלחה! ניצור איתך קשר בקרוב.",
-  "data": {
-    "id": "clx1234567890"
+  "contact": {
+    "id": "clx1234567890",
+    "name": "ישראל ישראלי",
+    "phone": "0501234567"
   }
 }
 ```
 
 #### Error Responses
 
+**Status Code:** `401 Unauthorized` - missing or wrong `x-lead-secret`
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
 **Status Code:** `400 Bad Request` - Validation Error
 
 ```json
 {
-  "error": "נתונים לא תקינים: מספר טלפון חייב להיות 9-10 ספרות"
+  "success": false,
+  "error": "מספר טלפון ישראלי לא תקין"
+}
+```
+
+**Status Code:** `429 Too Many Requests` - rate limited, see `Retry-After`
+
+```json
+{
+  "success": false,
+  "error": "יותר מדי בקשות. אנא נסו שוב בעוד מספר דקות"
 }
 ```
 
@@ -105,7 +149,8 @@ Submit a new lead to the CRM system.
 
 ```json
 {
-  "error": "שגיאה ביצירת הליד. נסה שוב מאוחר יותר."
+  "success": false,
+  "error": "שגיאה בשליחת הטופס"
 }
 ```
 
@@ -113,127 +158,48 @@ Submit a new lead to the CRM system.
 
 ## Integration Examples
 
-### JavaScript (Vanilla)
+### Next.js (browser form + server route)
 
-```javascript
-async function submitLead(formData) {
-  try {
-    const response = await fetch('https://your-crm-domain.com/api/public/leads', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        company: formData.company || undefined,
-        projectType: formData.projectType || undefined,
-        estimatedBudget: formData.budget ? Number(formData.budget) : undefined,
-        notes: formData.notes || undefined,
-        source: 'WEBSITE'
-      })
-    });
+The browser posts to **your own** route; that route adds the secret and forwards.
+This is how itayost.com does it, and it is the only supported shape - a `fetch`
+straight from the page cannot carry the secret and will be rejected.
 
-    const result = await response.json();
+```ts
+// app/api/leads/route.ts - your site, not the CRM
+export async function POST(request: Request) {
+  const lead = await request.json()
 
-    if (response.ok) {
-      console.log('Lead created successfully:', result);
-      return { success: true, data: result };
-    } else {
-      console.error('Error creating lead:', result.error);
-      return { success: false, error: result.error };
-    }
-  } catch (error) {
-    console.error('Network error:', error);
-    return { success: false, error: 'שגיאה בחיבור לשרת' };
+  const response = await fetch(process.env.CRM_API_URL!, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-lead-secret': process.env.CRM_LEAD_SECRET ?? '',
+    },
+    body: JSON.stringify({ ...lead, source: 'WEBSITE' }),
+    signal: AbortSignal.timeout(10000),
+  })
+
+  if (!response.ok) {
+    // Never surface the upstream body to the visitor: it can be an HTML error page.
+    console.error('[leads] CRM returned', response.status)
+    return Response.json(
+      { success: false, error: 'שגיאה בשליחת הטופס. אנא נסו שוב' },
+      { status: 502 }
+    )
   }
+
+  return Response.json({ success: true })
 }
-
-// Usage
-const formData = {
-  name: 'ישראל ישראלי',
-  phone: '0501234567',
-  email: 'israel@example.com'
-};
-
-submitLead(formData).then(result => {
-  if (result.success) {
-    alert('תודה! נחזור אליך בקרוב');
-  } else {
-    alert(result.error);
-  }
-});
 ```
 
-### React Hook
-
-```jsx
-import { useState } from 'react';
-
-export function useLeadSubmission() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const submitLead = async (leadData) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_CRM_URL}/api/public/leads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...leadData,
-          estimatedBudget: leadData.estimatedBudget ?
-            Number(leadData.estimatedBudget) : undefined,
-          source: 'WEBSITE'
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        return { success: true, data: result };
-      } else {
-        setError(result.error);
-        return { success: false, error: result.error };
-      }
-    } catch (err) {
-      const errorMsg = 'שגיאה בחיבור לשרת';
-      setError(errorMsg);
-      return { success: false, error: errorMsg };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return { submitLead, loading, error };
-}
-
-// Usage in component
-function ContactForm() {
-  const { submitLead, loading, error } = useLeadSubmission();
-
-  const handleSubmit = async (formData) => {
-    const result = await submitLead(formData);
-    if (result.success) {
-      // Handle success
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Form fields */}
-      {error && <div className="error">{error}</div>}
-      <button type="submit" disabled={loading}>
-        {loading ? 'שולח...' : 'שלח'}
-      </button>
-    </form>
-  );
-}
+```ts
+// The form component talks to your route only.
+const res = await fetch('/api/leads', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name, phone, email }),
+})
+const result = await res.json()
 ```
 
 ### PHP (WordPress)
@@ -260,7 +226,8 @@ function submit_lead_to_crm($lead_data) {
 
     $response = wp_remote_post($crm_url, array(
         'headers' => array(
-            'Content-Type' => 'application/json'
+            'Content-Type' => 'application/json',
+            'x-lead-secret' => getenv('PUBLIC_LEAD_SECRET')
         ),
         'body' => json_encode($data),
         'timeout' => 15
@@ -277,7 +244,7 @@ function submit_lead_to_crm($lead_data) {
     $response_body = wp_remote_retrieve_body($response);
     $result = json_decode($response_body, true);
 
-    if ($response_code === 201) {
+    if ($response_code === 201 || $response_code === 200) {
         return array(
             'success' => true,
             'data' => $result
@@ -321,6 +288,7 @@ add_action('wpcf7_mail_sent', function($contact_form) {
 # Basic lead submission
 curl -X POST https://your-crm-domain.com/api/public/leads \
   -H "Content-Type: application/json" \
+  -H "x-lead-secret: $PUBLIC_LEAD_SECRET" \
   -d '{
     "name": "ישראל ישראלי",
     "phone": "0501234567",
@@ -331,6 +299,7 @@ curl -X POST https://your-crm-domain.com/api/public/leads \
 # Complete lead with all fields
 curl -X POST https://your-crm-domain.com/api/public/leads \
   -H "Content-Type: application/json" \
+  -H "x-lead-secret: $PUBLIC_LEAD_SECRET" \
   -d '{
     "name": "ישראל ישראלי",
     "phone": "050-123-4567",
@@ -354,8 +323,10 @@ curl -X POST https://your-crm-domain.com/api/public/leads \
   - `050-123-4567`
   - `050 123 4567`
   - `+972501234567` (plus sign and spaces/dashes are removed)
-- **Auto-cleanup:** Spaces, dashes, and plus signs are automatically removed
-- **Validation regex:** `/^[0-9]{9,10}$/`
+- **Accepted:** one optional dash after the prefix (`0544994417`, `054-4994417`)
+- **Stored:** digits only, in local form - `+972-54-499-4417` is saved as
+  `0544994417`, which is also what the duplicate check matches on
+- **Validation regex:** `/^0(5[0-9]|[2-4]|7[0-9]|8|9)-?\d{7}$/`
 
 ### Email Validation
 - Standard email format validation
