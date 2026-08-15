@@ -1,217 +1,149 @@
-const WAHA_API_URL = process.env.WAHA_API_URL ?? ''
-const WAHA_API_KEY = process.env.WAHA_API_KEY ?? ''
+import { fromChatId, parseIlPhone, toChatId, toStorage } from '@itayost/il'
+import { isLid } from '@itayost/wa'
+import { botSessionName, personalSessionName, transportFor } from './waha-transport'
 
-/** Interactive session: owner agent and (from slice 2) the client support agent. */
-export function botSessionName(): string {
-  return process.env.WAHA_BOT_SESSION ?? 'bot'
-}
+export { botSessionName, personalSessionName }
 
-/** Passive session: archives Itay's personal-number conversations. */
-export function personalSessionName(): string {
-  return process.env.WAHA_PERSONAL_SESSION ?? 'personal'
-}
-
-const MEDIA_DOWNLOAD_TIMEOUT_MS = 30_000
-
-/** Reads the body incrementally so an oversized file is dropped, not buffered whole. */
-async function readCapped(response: Response, maxBytes: number): Promise<Buffer> {
-  const reader = response.body?.getReader()
-  if (!reader) return Buffer.from(await response.arrayBuffer())
-
-  const chunks: Buffer[] = []
-  let total = 0
-
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    total += value.length
-    if (total > maxBytes) {
-      await reader.cancel()
-      throw new Error(`Media too large: over ${maxBytes} bytes`)
-    }
-    chunks.push(Buffer.from(value))
-  }
-
-  return Buffer.concat(chunks)
-}
+/**
+ * The WAHA surface this CRM uses.
+ *
+ * The HTTP calls, the media guard, the LID lookup and the presence signals are
+ * @itayost/wa's now. What is left is the chat-id boundary: this app addresses
+ * people by chat id, the Kit addresses them by parsed phone, and the twenty-five
+ * call sites should not have to care which.
+ *
+ * Two behaviours changed, both improvements, and both were the reason to adopt:
+ *
+ *   downloadMedia used to refuse any url whose origin was not the gateway.
+ *   That is safe and it also broke media entirely under Docker, because the
+ *   internal address WAHA reports is exactly such a url. It is now pinned to
+ *   the gateway instead — protocol, host and port replaced, path kept — which
+ *   is the stronger guard and fixes the Docker case at once.
+ *
+ *   resolveLidToPhone used to list five hundred mappings and scan them, once
+ *   per message, returning nothing at all past the five hundredth. It now
+ *   reads the alternative identifier the payload already carries where there
+ *   is one, and asks for the single mapping otherwise, cached.
+ */
 
 interface SendMessageParams {
-  chatId: string
-  text: string
-  session?: string
+  readonly chatId: string
+  readonly text: string
+  readonly session?: string
+}
+
+/**
+ * A chat id this app holds, as a phone the Kit will accept, or null.
+ *
+ * Null is the normal case rather than an error: a multi-device sender arrives
+ * as a LID and this CRM replies to that LID directly, which the gateway
+ * accepts. Refusing to address one would have stopped every such conversation.
+ */
+function phoneOf(chatId: string) {
+  return fromChatId(chatId) ?? parseIlPhone(chatId)
 }
 
 export class WahaService {
-  private static async request(path: string, options: RequestInit = {}) {
-    const url = `${WAHA_API_URL}${path}`
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': WAHA_API_KEY,
-        ...options.headers,
-      },
-    })
-
-    if (!response.ok) {
-      const body = await response.text()
-      throw new Error(`WAHA API error ${response.status}: ${body}`)
-    }
-
-    return response.json()
-  }
-
   static async sendMessage({ chatId, text, session }: SendMessageParams) {
-    return this.request(`/api/sendText`, {
-      method: 'POST',
-      body: JSON.stringify({
-        chatId,
-        text,
-        session: session ?? botSessionName(),
-      }),
-    })
+    const transport = transportFor(session ?? botSessionName())
+    const phone = phoneOf(chatId)
+    // A parsed phone goes through the typed path, which cannot be handed a
+    // group or a broadcast by mistake. Anything else — a LID — is addressed
+    // as the gateway addresses it.
+    const result = phone === null
+      ? await transport.sendToChat(chatId, text)
+      : await transport.sendText(phone, text)
+    if (!result.ok) {
+      // The code says whether retrying could ever help: WA_RECIPIENT never,
+      // WA_SESSION after the session is fixed, WA_TRANSIENT on its own.
+      throw new Error(`WhatsApp send failed: ${result.code}`)
+    }
+    return { id: result.data.id }
   }
 
   /**
-   * Download a media file WAHA saved for an incoming message.
+   * Download media a webhook pointed at.
    *
-   * The URL arrives inside a webhook payload, so it is treated as untrusted: it
-   * is only fetched when it points at the configured WAHA host, because the
-   * request carries the WAHA API key. Anything larger than maxBytes or slower
-   * than the timeout is abandoned rather than buffered.
+   * The url is attacker-controlled and the request carries the API key, so the
+   * transport pins it to the configured gateway before fetching.
    */
   static async downloadMedia(
     url: string,
-    { maxBytes, timeoutMs = MEDIA_DOWNLOAD_TIMEOUT_MS }: { maxBytes: number; timeoutMs?: number }
+    { maxBytes, timeoutMs }: { maxBytes: number; timeoutMs?: number },
   ): Promise<{ bytes: Buffer; contentType: string }> {
-    if (!this.isOwnMediaUrl(url)) {
-      throw new Error('Media URL does not belong to the configured WAHA host')
-    }
-
-    const response = await fetch(url, {
-      headers: { 'X-Api-Key': WAHA_API_KEY },
-      signal: AbortSignal.timeout(timeoutMs),
+    const media = await transportFor(botSessionName()).fetchMedia(url, {
+      maxBytes,
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
     })
-
-    if (!response.ok) {
-      throw new Error(`WAHA media download failed ${response.status}`)
-    }
-
-    const declaredLength = Number(response.headers.get('content-length'))
-    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-      throw new Error(`Media too large: ${declaredLength} bytes`)
-    }
-
-    const bytes = await readCapped(response, maxBytes)
-    const contentType = response.headers.get('content-type') ?? 'application/octet-stream'
-
-    return { bytes, contentType }
+    return { bytes: Buffer.from(media.bytes), contentType: media.contentType }
   }
 
-  /** True only for URLs served by the configured WAHA instance. */
-  static isOwnMediaUrl(url: string): boolean {
-    if (!WAHA_API_URL) return false
-
+  /** Blue ticks and the typing indicator. Best-effort: never fails a reply. */
+  static async sendSeen(chatId: string, session?: string) {
     try {
-      return new URL(url).origin === new URL(WAHA_API_URL).origin
+      const phone = phoneOf(chatId)
+      if (phone !== null) await transportFor(session ?? botSessionName()).sendSeen(phone)
+    } catch (error) {
+      console.warn('WAHA sendSeen failed:', error)
+    }
+  }
+
+  static formatChatId(phoneNumber: string): string {
+    const parsed = parseIlPhone(phoneNumber)
+    if (parsed === null) throw new Error(`Not an Israeli phone number: ${phoneNumber}`)
+    return toChatId(parsed)
+  }
+
+  static extractPhoneNumberOrNull(chatId: string): string | null {
+    const parsed = phoneOf(chatId)
+    return parsed === null ? null : toStorage(parsed, 'local')
+  }
+
+  static extractPhoneNumber(chatId: string): string {
+    const parsed = fromChatId(chatId) ?? parseIlPhone(chatId)
+    // Kept returning the local form the callers store.
+    return parsed === null ? chatId : toStorage(parsed, 'local')
+  }
+
+  static isLidFormat(chatId: string): boolean {
+    return isLid(chatId)
+  }
+
+  static async resolveLidToPhone(lid: string, session: string): Promise<string | null> {
+    const phone = await transportFor(session).lids.resolve(lid)
+    return phone === null ? null : toStorage(phone, 'local')
+  }
+
+  static async getPhoneFromChatId(chatId: string, session: string): Promise<string | null> {
+    const phone = await transportFor(session).lids.resolve(chatId)
+    return phone === null ? null : toStorage(phone, 'local')
+  }
+
+  static isOwnMediaUrl(url: string): boolean {
+    // Kept for callers that still ask. Pinning made the question moot: a url
+    // is never fetched as given, so one that is not ours is rewritten rather
+    // than refused.
+    try {
+      return new URL(url).origin === new URL(process.env.WAHA_API_URL ?? '').origin
     } catch {
       return false
     }
   }
-
-  /**
-   * Presence signals. Every one is best-effort: a client waiting on an answer
-   * must never lose it because a typing indicator failed.
-   */
-  private static async presence(path: string, chatId: string, session?: string) {
-    try {
-      await this.request(path, {
-        method: 'POST',
-        body: JSON.stringify({ chatId, session: session ?? botSessionName() }),
-      })
-    } catch (error) {
-      console.warn(`WAHA ${path} failed:`, error)
-    }
-  }
-
-  /** Blue ticks, so the client knows the message landed. */
-  static async sendSeen(chatId: string, session?: string) {
-    await this.presence('/api/sendSeen', chatId, session)
-  }
-
-  static async startTyping(chatId: string, session?: string) {
-    await this.presence('/api/startTyping', chatId, session)
-  }
-
-  static async stopTyping(chatId: string, session?: string) {
-    await this.presence('/api/stopTyping', chatId, session)
-  }
-
-  static formatChatId(phoneNumber: string): string {
-    const cleaned = phoneNumber.replace(/[-\s+]/g, '')
-    const international = cleaned.startsWith('0')
-      ? `972${cleaned.slice(1)}`
-      : cleaned
-    return `${international}@c.us`
-  }
-
-  static extractPhoneNumber(chatId: string): string {
-    const number = chatId.replace('@c.us', '').replace('@s.whatsapp.net', '')
-    if (number.startsWith('972')) {
-      return `0${number.slice(3)}`
-    }
-    return number
-  }
-
-  static isLidFormat(chatId: string): boolean {
-    return chatId.endsWith('@lid')
-  }
-
-  static async resolveLidToPhone(lid: string, session: string): Promise<string | null> {
-    try {
-      const lids: Array<{ lid: string; pn: string }> = await this.request(
-        `/api/${session}/lids?limit=500`
-      )
-      const match = lids.find((entry) => entry.lid === lid)
-      if (match) {
-        return this.extractPhoneNumber(match.pn)
-      }
-      return null
-    } catch (error) {
-      console.error('Failed to resolve LID:', error)
-      return null
-    }
-  }
-
-  static async getPhoneFromChatId(chatId: string, session: string): Promise<string | null> {
-    if (this.isLidFormat(chatId)) {
-      return this.resolveLidToPhone(chatId, session)
-    }
-    return this.extractPhoneNumber(chatId)
-  }
 }
 
-/** WhatsApp drops the typing state on its own after about 25 seconds. */
-const TYPING_REFRESH_MS = 10_000
-
 /**
- * Show typing for as long as the work takes.
+ * Show a typing indicator for as long as `work` runs.
  *
- * A single startTyping is not enough for a repo search that runs half a minute,
- * so it is re-sent on a heartbeat. The timer is always cleared and the state
- * always closed, including when the work throws.
+ * The heartbeat and its shutdown are the transport's. The version this
+ * replaces fired each heartbeat with `void` and never awaited the one in
+ * flight, so a lingering startTyping could resolve after stopTyping and leave
+ * the indicator showing for good, reading as someone permanently about to
+ * reply.
  */
 export async function withTyping<T>(chatId: string, work: () => Promise<T>): Promise<T> {
-  await WahaService.startTyping(chatId)
-  const heartbeat = setInterval(() => {
-    void WahaService.startTyping(chatId)
-  }, TYPING_REFRESH_MS)
-
-  try {
-    return await work()
-  } finally {
-    clearInterval(heartbeat)
-    await WahaService.stopTyping(chatId)
-  }
+  const phone = phoneOf(chatId)
+  // Degrades rather than refusing: an indicator is best-effort, and a LID
+  // sender must still get their answer.
+  if (phone === null) return work()
+  return transportFor(botSessionName()).withTyping(phone, work)
 }
