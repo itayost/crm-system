@@ -628,7 +628,20 @@ export class RequestsService {
       throw new Error('בקשה לא נמצאה')
     }
 
-    const chargeable = needsClientApproval(input.billingKind)
+    // Two different questions, and conflating them made QUOTE_REQUIRED
+    // impossible to set:
+    //
+    //   gated  - does this need the client's yes before it becomes work?
+    //            BILLABLE and QUOTE_REQUIRED both do. That question is answered
+    //            by needsClientApproval() in ensureTask, not here.
+    //   priced - is a number going out right now? Only BILLABLE. That is the
+    //            only question this method has to answer.
+    //
+    // QUOTE_REQUIRED means precisely "chargeable, price unknown". Demanding a
+    // price for it asked for the one thing the label says you do not have yet,
+    // so the only way to classify a big unscoped job was to invent a number.
+    // It now classifies and gates, and sends nothing until it is priced.
+    const priced = input.billingKind === 'BILLABLE'
 
     // Checked before the price and project guards so re-pricing agreed work
     // gets the reason it was refused, not a complaint about a missing field.
@@ -636,14 +649,14 @@ export class RequestsService {
       throw new Error('הלקוח כבר אישר את ההצעה - לא ניתן לשנות אותה')
     }
 
-    if (chargeable && input.quotedPrice == null) {
+    if (priced && input.quotedPrice == null) {
       throw new Error('בקשה בתשלום חייבת מחיר')
     }
 
     // Demanding the project here, at quote time, is what guarantees the phase
     // in recordClientDecision() always has somewhere to land. Discovering it is
     // missing after the client has already pressed "מאשר" would be far worse.
-    if (chargeable && !existing.projectId) {
+    if (priced && !existing.projectId) {
       throw new Error('לא ניתן לשלוח הצעת מחיר לבקשה שלא משויכת לפרויקט')
     }
 
@@ -651,14 +664,14 @@ export class RequestsService {
     // only place the client can answer, and DISMISSED requests never appear
     // there. A quote on one is a price the client is told about and can never
     // accept, while the dashboard keeps it in "ממתין לתשובת הלקוח" forever.
-    if (chargeable && existing.status === 'DISMISSED') {
+    if (priced && existing.status === 'DISMISSED') {
       throw new Error('לא ניתן לשלוח הצעת מחיר לבקשה שנדחתה')
     }
 
     // And the client needs a portal at all. Without a form token there is no
     // link to send and no אישור button anywhere - the quote would sit
     // unanswerable rather than merely unsent.
-    if (chargeable && !existing.client.formToken) {
+    if (priced && !existing.client.formToken) {
       throw new Error('ללקוח אין קישור פניות - צרו קישור בעמוד הלקוח לפני שליחת הצעת מחיר')
     }
 
@@ -667,9 +680,9 @@ export class RequestsService {
       data: {
         billingKind: input.billingKind,
         estimateHours: input.estimateHours ?? null,
-        quotedPrice: chargeable ? input.quotedPrice : null,
+        quotedPrice: priced ? input.quotedPrice : null,
         // A re-quote after a decline is a new offer, so the old answer goes.
-        quotedAt: chargeable ? new Date() : null,
+        quotedAt: priced ? new Date() : null,
         clientDecision: null,
         clientDecisionAt: null,
         clientDecisionNote: null,
@@ -680,7 +693,9 @@ export class RequestsService {
     // notified: false means the client has no reachable WhatsApp chat, so the
     // dashboard must offer the portal link to copy instead of pretending a
     // message went out.
-    const notified = chargeable ? await notifyClientOfQuote(userId, id) : false
+    // Only a real number gets a message. Classifying something QUOTE_REQUIRED
+    // is Itay's own bookkeeping and the client has nothing to answer yet.
+    const notified = priced ? await notifyClientOfQuote(userId, id) : false
 
     return { ...request, notified }
   }

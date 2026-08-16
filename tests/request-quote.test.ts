@@ -146,6 +146,40 @@ describe('sending a quote', () => {
     ).rejects.toThrow('בקשה בתשלום חייבת מחיר')
   })
 
+  it('classifies QUOTE_REQUIRED without a price, and sends nothing', async () => {
+    // "Chargeable, price unknown" is the honest state of a big unscoped job.
+    // Demanding a number here would ask for the one thing the label says you
+    // do not have, so the only way to file it would be to invent one.
+    await RequestsService.sendQuote('user-1', 'request-1', { billingKind: 'QUOTE_REQUIRED' })
+
+    expect(requests.get('request-1')).toMatchObject({
+      billingKind: 'QUOTE_REQUIRED',
+      quotedPrice: null,
+      quotedAt: null,
+    })
+    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('still withholds the task while a QUOTE_REQUIRED request is unpriced', async () => {
+    // Classification is not a free pass: it blocks work exactly like BILLABLE.
+    seed({ status: 'PENDING_REVIEW', billingKind: 'QUOTE_REQUIRED' })
+
+    await RequestsService.approve('user-1', 'request-1')
+
+    expect(prismaMock.task.create).not.toHaveBeenCalled()
+    expect(requests.get('request-1')).toMatchObject({ status: 'OPEN', taskId: null })
+  })
+
+  it('lets QUOTE_REQUIRED be classified before a project is chosen', async () => {
+    // The project is needed when a price lands, not when the job is filed -
+    // and an unscoped job usually predates the decision of which project it is.
+    seed({ projectId: null })
+
+    await RequestsService.sendQuote('user-1', 'request-1', { billingKind: 'QUOTE_REQUIRED' })
+
+    expect(requests.get('request-1')).toMatchObject({ billingKind: 'QUOTE_REQUIRED' })
+  })
+
   it('refuses a billable request that is not attached to a project', async () => {
     // The phase has nowhere to land. Catching it here, in front of Itay, beats
     // discovering it the moment the client presses approve.
