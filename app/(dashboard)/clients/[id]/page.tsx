@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { format } from 'date-fns'
 import {
   ArrowRight,
   Edit,
@@ -12,7 +11,6 @@ import {
   Plus,
   Briefcase,
   User,
-  MessageSquare,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -41,9 +39,18 @@ import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
 import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
 import { ClientProfileCard } from '@/components/clients/profile-card'
+import { ClientSummaryBand } from '@/components/clients/client-summary-band'
+import { ClientMoneyCard } from '@/components/clients/client-money-card'
+import { ClientMessagesCard } from '@/components/clients/client-messages-card'
+import { AwaitingClientCard } from '@/components/requests/awaiting-client-card'
+import { DecisionsCard } from '@/components/requests/decisions-card'
+import { RequestPipeline } from '@/components/requests/request-pipeline'
+import type { RequestMetrics } from '@/lib/services/request-metrics.service'
+import type { RequestRecord } from '@/lib/types/request'
 import { toneOf, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { projectTotal } from '@/lib/utils/project-money'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import type { PhaseSummary } from '@/lib/types/project'
 
 type ClientRequest = RequestListItem
@@ -90,6 +97,8 @@ export default function ClientDetailPage() {
   const id = params.id as string
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [requests, setRequests] = useState<ClientRequest[]>([])
+  const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
+  const [awaiting, setAwaiting] = useState<RequestRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showContactForm, setShowContactForm] = useState(false)
@@ -122,15 +131,25 @@ export default function ClientDetailPage() {
     }
   }
 
-  const handleCopyLink = async () => {
-    if (!formUrl) return
+  const fetchMetrics = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(formUrl)
-      toast.success('הקישור הועתק')
+      // Same service the dashboard reads, scoped to this client - so "6 need
+      // pricing" here means exactly what it means there.
+      const response = await api.get(`/requests/metrics?clientId=${id}`)
+      setMetrics(response.data)
     } catch {
-      toast.error('שגיאה בהעתקת הקישור')
+      setMetrics(null)
     }
-  }
+  }, [id])
+
+  const fetchAwaiting = useCallback(async () => {
+    try {
+      const response = await api.get(`/requests?clientId=${id}&awaitingClient=true`)
+      setAwaiting(response.data)
+    } catch {
+      setAwaiting([])
+    }
+  }, [id])
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -157,7 +176,9 @@ export default function ClientDetailPage() {
   useEffect(() => {
     fetchClient()
     fetchRequests()
-  }, [fetchClient, fetchRequests])
+    fetchMetrics()
+    fetchAwaiting()
+  }, [fetchClient, fetchRequests, fetchMetrics, fetchAwaiting])
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -171,20 +192,6 @@ export default function ClientDetailPage() {
     } finally {
       setDeleting(false)
     }
-  }
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    if (amount == null) return '-'
-    return `${Number(amount).toLocaleString()} ₪`
   }
 
   if (loading) {
@@ -255,6 +262,32 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
+      <ClientSummaryBand
+        projects={client.projects}
+        openRequests={
+          metrics ? metrics.pipeline.pendingReview + metrics.pipeline.open + metrics.pipeline.inProgress : null
+        }
+        formUrl={formUrl}
+        onRegenerate={handleGenerateToken}
+        regenerating={tokenBusy}
+      />
+
+      {/* What needs a decision, before anything descriptive. Both cards render
+          their own quiet state, and the pipeline only earns its space once the
+          client has enough requests for a shape to exist. */}
+      {metrics && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <DecisionsCard metrics={metrics} />
+          {metrics.pipeline.open + metrics.pipeline.resolved >= 5 && (
+            <RequestPipeline metrics={metrics} />
+          )}
+        </div>
+      )}
+
+      <AwaitingClientCard awaiting={awaiting} />
+
+      <ClientMoneyCard projects={client.projects} />
+
       {/* Business details */}
       <Card>
         <CardHeader>
@@ -287,32 +320,6 @@ export default function ClientDetailPage() {
               <p className="text-sm text-content-muted mb-1">הערות:</p>
               <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Form token link */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>טופס פניות</CardTitle>
-          <Button size="sm" onClick={handleGenerateToken} disabled={tokenBusy}>
-            {client.formToken ? 'אפס קישור' : 'צור קישור'}
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {formUrl ? (
-            <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded bg-surface-muted px-3 py-2 text-sm" dir="ltr">
-                {formUrl}
-              </code>
-              <Button variant="outline" size="sm" onClick={handleCopyLink}>
-                העתק
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-content-subtle">
-              צור קישור פרטי שהלקוח יכול להשתמש בו כדי לדווח על תקלות ובקשות.
-            </p>
           )}
         </CardContent>
       </Card>
@@ -430,20 +437,7 @@ export default function ClientDetailPage() {
         }
       />
 
-      {/* Conversation timeline (wired in Phase 3) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-content-faint" />
-            ציר זמן שיחות
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-content-faint text-center py-6">
-            סיכום שיחות וואטסאפ של כל אנשי הקשר יתווסף בקרוב
-          </p>
-        </CardContent>
-      </Card>
+      <ClientMessagesCard clientId={id} />
 
       {/* Edit client */}
       <ClientForm
