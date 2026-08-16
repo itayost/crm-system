@@ -37,6 +37,7 @@ import { IntakeDetails } from '@/components/requests/intake-details'
 import { IntakeEditForm } from '@/components/requests/intake-edit-form'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
+import { CommercialCard } from '@/components/requests/commercial-card'
 import {
   toneOf,
   emphasisOf,
@@ -343,6 +344,11 @@ export default function RequestDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* How it gets paid for. Above the description because for anything
+          billable this is the decision the page exists to support: until the
+          client answers, approving the request creates no task. */}
+      <CommercialCard request={request} onChanged={fetchRequest} />
 
       {/* Description */}
       {request.description && (

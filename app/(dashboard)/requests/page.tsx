@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/table'
 import { RequestForm } from '@/components/forms/request-form'
 import { PendingReviewCard } from '@/components/requests/pending-review-card'
+import { AwaitingClientCard } from '@/components/requests/awaiting-client-card'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { AiMark, SourceIcon } from '@/components/requests/request-badges'
 import {
@@ -54,6 +55,7 @@ export default function RequestsPage() {
   const router = useRouter()
   const [requests, setRequests] = useState<RequestRecord[]>([])
   const [pending, setPending] = useState<RequestRecord[]>([])
+  const [awaiting, setAwaiting] = useState<RequestRecord[]>([])
   const [clients, setClients] = useState<ClientOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -70,6 +72,15 @@ export default function RequestsPage() {
       setPending(response.data)
     } catch {
       setPending([])
+    }
+  }, [])
+
+  const fetchAwaiting = useCallback(async () => {
+    try {
+      const response = await api.get('/requests?awaitingClient=true')
+      setAwaiting(response.data)
+    } catch {
+      setAwaiting([])
     }
   }, [])
 
@@ -99,6 +110,7 @@ export default function RequestsPage() {
 
   useEffect(() => {
     fetchPending()
+    fetchAwaiting()
     const fetchClients = async () => {
       try {
         const response = await api.get('/clients')
@@ -108,7 +120,7 @@ export default function RequestsPage() {
       }
     }
     fetchClients()
-  }, [fetchPending])
+  }, [fetchPending, fetchAwaiting])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -120,6 +132,7 @@ export default function RequestsPage() {
   const refetchAll = () => {
     fetchRequests()
     fetchPending()
+    fetchAwaiting()
   }
 
   const handleAction = async (id: string, action: 'approve' | 'dismiss') => {
@@ -193,6 +206,8 @@ export default function RequestsPage() {
         onAction={handleAction}
         onOpenAttachment={openAttachment}
       />
+
+      <AwaitingClientCard awaiting={awaiting} />
 
       {/* Filters */}
       <div className="flex items-center gap-4 flex-wrap">
