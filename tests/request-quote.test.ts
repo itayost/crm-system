@@ -327,6 +327,66 @@ describe('sending a quote', () => {
   })
 })
 
+/**
+ * The other half of the loop. Quotes reached a client with no bot history from
+ * the day the fallback landed; "started" and "finished" did not, so a client
+ * heard a price and then silence until they opened their link.
+ */
+describe('progress notices on a request with no bot history', () => {
+  const noBotHistory = { sourceMessage: null, status: 'OPEN' }
+
+  it('tells the client work started, via their phone', async () => {
+    seed(noBotHistory)
+
+    await RequestsService.update('user-1', 'request-1', { status: 'IN_PROGRESS' })
+
+    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
+    const sent = wahaMock.sendMessage.mock.calls[0][0] as { chatId: string; text: string }
+    expect(sent.chatId).toBe('0521234567@c.us')
+    expect(sent.text).toContain('התחלתי לטפל')
+  })
+
+  it('tells the client it is finished', async () => {
+    seed({ ...noBotHistory, status: 'IN_PROGRESS' })
+
+    await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+
+    expect((wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text).toContain('סיימתי לטפל')
+  })
+
+  it('does not invite a reply into a paused bot, and offers the portal instead', async () => {
+    // Every notice goes out from the bot number. Paused, that number discards
+    // whatever comes back, so "אני כאן" would be a promise the system breaks.
+    const previous = process.env.WHATSAPP_BOT_PAUSED
+    process.env.WHATSAPP_BOT_PAUSED = '1'
+    seed({ ...noBotHistory, status: 'IN_PROGRESS' })
+
+    try {
+      await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+
+      const text = (wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text
+      expect(text).not.toContain('אני כאן')
+      expect(text).toContain(`/r/${TOKEN}`)
+    } finally {
+      process.env.WHATSAPP_BOT_PAUSED = previous
+    }
+  })
+
+  it('says "אני כאן" again once the bot is back', async () => {
+    const previous = process.env.WHATSAPP_BOT_PAUSED
+    process.env.WHATSAPP_BOT_PAUSED = '0'
+    seed({ ...noBotHistory, status: 'IN_PROGRESS' })
+
+    try {
+      await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
+
+      expect((wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text).toContain('אני כאן')
+    } finally {
+      process.env.WHATSAPP_BOT_PAUSED = previous
+    }
+  })
+})
+
 describe('the gate on work', () => {
   it('lets owner triage through but withholds the task until the client agrees', async () => {
     seed({

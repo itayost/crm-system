@@ -7,10 +7,12 @@ import {
   approvedRequestClientNotice,
   clientDecisionOwnerNotice,
   quoteSentClientNotice,
+  replyInvitation,
   resolvedRequestClientNotice,
   startedWorkClientNotice,
 } from './whatsapp-messages'
 import { WhatsAppAgentService } from './whatsapp-agent.service'
+import { isBotPaused } from '@/lib/config/bot-pause'
 import { BILLING_NEEDS_APPROVAL } from '@/lib/validations/enums'
 import type {
   CreateRequestInput,
@@ -111,7 +113,9 @@ async function clientBotChat(
 /** Tell the client their request was approved. */
 async function notifyClientOfApproval(userId: string, requestId: string) {
   try {
-    const chat = await clientBotChat(userId, requestId)
+    // Owner-initiated, so the phone fallback applies - Itay pressed אשר, which
+    // is him vouching for the ticket. See clientBotChat.
+    const chat = await clientBotChat(userId, requestId, { allowPhoneFallback: true })
     if (!chat) return
 
     await WahaService.sendMessage({
@@ -135,6 +139,18 @@ function needsClientApproval(billingKind: string | null | undefined): boolean {
  * The portal is a capability URL, so the token is the whole address - there is
  * no per-request link to build and nothing to sign.
  */
+/** This request's client portal link, or null if they have not been issued one. */
+async function clientPortalUrl(userId: string, requestId: string): Promise<string | null> {
+  const row = await prisma.request.findFirst({
+    where: { id: requestId, userId },
+    select: { client: { select: { formToken: true } } },
+  })
+
+  // Optional all the way down: this runs inside the notify try/catch, so a
+  // throw here would swallow the whole message rather than just the link.
+  return row?.client?.formToken ? portalUrl(row.client.formToken) : null
+}
+
 function portalUrl(formToken: string): string | null {
   const base = (process.env.NEXTAUTH_URL ?? '').trim().replace(/\/$/, '')
   // Without an origin this would send the client the literal text "/r/<token>",
@@ -265,7 +281,11 @@ async function notifyClientOfProgress(
   status: AnnouncedStatus
 ) {
   try {
-    const chat = await clientBotChat(userId, requestId)
+    // Owner-initiated: Itay moved the status himself, so the phone fallback
+    // applies here too. Without it these two never reached a client whose
+    // request came from the portal form, the batch extractor, or his own
+    // typing - which is every request filed before the bot existed.
+    const chat = await clientBotChat(userId, requestId, { allowPhoneFallback: true })
     if (!chat) return
 
     await WahaService.sendMessage({
@@ -273,7 +293,11 @@ async function notifyClientOfProgress(
       text:
         status === 'IN_PROGRESS'
           ? startedWorkClientNotice(chat.contactName, chat.title)
-          : resolvedRequestClientNotice(chat.contactName, chat.title),
+          : resolvedRequestClientNotice(
+              chat.contactName,
+              chat.title,
+              replyInvitation({ paused: isBotPaused(), portalUrl: await clientPortalUrl(userId, requestId) }),
+            ),
     })
   } catch (error) {
     // The status change is already recorded; the client missing a nicety must
