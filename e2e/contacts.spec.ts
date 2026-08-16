@@ -6,6 +6,7 @@ import {
   expectToastError,
   getTableRow,
   waitForSearchResults,
+  getStatusPill,
 } from './fixtures'
 
 test.describe('Contacts', () => {
@@ -137,7 +138,7 @@ test.describe('Contacts', () => {
     await expect(page.locator('h1').filter({ hasText: 'לקוח פעיל' })).toBeVisible()
 
     // Verify status badge shows "לקוח"
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
+    await expect(getStatusPill(page, 'לקוח')).toBeVisible()
 
     // Verify projects section IS visible (clients have projects). Scoped to
     // main: the sidebar has a "פרויקטים" link too.
@@ -189,22 +190,30 @@ test.describe('Contacts', () => {
     await expectToastSuccess(page, 'הליד הומר ללקוח בהצלחה')
     await page.waitForLoadState('networkidle')
 
-    // Verify status badge changed to "לקוח"
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'לקוח' })).toBeVisible()
-
-    // Convert button should no longer be visible
-    await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).not.toBeVisible()
-
-    // Revert fully. Converting also creates a Client (business) named after the
-    // lead; leaving it behind puts a lead's name in the client dropdown that
-    // projects.spec asserts against later in the same run.
     const id = page.url().split('/contacts/')[1]
-    const before = await (await page.request.get(`/api/contacts/${id}`)).json()
-    await page.request.put(`/api/contacts/${id}`, {
-      data: { status: 'QUOTED', clientId: null },
-    })
-    if (before.clientId) {
-      await page.request.delete(`/api/clients/${before.clientId}`)
+
+    try {
+      // Verify status badge changed to "לקוח"
+      await expect(getStatusPill(page, 'לקוח')).toBeVisible()
+
+      // Convert button should no longer be visible
+      await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).not.toBeVisible()
+    } finally {
+      // Revert fully, pass or fail. Converting also creates a Client (business)
+      // named after the lead; leaving it behind puts a lead's name in the client
+      // dropdown that projects.spec asserts against later in the same run.
+      //
+      // The finally is load-bearing, not defensive tidiness: this cleanup used
+      // to sit after the assertions, so when the first one broke it never ran,
+      // the Client leaked, and projects.spec failed too. One stale selector
+      // reported as two unrelated bugs.
+      const before = await (await page.request.get(`/api/contacts/${id}`)).json()
+      await page.request.put(`/api/contacts/${id}`, {
+        data: { status: 'QUOTED', clientId: null },
+      })
+      if (before.clientId) {
+        await page.request.delete(`/api/clients/${before.clientId}`)
+      }
     }
   })
 

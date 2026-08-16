@@ -164,7 +164,7 @@ test.describe('Tasks', () => {
     await page.waitForTimeout(300)
 
     // Verify the status badge changed to COMPLETED
-    const statusBadge = taskRow.locator('[data-slot="badge"]').filter({ hasText: 'הושלם' })
+    const statusBadge = taskRow.locator('[data-slot="status-pill"]').filter({ hasText: 'הושלם' })
     await expect(statusBadge).toBeVisible()
 
     // Revert: click again to set back to TODO
