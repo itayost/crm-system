@@ -9,6 +9,8 @@ import { RequestMetricsService } from '@/lib/services/request-metrics.service'
  * screen needs it too, and the dashboard aggregate is already thirteen queries
  * that every page load pays for.
  */
-export const GET = withAuth(async (_req: NextRequest, { userId }) => {
-  return createResponse(await RequestMetricsService.get(userId))
+export const GET = withAuth(async (req: NextRequest, { userId }) => {
+  const clientId = new URL(req.url).searchParams.get('clientId') || undefined
+
+  return createResponse(await RequestMetricsService.get(userId, clientId))
 })

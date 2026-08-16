@@ -42,38 +42,48 @@ export interface RequestMetrics {
 }
 
 export class RequestMetricsService {
-  static async get(userId: string): Promise<RequestMetrics> {
+  /**
+   * Owner-wide by default, one client when scoped.
+   *
+   * The scoping is a single extra predicate on every query rather than a second
+   * service, so the client page and the dashboard can never drift about what
+   * "needs pricing" means - and RequestPipeline / DecisionsCard take the result
+   * as a prop, so they render either without knowing which they were given.
+   */
+  static async get(userId: string, clientId?: string): Promise<RequestMetrics> {
+    const scope = clientId ? { userId, clientId } : { userId }
+
     const [byStatus, needsPricing, unclassified, awaitingClient, withoutTask, oldest, closed] =
       await Promise.all([
         prisma.request.groupBy({
           by: ['status'],
-          where: { userId },
+          where: scope,
           _count: true,
         }),
         prisma.request.count({
           where: {
-            userId,
+            ...scope,
             status: { in: [...LIVE] },
             billingKind: { in: ['BILLABLE', 'QUOTE_REQUIRED'] },
             quotedAt: null,
           },
         }),
         prisma.request.count({
-          where: { userId, status: { in: [...LIVE] }, billingKind: null },
+          where: { ...scope, status: { in: [...LIVE] }, billingKind: null },
         }),
         prisma.request.count({
-          where: { userId, quotedAt: { not: null }, clientDecisionAt: null, NOT: { status: 'DISMISSED' } },
+          where: { ...scope, quotedAt: { not: null }, clientDecisionAt: null, NOT: { status: 'DISMISSED' } },
         }),
         prisma.request.count({
-          where: { userId, status: { in: [...LIVE] }, taskId: null },
+          where: { ...scope, status: { in: [...LIVE] }, taskId: null },
         }),
         prisma.request.findFirst({
-          where: { userId, status: { in: [...LIVE] } },
+          where: { ...scope, status: { in: [...LIVE] } },
           orderBy: { createdAt: 'asc' },
           select: { createdAt: true },
         }),
         prisma.request.findMany({
-          where: { userId, status: 'RESOLVED', resolvedAt: { not: null } },
+          where: { ...scope, status: 'RESOLVED', resolvedAt: { not: null } },
           orderBy: { resolvedAt: 'desc' },
           take: 20,
           select: { createdAt: true, resolvedAt: true },
