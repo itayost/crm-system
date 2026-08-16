@@ -400,10 +400,16 @@ so the gate is opt-in per request and nothing written before it existed changed.
   offers one-click "בטל משימה". Auto-cancelling would kill work possibly already
   half done, and a decline is often the opening of a negotiation rather than the
   end of one -- both are calls only Itay can make
-- `clientBotChat()` takes `allowPhoneFallback`, granted **only** for the
-  owner-initiated quote notice. The automatic progress notices keep the strict
-  bot-session rule, because an unsolicited update on a batch-extracted request
-  really would arrive out of nowhere
+- `clientBotChat()` takes `allowPhoneFallback`, and all three client notices
+  (quote, approval, progress) pass it. The rule is **"an explicit owner action
+  just happened"**: Itay pressed שלח הצעה, אשר, or moved the status, so the
+  message is a reply to something he did rather than an unsolicited ping. It
+  defaults to `false` so a future *automatic* sender has to opt in and think
+  first -- which is the case the original bot-session-only rule was protecting
+- **Every notice goes out from the bot number**, and a paused bot drops whatever
+  comes back. So the "finished" notice asks `isBotPaused()` and swaps its
+  sign-off: `אני כאן` when the bot can hear a reply, the portal link when it
+  cannot. Never promise a channel that is switched off
 
 ## Prompt caching
 

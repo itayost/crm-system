@@ -57,8 +57,27 @@ export function startedWorkClientNotice(contactName: string | null, title: strin
   return `${greeting(contactName)}רציתי לעדכן שהתחלתי לטפל בפנייה שלך בנושא *${title}*.\nאעדכן אותך כשאסיים 🔧`
 }
 
-export function resolvedRequestClientNotice(contactName: string | null, title: string): string {
-  return `${greeting(contactName)}סיימתי לטפל בפנייה שלך בנושא *${title}* ✅\nאם יש עוד משהו, אני כאן.`
+export function resolvedRequestClientNotice(
+  contactName: string | null,
+  title: string,
+  followUp: string = 'אם יש עוד משהו, אני כאן.',
+): string {
+  return `${greeting(contactName)}סיימתי לטפל בפנייה שלך בנושא *${title}* ✅\n${followUp}`
+}
+
+/**
+ * Where to send a client who wants to answer back.
+ *
+ * Every one of these notices goes out from the bot number, and while the bot is
+ * paused each inbound message on that session is dropped whole - it reaches
+ * WhatsApp and nothing else. So "אני כאן" is not a nicety then, it is false:
+ * the client replies, nobody hears it, and they conclude they were ignored.
+ * The portal works in both states, so that is where a paused bot points them.
+ */
+export function replyInvitation(params: { paused: boolean; portalUrl: string | null }): string {
+  if (!params.paused) return 'אם יש עוד משהו, אני כאן.'
+  if (params.portalUrl) return `אם יש עוד משהו, אפשר לפתוח פנייה חדשה כאן:\n${params.portalUrl}`
+  return 'אם יש עוד משהו, אפשר להתקשר אליי.'
 }
 
 /**
