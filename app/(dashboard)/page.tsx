@@ -41,6 +41,9 @@ import {
   TASK_CATEGORY_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency } from '@/lib/utils'
+import { RequestPipeline } from '@/components/requests/request-pipeline'
+import { DecisionsCard } from '@/components/requests/decisions-card'
+import type { RequestMetrics } from '@/lib/services/request-metrics.service'
 
 interface PendingTask {
   id: string
@@ -94,13 +97,21 @@ interface DashboardData {
 export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await api.get('/dashboard')
-        setData(response.data)
+        // Two calls in parallel rather than one fatter aggregate: the request
+        // metrics are read by /requests too, and the dashboard aggregate is
+        // already thirteen queries that every load pays for.
+        const [dashboard, requestMetrics] = await Promise.all([
+          api.get('/dashboard'),
+          api.get('/requests/metrics').catch(() => null),
+        ])
+        setData(dashboard.data)
+        if (requestMetrics) setMetrics(requestMetrics.data)
       } catch {
         toast.error('שגיאה בטעינת נתוני דשבורד')
       } finally {
@@ -275,6 +286,16 @@ export default function DashboardPage() {
           )
         })}
       </div>
+
+      {/* The request cockpit. Above the task and project lists because an
+          unpriced request is money not yet asked for, which outranks a task
+          that is already scheduled. */}
+      {metrics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RequestPipeline metrics={metrics} />
+          <DecisionsCard metrics={metrics} />
+        </div>
+      )}
 
       {/* Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

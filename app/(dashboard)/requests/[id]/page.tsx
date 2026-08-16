@@ -38,6 +38,8 @@ import { IntakeEditForm } from '@/components/requests/intake-edit-form'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
 import { CommercialCard } from '@/components/requests/commercial-card'
+import { RequestTimeline } from '@/components/requests/request-timeline'
+import { ClientViewCard } from '@/components/requests/client-view-card'
 import {
   toneOf,
   emphasisOf,
@@ -348,7 +350,12 @@ export default function RequestDetailPage() {
       {/* How it gets paid for. Above the description because for anything
           billable this is the decision the page exists to support: until the
           client answers, approving the request creates no task. */}
-      <CommercialCard request={request} onChanged={fetchRequest} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <CommercialCard request={request} onChanged={fetchRequest} />
+        <ClientViewCard request={request} />
+      </div>
+
+      <RequestTimeline request={request} />
 
       {/* Description */}
       {request.description && (

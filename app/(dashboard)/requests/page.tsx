@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
 import { Plus, Search, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
@@ -28,6 +27,20 @@ import {
 import { RequestForm } from '@/components/forms/request-form'
 import { PendingReviewCard } from '@/components/requests/pending-review-card'
 import { AwaitingClientCard } from '@/components/requests/awaiting-client-card'
+import { RequestPipeline } from '@/components/requests/request-pipeline'
+import { RequestAge } from '@/components/requests/request-age'
+import { DecisionsCard } from '@/components/requests/decisions-card'
+import type { RequestMetrics } from '@/lib/services/request-metrics.service'
+
+type QueueKey = 'needsPricing' | 'unclassified' | 'awaitingClient' | 'withoutTask'
+
+/** Named here so the banner and the URL contract stay in one place. */
+const QUEUE_LABELS: Record<QueueKey, string> = {
+  needsPricing: 'ממתין לתמחור',
+  unclassified: 'ללא סיווג חיוב',
+  awaitingClient: 'ממתין לתשובת הלקוח',
+  withoutTask: 'ללא משימה',
+}
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { AiMark, SourceIcon } from '@/components/requests/request-badges'
 import {
@@ -36,14 +49,18 @@ import {
   PRIORITY_TONES,
   PRIORITY_EMPHASIS,
   REQUEST_STATUS_TONES,
-  REQUEST_TYPE_TONES,
+  REQUEST_BILLING_TONES,
+  TASK_STATUS_TONES,
 } from '@/lib/design/tones'
 import {
   label,
   REQUEST_TYPE_LABELS,
   REQUEST_STATUS_LABELS,
   PRIORITY_LABELS,
+  REQUEST_BILLING_LABELS,
+  TASK_STATUS_LABELS,
 } from '@/lib/design/labels'
+import { formatCurrency } from '@/lib/utils'
 import type { RequestRecord } from '@/lib/types/request'
 
 interface ClientOption {
@@ -65,6 +82,24 @@ export default function RequestsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<RequestRecord | undefined>(undefined)
   const [actingOn, setActingOn] = useState<string | null>(null)
+  const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
+  // A decision queue arrives in the URL so a dashboard counter and the list it
+  // opens can never disagree - the same predicate answers both.
+  const [queue, setQueue] = useState<QueueKey | null>(null)
+
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('queue')
+    if (fromUrl && QUEUE_LABELS[fromUrl as QueueKey]) setQueue(fromUrl as QueueKey)
+  }, [])
+
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const response = await api.get('/requests/metrics')
+      setMetrics(response.data)
+    } catch {
+      setMetrics(null)
+    }
+  }, [])
 
   const fetchPending = useCallback(async () => {
     try {
@@ -88,6 +123,7 @@ export default function RequestsPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      if (queue) params.set('queue', queue)
       if (statusFilter !== 'ALL') {
         params.set('status', statusFilter)
       } else {
@@ -106,11 +142,12 @@ export default function RequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, typeFilter, clientFilter, search])
+  }, [statusFilter, typeFilter, clientFilter, search, queue])
 
   useEffect(() => {
     fetchPending()
     fetchAwaiting()
+    fetchMetrics()
     const fetchClients = async () => {
       try {
         const response = await api.get('/clients')
@@ -120,7 +157,7 @@ export default function RequestsPage() {
       }
     }
     fetchClients()
-  }, [fetchPending, fetchAwaiting])
+  }, [fetchPending, fetchAwaiting, fetchMetrics])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -133,6 +170,7 @@ export default function RequestsPage() {
     fetchRequests()
     fetchPending()
     fetchAwaiting()
+    fetchMetrics()
   }
 
   const handleAction = async (id: string, action: 'approve' | 'dismiss') => {
@@ -177,14 +215,6 @@ export default function RequestsPage() {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -199,6 +229,24 @@ export default function RequestsPage() {
           פניה חדשה
         </Button>
       </div>
+
+      {metrics && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <RequestPipeline metrics={metrics} />
+          <DecisionsCard metrics={metrics} />
+        </div>
+      )}
+
+      {queue && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-tone-info-mark/40 bg-tone-info-surface/40 px-4 py-3">
+          <span className="text-sm text-content-strong">
+            מוצגות רק פניות בקטגוריה <strong>{QUEUE_LABELS[queue]}</strong>
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setQueue(null)}>
+            הצג הכל
+          </Button>
+        </div>
+      )}
 
       <PendingReviewCard
         pending={pending}
@@ -280,12 +328,13 @@ export default function RequestsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">כותרת</TableHead>
-                <TableHead className="text-right">סוג</TableHead>
                 <TableHead className="text-right">סטטוס</TableHead>
                 <TableHead className="text-right">עדיפות</TableHead>
+                <TableHead className="text-right">חיוב</TableHead>
+                <TableHead className="text-right">מחיר</TableHead>
                 <TableHead className="text-right">לקוח</TableHead>
-                <TableHead className="text-right">פרויקט</TableHead>
-                <TableHead className="text-right">תאריך</TableHead>
+                <TableHead className="text-right">גיל</TableHead>
+                <TableHead className="text-right">משימה</TableHead>
                 <TableHead className="text-right w-12" />
               </TableRow>
             </TableHeader>
@@ -307,12 +356,6 @@ export default function RequestsPage() {
                       />
                     </div>
                   </TableCell>
-                  {/* Metadata: a dot for the hue, body text for the word. */}
-                  <TableCell>
-                    <StatusPill tone={toneOf(REQUEST_TYPE_TONES, request.type)} emphasis="quiet" dot>
-                      {label(REQUEST_TYPE_LABELS, request.type)}
-                    </StatusPill>
-                  </TableCell>
                   {/* The one pill in the row, and so the one the eye lands on. */}
                   <TableCell>
                     <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
@@ -328,9 +371,43 @@ export default function RequestsPage() {
                       {label(PRIORITY_LABELS, request.priority)}
                     </StatusPill>
                   </TableCell>
+                  {/* Unclassified is the loud case here: it means the billing
+                      gate never engaged and the work is running unpriced. */}
+                  <TableCell>
+                    {request.billingKind ? (
+                      <StatusPill
+                        tone={toneOf(REQUEST_BILLING_TONES, request.billingKind)}
+                        emphasis="quiet"
+                        dot
+                      >
+                        {label(REQUEST_BILLING_LABELS, request.billingKind)}
+                      </StatusPill>
+                    ) : (
+                      <StatusPill tone="danger" emphasis="outline">
+                        ללא סיווג
+                      </StatusPill>
+                    )}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {request.quotedPrice ? (
+                      <bdi>{formatCurrency(request.quotedPrice)}</bdi>
+                    ) : (
+                      <span className="text-content-faint">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{request.client?.name ?? '-'}</TableCell>
-                  <TableCell>{request.project?.name ?? '-'}</TableCell>
-                  <TableCell>{formatDate(request.createdAt)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    <RequestAge createdAt={request.createdAt} status={request.status} />
+                  </TableCell>
+                  <TableCell>
+                    {request.task ? (
+                      <StatusPill tone={toneOf(TASK_STATUS_TONES, request.task.status)} emphasis="quiet" dot>
+                        {label(TASK_STATUS_LABELS, request.task.status)}
+                      </StatusPill>
+                    ) : (
+                      <span className="text-xs text-content-faint">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"

@@ -14,6 +14,12 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
     pendingReview: searchParams.get('pendingReview') === 'true' || undefined,
     excludePending: searchParams.get('excludePending') === 'true' || undefined,
     awaitingClient: searchParams.get('awaitingClient') === 'true' || undefined,
+    queue: (searchParams.get('queue') as
+      | 'needsPricing'
+      | 'unclassified'
+      | 'awaitingClient'
+      | 'withoutTask'
+      | null) || undefined,
     search: searchParams.get('search') || undefined,
   })
 
