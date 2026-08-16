@@ -1,16 +1,16 @@
-# Graph Report - crm-system  (2026-08-03)
+# Graph Report - crm-system  (2026-08-16)
 
 ## Corpus Check
-- 252 files · ~169,452 words
+- 274 files · ~187,029 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1862 nodes · 3375 edges · 183 communities (121 shown, 62 thin omitted)
-- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
+- 1981 nodes · 3685 edges · 184 communities (117 shown, 67 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 2 edges (avg confidence: 0.65)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9a8b4abe`
+- Built from commit: `cd7bdfa3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,57 +24,51 @@
 - CRM Architecture Redesign
 - api-handler.ts
 - fixtures.ts
-- support-agent.service.ts
 - compilerOptions
 - ClientsService
+- contacts.service.ts
 - enums.ts
-- intake.ts
 - support-conversation.service.ts
 - CRM Public API Documentation
 - utils.ts
 - PhasesService
-- requests.service.ts
+- validations/request.ts
 - request-form.tsx
-- prisma.ts
 - tasks/[id]/route.ts
 - dependencies
 - webhook/route.ts
 - מסמך דרישות מערכת CRM לפרילנסר
-- projects/[id]/page.tsx
-- waha.service.ts
-- agent/page.tsx
-- request-extraction.service.ts
-- support-agent.test.ts
+- button.tsx
+- WahaService
+- morning-brief.service.ts
+- whatsapp-identity.ts
 - header.tsx
 - CRM Architecture Redesign — Implementation Plan
-- WahaService
 - components.json
 - devDependencies
 - scripts
 - whatsapp-bot-webhook.test.ts
-- support-tools.ts
-- support-followups.service.ts
-- button.tsx
+- prisma.ts
+- projects/[id]/route.ts
 - morning-brief-next-actions.test.ts
-- tones.ts
+- requests/[id]/page.tsx
 - createCrmTools
 - request-approval.test.ts
 - 0002 — The support bot degrades, it does not die
-- projects/[id]/route.ts
+- client-view.ts
 - resilient-model.test.ts
 - support-followups.test.ts
 - E2E Testing Design
-- [token]/page.tsx
-- tasks.service.ts
-- support-repo-tools.ts
+- RequestsService
+- AgentConfigForm.tsx
+- support-agent.service.ts
 - product-cards.test.ts
-- .sendMessage
+- requests.service.ts
 - WhatsApp CRM Agent
 - request-extraction.test.ts
 - support-repo-tools.test.ts
 - next-auth.d.ts
 - app/layout.tsx
-- alert.tsx
 - Task System Upgrade
 - eslint.config.mjs
 - E2E Testing Implementation Plan
@@ -96,11 +90,11 @@
 - cron-support-followups.test.ts
 - github-service.test.ts
 - media-understanding.test.ts
-- @ai-sdk/gateway
+- .sendMessage
 - Remove Time Tracking Feature
 - autoprefixer
 - Morning Brief
-- bcryptjs
+- actions.ts
 - class-variance-authority
 - clsx
 - date-fns
@@ -114,7 +108,7 @@
 - next-auth
 - next-themes
 - prisma
-- @radix-ui/react-alert-dialog
+- request-quote.test.ts
 - @radix-ui/react-dialog
 - @radix-ui/react-dropdown-menu
 - @radix-ui/react-label
@@ -145,19 +139,18 @@
 - dashboard-revenue.test.ts
 - whatsapp-identity.test.ts
 - vercel.json
-- requests/[id]/page.tsx
+- types/contact.ts
 - 🚀 מדריך פיתוח מלא - CRM System
 - 📚 Additional Resources
 - Customer Issue/Bug Form Implementation Plan
-- agent-config/route.ts
-- whatsapp-identity.ts
-- project-money.ts
-- AgentConfigForm.tsx
+- request-extraction.service.ts
+- alert.tsx
+- avatar.tsx
 - Phase 2: Core Modules (שבועות 3-5)
 - Glossary
 - Dependencies Codemap
 - תוכנית פיתוח מפורטת - מערכת CRM
-- migrate-data.ts
+- badge.tsx
 - Common Issues and Solutions
 - 1. Initial Setup
 - שבוע 1: Setup והגדרות
@@ -172,71 +165,79 @@
 - 3. Authentication Implementation
 - 9. Deployment
 - Architecture Codemap
-- @prisma/client
+- projects/[id]/page.tsx
 - 4. Layout & Navigation
 - 📝 Code Standards
 - 🚀 Development Checklist
 - 🎉 Launch Checklist
 - Potential Risks & Mitigations
-- avatar.tsx
 - README.md
 - 8. WhatsApp Integration
 - 📚 Documentation Requirements
 - 🔍 Quality Assurance
 - Phase 4: אינטגרציות ואוטומציות (שבוע 8)
 - Phase 5: Testing & Deployment (שבוע 9)
-- axios
+- public-leads.test.ts
 - triage-labels.md
+- [token]/layout.tsx
+- axios
+- leads/route.ts
 - react-hot-toast
 - tailwind-merge
-- WhatsAppAgentService
-- dashboard.service.ts
-- badge.tsx
+- @ai-sdk/openai-compatible
+- @auth/prisma-adapter
+- @itayost/wa
+- @radix-ui/react-avatar
+- @radix-ui/react-switch
+- @radix-ui/react-tabs
+- react-dom
+- zod
+- client-view.test.ts
 
 ## God Nodes (most connected - your core abstractions)
-1. `toneOf()` - 37 edges
-2. `prisma` - 35 edges
-3. `cn()` - 30 edges
-4. `Button` - 28 edges
-5. `createCrmTools()` - 28 edges
-6. `CRM Architecture Redesign — Implementation Plan` - 26 edges
-7. `WahaService` - 25 edges
-8. `SupportConversationService` - 23 edges
-9. `label()` - 21 edges
-10. `StatusPill()` - 19 edges
+1. `label()` - 39 edges
+2. `toneOf()` - 37 edges
+3. `prisma` - 37 edges
+4. `cn()` - 32 edges
+5. `Button` - 30 edges
+6. `createCrmTools()` - 28 edges
+7. `CRM Architecture Redesign — Implementation Plan` - 26 edges
+8. `RequestsService` - 23 edges
+9. `StatusPill()` - 23 edges
+10. `SupportConversationService` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `FormBody()` --calls--> `toneOf()`  [EXTRACTED]
   app/(dashboard)/projects/[id]/agent/_components/AgentConfigForm.tsx → lib/design/tones.ts
 - `DropdownMenuShortcut()` --calls--> `cn()`  [EXTRACTED]
   components/ui/dropdown-menu.tsx → lib/utils.ts
-- `ClientDetailPage()` --calls--> `toneOf()`  [EXTRACTED]
-  app/(dashboard)/clients/[id]/page.tsx → lib/design/tones.ts
-- `ContactDetailPage()` --calls--> `toneOf()`  [EXTRACTED]
-  app/(dashboard)/contacts/[id]/page.tsx → lib/design/tones.ts
-- `ContactsPage()` --calls--> `toneOf()`  [EXTRACTED]
-  app/(dashboard)/contacts/page.tsx → lib/design/tones.ts
+- `handleClientMessage()` --calls--> `greetingMessage()`  [EXTRACTED]
+  app/api/whatsapp/webhook/route.ts → lib/services/whatsapp-messages.ts
+- `degradedTurn()` --calls--> `degradedTurnOwnerNotice()`  [EXTRACTED]
+  app/api/whatsapp/webhook/route.ts → lib/services/whatsapp-messages.ts
+- `handleUnknownSender()` --calls--> `unknownSenderOwnerNotice()`  [EXTRACTED]
+  app/api/whatsapp/webhook/route.ts → lib/services/whatsapp-messages.ts
 
 ## Import Cycles
-- None detected.
+- 3-file cycle: `lib/services/requests.service.ts -> lib/services/whatsapp-agent.service.ts -> lib/services/whatsapp-tools.ts -> lib/services/requests.service.ts`
 
-## Communities (183 total, 62 thin omitted)
+## Communities (184 total, 67 thin omitted)
 
 ### Community 0 - "product-card.service.ts"
-Cohesion: 0.10
-Nodes (20): GET(), GitHubService, isSafeRepoPath(), MAX_FILE_CHARS, MAX_ROUTE_FILES, MAX_SEARCH_RESULTS, MAX_TREE_ENTRIES, RepoResult (+12 more)
+Cohesion: 0.06
+Nodes (30): GET(), GET(), maxDuration, GET(), isCronAuthorized(), safeEqual(), isBotPaused(), OFF_VALUES (+22 more)
 
 ### Community 1 - "support-media.service.ts"
 Cohesion: 0.08
-Nodes (29): POST(), TYPE_LABELS, mediaKind, MediaUnderstandingService, PROMPTS, TranscriptionResult, PublicRequestsService, PublicRequestSubmit (+21 more)
+Nodes (30): notifyOwner(), POST(), TYPE_LABELS, mediaKind, MediaUnderstandingService, PROMPTS, TranscriptionResult, PublicRequestsService (+22 more)
 
 ### Community 2 - "requests/page.tsx"
-Cohesion: 0.15
-Nodes (25): Client, ContactsPage(), isOverdue(), STATUS_FILTER_OPTIONS, ClientOption, ALL_OPTION, CATEGORY_FILTER_TABS, STATUS_FILTER_OPTIONS (+17 more)
+Cohesion: 0.12
+Nodes (31): Client, STATUS_FILTER_OPTIONS, ClientOption, ALL_OPTION, CATEGORY_FILTER_TABS, STATUS_FILTER_OPTIONS, Task, SELECTABLE (+23 more)
 
 ### Community 3 - "CLAUDE.md"
 Cohesion: 0.06
-Nodes (29): Agent skills, API Route Pattern, Architecture, Authentication, Business Context, Code Patterns to Follow, Codebase Metrics, Contact (+21 more)
+Nodes (33): Agent skills, API Route Pattern, Architecture, Authentication, Business Context, Client portal, Code Patterns to Follow, Codebase Metrics (+25 more)
 
 ### Community 4 - "ארכיטקטורה טכנית - מערכת CRM"
 Cohesion: 0.05
@@ -252,15 +253,11 @@ Nodes (33): 12 routes total (down from 51), 4 models total (down from 12), 4 ser
 
 ### Community 7 - "api-handler.ts"
 Cohesion: 0.13
-Nodes (17): POST, actionSchema, POST, GET, DELETE, GET, PUT, GET (+9 more)
+Nodes (17): POST, GET, createSchema, PATCH, POST, slugSchema, updateSchema, actionSchema (+9 more)
 
 ### Community 8 - "fixtures.ts"
-Cohesion: 0.12
-Nodes (18): TEST_USER, BASE_URL, E2E_PORT, expectToastError(), expectToastSuccess(), fillContactForm(), fillProjectForm(), fillTaskForm() (+10 more)
-
-### Community 9 - "support-agent.service.ts"
-Cohesion: 0.15
-Nodes (16): IntakeExtractionService, AFFIRMATIONS, buildSystemPrompt(), isAffirmation(), openStatuses(), PROJECT_TYPE_LABELS, recentClientRequests(), relationLine() (+8 more)
+Cohesion: 0.07
+Nodes (31): TEST_USER, BASE_URL, E2E_PORT, expectToastError(), expectToastSuccess(), fillContactForm(), fillProjectForm(), fillTaskForm() (+23 more)
 
 ### Community 10 - "compilerOptions"
 Cohesion: 0.07
@@ -270,89 +267,77 @@ Nodes (27): dom, dom.iterable, esnext, next-env.d.ts, .next/types/**/*.ts, node_
 Cohesion: 0.13
 Nodes (12): DELETE, GET, PUT, GET, POST, ClientFilters, ClientsService, ConvertOverrides (+4 more)
 
-### Community 12 - "enums.ts"
-Cohesion: 0.06
-Nodes (38): DELETE, GET, PUT, GET, POST, DEGRADED_MAX_OUTPUT_TOKENS, DEGRADED_SYSTEM_PROMPT(), DEGRADED_TIMEOUT_MS (+30 more)
+### Community 12 - "contacts.service.ts"
+Cohesion: 0.13
+Nodes (14): DELETE, GET, PUT, GET, POST, ContactFilters, ContactsService, CreateContactInput (+6 more)
 
-### Community 13 - "intake.ts"
-Cohesion: 0.11
-Nodes (23): IntakeContext, TurnAnalysis, turnAnalysisSchema, TurnRelation, SystemPromptParams, RequestPriority, RequestSource, RequestStatus (+15 more)
+### Community 13 - "enums.ts"
+Cohesion: 0.21
+Nodes (12): ClientDecision, RequestBilling, RequestPriority, RequestSource, RequestStatus, RequestType, clientDecision, priority (+4 more)
 
 ### Community 14 - "support-conversation.service.ts"
-Cohesion: 0.13
-Nodes (17): identity(), pendingDraftSchema, pendingMediaSchema, readHistory(), readPendingDraft(), readPendingMedia(), StoredDraft, SupportConversationContext (+9 more)
+Cohesion: 0.09
+Nodes (24): identity(), PendingDraft, pendingDraftSchema, pendingMediaSchema, readHistory(), readPendingDraft(), readPendingMedia(), StoredDraft (+16 more)
 
 ### Community 15 - "CRM Public API Documentation"
 Cohesion: 0.06
-Nodes (31): Best Practices for Error Handling, Budget Validation, Changelog, Common Error Scenarios, CORS Configuration, Create Lead, CRM Public API Documentation, cURL Command (+23 more)
+Nodes (30): Best Practices for Error Handling, Budget Validation, Changelog, Common Error Scenarios, CORS Configuration, Create Lead, CRM Public API Documentation, cURL Command (+22 more)
 
 ### Community 16 - "utils.ts"
-Cohesion: 0.20
-Nodes (7): DialogFooter(), Label, labelVariants, PopoverContent, Progress, Separator, cn()
+Cohesion: 0.17
+Nodes (9): navigation, Sidebar(), DialogFooter(), Label, labelVariants, PopoverContent, Progress, Separator (+1 more)
 
 ### Community 17 - "PhasesService"
-Cohesion: 0.21
-Nodes (9): DELETE, PUT, GET, POST, PhasesService, CreatePhaseInput, createPhaseSchema, UpdatePhaseInput (+1 more)
+Cohesion: 0.20
+Nodes (10): DELETE, PUT, GET, POST, PhasesService, phaseStatus, CreatePhaseInput, createPhaseSchema (+2 more)
 
-### Community 18 - "requests.service.ts"
-Cohesion: 0.15
-Nodes (13): AnnouncedStatus, CLIENT_ANNOUNCED_STATUSES, clientBotChat(), isAnnounced(), notifyClientOfApproval(), notifyClientOfProgress(), RequestFilters, RequestsService (+5 more)
+### Community 18 - "validations/request.ts"
+Cohesion: 0.12
+Nodes (15): DELETE, GET, PUT, GET, POST, BulkDraftRequestsInput, bulkDraftRequestsSchema, ClientDecisionInput (+7 more)
 
 ### Community 19 - "request-form.tsx"
 Cohesion: 0.06
-Nodes (64): Client, ClientFormProps, clientFormSchema, ClientFormValues, ClientOption, Contact, ContactFormProps, contactFormSchema (+56 more)
-
-### Community 20 - "prisma.ts"
-Cohesion: 0.18
-Nodes (10): maxDuration, maxDuration, LeadData, notifyOwnerOfNewLead(), POST(), publicLeadSchema, globalForPrisma, prisma (+2 more)
+Nodes (61): Client, ClientForm(), ClientFormProps, clientFormSchema, ClientFormValues, ClientOption, Contact, ContactFormProps (+53 more)
 
 ### Community 21 - "tasks/[id]/route.ts"
-Cohesion: 0.24
-Nodes (7): DELETE, GET, PUT, GET, POST, createTaskSchema, updateTaskSchema
+Cohesion: 0.14
+Nodes (10): DELETE, GET, PUT, GET, POST, TasksService, CreateTaskInput, createTaskSchema (+2 more)
 
 ### Community 22 - "dependencies"
-Cohesion: 0.12
-Nodes (17): ai, @ai-sdk/openai-compatible, @auth/prisma-adapter, dependencies, ai, @ai-sdk/openai-compatible, @auth/prisma-adapter, @radix-ui/react-avatar (+9 more)
+Cohesion: 0.18
+Nodes (11): ai, @ai-sdk/gateway, bcryptjs, @itayost/il, dependencies, ai, @ai-sdk/gateway, bcryptjs (+3 more)
 
 ### Community 23 - "webhook/route.ts"
-Cohesion: 0.17
-Nodes (18): maxDuration, CHECKING_MESSAGE, CLIENT_ACK_MESSAGE, DegradedTurnNoticeParams, degradedTurnOwnerNotice(), FiledRequestNoticeParams, firstName(), greeting() (+10 more)
+Cohesion: 0.16
+Nodes (20): maxDuration, notifyClientOfProgress(), CHECKING_MESSAGE, CLIENT_ACK_MESSAGE, DegradedTurnNoticeParams, degradedTurnOwnerNotice(), FiledRequestNoticeParams, firstName() (+12 more)
 
 ### Community 24 - "מסמך דרישות מערכת CRM לפרילנסר"
 Cohesion: 0.06
 Nodes (31): 1. מודול ניהול לידים, 2. מודול ניהול לקוחות, 3. מודול ניהול פרויקטים, 4. מודול מעקב זמנים, 5. מודול תשלומים, 6. מערכת תעדוף חכמה (Priority Score), 7. דשבורד ראשי, 8. דוחות ותובנות (+23 more)
 
-### Community 25 - "projects/[id]/page.tsx"
-Cohesion: 0.11
-Nodes (37): ClientContact, ClientDetail, ClientDetailPage(), ClientProject, ClientRequest, ContactDetailPage(), DashboardPage(), ProjectDetailPage() (+29 more)
+### Community 25 - "button.tsx"
+Cohesion: 0.16
+Nodes (20): isOverdue(), NextActionEditor(), toDateInputValue(), AwaitingClientCard(), daysWaiting(), CHARGEABLE, CommercialCard(), KINDS (+12 more)
 
-### Community 26 - "waha.service.ts"
-Cohesion: 0.20
-Nodes (12): POST(), isWebhookAuthorized(), safeEqual(), personalSessionName(), SendMessageParams, findContactByPhone(), MESSAGE_EVENTS, parseWahaMessageEvent() (+4 more)
-
-### Community 27 - "agent/page.tsx"
-Cohesion: 0.21
-Nodes (8): handler, registerSchema, AgentConfigPage(), PageProps, authOptions, loginSchema, getCurrentUser(), requireAuth()
-
-### Community 28 - "request-extraction.service.ts"
+### Community 26 - "WahaService"
 Cohesion: 0.15
-Nodes (12): GET(), GET(), GET(), isCronAuthorized(), safeEqual(), ExtractedRequest, ExtractionResult, ExtractionStats (+4 more)
+Nodes (14): phoneOf(), SendMessageParams, WahaService, withTyping(), botSessionName(), botTransport(), required(), transportFor() (+6 more)
 
-### Community 29 - "support-agent.test.ts"
+### Community 27 - "morning-brief.service.ts"
+Cohesion: 0.27
+Nodes (11): DEGRADED_MAX_OUTPUT_TOKENS, DEGRADED_SYSTEM_PROMPT(), DEGRADED_TIMEOUT_MS, degradedSupportReply(), describeModelError(), isOllamaConfigured(), ollamaModel(), withModelFallback() (+3 more)
+
+### Community 28 - "whatsapp-identity.ts"
 Cohesion: 0.12
-Nodes (11): agentMock, CompoundWhere, conversations, extractMock, GenerateTextArgs, generateTextSpy, githubMock, input (+3 more)
+Nodes (22): POST(), isLeadSubmissionAuthorized(), timingSafeMatch(), isWebhookAuthorized(), personalSessionName(), ClientContact, findContactByExactPhone(), findContactByPhone() (+14 more)
 
 ### Community 30 - "header.tsx"
-Cohesion: 0.13
-Nodes (13): Header(), navigation, Sidebar(), DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioItem (+5 more)
+Cohesion: 0.16
+Nodes (11): Header(), DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuShortcut() (+3 more)
 
 ### Community 31 - "CRM Architecture Redesign — Implementation Plan"
 Cohesion: 0.06
 Nodes (31): CRM Architecture Redesign — Implementation Plan, File Map, Files to CREATE, Files to DELETE, Files to MODIFY, Files to OVERWRITE, Files UNTOUCHED, Summary (+23 more)
-
-### Community 32 - "WahaService"
-Cohesion: 0.26
-Nodes (3): readCapped(), WahaService, withTyping()
 
 ### Community 33 - "components.json"
 Cohesion: 0.15
@@ -370,29 +355,25 @@ Nodes (13): scripts, build, db:migrate, db:push, db:studio, dev, lint, postinsta
 Cohesion: 0.14
 Nodes (9): afterTasks, agentMock, CLIENT_CONTACT, conversationMock, degradedMock, mediaMock, prismaMock, supportMock (+1 more)
 
-### Community 37 - "support-tools.ts"
-Cohesion: 0.18
-Nodes (15): ClientProfileService, GLOSSARY_HEADER, GlossaryEntry, sanitize(), splitGlossary(), PendingDraft, CLIENT_STATUS_LABELS, CLIENT_VISIBLE_STATUSES (+7 more)
+### Community 37 - "prisma.ts"
+Cohesion: 0.11
+Nodes (21): maxDuration, globalForPrisma, prisma, CLIENT_REQUEST_STATUS_SENTENCES, ClientProfileService, GLOSSARY_HEADER, GlossaryEntry, sanitize() (+13 more)
 
-### Community 38 - "support-followups.service.ts"
-Cohesion: 0.24
-Nodes (7): FILE_ANYWAY_HOURS, FIRST_REMINDER_HOURS, SECOND_REMINDER_HOURS, SupportFollowupsService, SweepStats, firstConfirmationReminder(), secondConfirmationReminder()
-
-### Community 39 - "button.tsx"
-Cohesion: 0.18
-Nodes (18): ActiveProject, DashboardData, PendingTask, ContactInfoCard(), isOverdue(), NextActionEditor(), toDateInputValue(), Button (+10 more)
+### Community 38 - "projects/[id]/route.ts"
+Cohesion: 0.15
+Nodes (11): DELETE, GET, PUT, GET, POST, ProjectFilters, ProjectsService, CreateProjectInput (+3 more)
 
 ### Community 40 - "morning-brief-next-actions.test.ts"
 Cohesion: 0.18
 Nodes (3): generateText, prismaMock, Where
 
-### Community 41 - "tones.ts"
-Cohesion: 0.13
-Nodes (20): ContactStatusSelect(), SELECTABLE, SHAPE, CONTACT_STATUS_LABELS, AGENT_STATUS_TONES, CONTACT_STATUS_TONES, Emphasis, PHASE_STATUS_TONES (+12 more)
+### Community 41 - "requests/[id]/page.tsx"
+Cohesion: 0.07
+Nodes (41): ActiveProject, DashboardData, PendingTask, STATE_EMPHASIS, AttachmentLinks(), IntakeDetails(), AiMark(), SOURCE_ICONS (+33 more)
 
 ### Community 42 - "createCrmTools"
-Cohesion: 0.24
-Nodes (11): fuzzyMatch(), fuzzyMatchClient(), fuzzyMatchContact(), fuzzyMatchProject(), fuzzyMatchRequest(), fuzzyMatchTask(), MatchResult, ProjectsService (+3 more)
+Cohesion: 0.18
+Nodes (17): DashboardService, fuzzyMatch(), fuzzyMatchClient(), fuzzyMatchContact(), fuzzyMatchProject(), fuzzyMatchRequest(), fuzzyMatchTask(), MatchResult (+9 more)
 
 ### Community 43 - "request-approval.test.ts"
 Cohesion: 0.20
@@ -402,9 +383,9 @@ Nodes (6): BASE_REQUEST, PERSONAL_SOURCE, prismaMock, requests, SUPPORT_SOURCE, 
 Cohesion: 0.40
 Nodes (4): 0002 — The support bot degrades, it does not die, Consequences, Context, Decision
 
-### Community 45 - "projects/[id]/route.ts"
-Cohesion: 0.24
-Nodes (7): DELETE, GET, PUT, GET, POST, createProjectSchema, updateProjectSchema
+### Community 45 - "client-view.ts"
+Cohesion: 0.10
+Nodes (23): dynamic, dynamic, PortalRequestPage(), whatsappLink(), ProjectOption, Props, PublicRequestForm(), TYPES (+15 more)
 
 ### Community 46 - "resilient-model.test.ts"
 Cohesion: 0.50
@@ -418,25 +399,21 @@ Nodes (7): conversationRows, DRAFT, filingMock, NOW, prismaMock, seedConversatio
 Cohesion: 0.09
 Nodes (21): Architecture, Auth Flow, auth.spec.ts (3 tests), Cleanup Strategy, Configuration Notes, contacts.spec.ts (12 tests), dashboard.spec.ts (5 tests), Decisions (+13 more)
 
-### Community 49 - "[token]/page.tsx"
-Cohesion: 0.29
-Nodes (5): dynamic, ProjectOption, Props, PublicRequestForm(), TYPES
+### Community 50 - "AgentConfigForm.tsx"
+Cohesion: 0.11
+Nodes (14): handler, registerSchema, AgentConfigForm(), DEFAULT_VALUES, FormBody(), FormValues, Props, toFormValues() (+6 more)
 
-### Community 50 - "tasks.service.ts"
-Cohesion: 0.24
-Nodes (4): TaskFilters, TasksService, CreateTaskInput, UpdateTaskInput
-
-### Community 51 - "support-repo-tools.ts"
-Cohesion: 0.32
-Nodes (5): RepoRef, ConfiguredProject, configuredProjects(), createRepoTools(), degraded()
+### Community 51 - "support-agent.service.ts"
+Cohesion: 0.06
+Nodes (41): IntakeContext, IntakeExtractionService, TurnAnalysis, turnAnalysisSchema, TurnRelation, AFFIRMATIONS, buildSystemPrompt(), isAffirmation() (+33 more)
 
 ### Community 52 - "product-cards.test.ts"
 Cohesion: 0.25
 Nodes (7): CONFIGURED, FULL_CONTENTS, FULL_TREE, GenArgs, generateTextSpy, githubMock, prismaMock
 
-### Community 53 - ".sendMessage"
+### Community 53 - "requests.service.ts"
 Cohesion: 0.19
-Nodes (13): notifyOwner(), degradedTurn(), handleClientMessage(), handleUnknownSender(), POST(), runSupportTurn(), notifyPossiblyMissedRequest(), botSessionName() (+5 more)
+Nodes (14): AnnouncedStatus, CLIENT_ANNOUNCED_STATUSES, clientBotChat(), isAnnounced(), isLiveTask(), notifyClientOfApproval(), notifyClientOfQuote(), notifyOwnerOfDecision() (+6 more)
 
 ### Community 54 - "WhatsApp CRM Agent"
 Cohesion: 0.09
@@ -453,10 +430,6 @@ Nodes (4): context, githubMock, prismaMock, PROJECTS
 ### Community 57 - "next-auth.d.ts"
 Cohesion: 0.33
 Nodes (5): JWT, next-auth, next-auth/jwt, Session, User
-
-### Community 59 - "alert.tsx"
-Cohesion: 0.40
-Nodes (4): Alert, AlertDescription, AlertTitle, alertVariants
 
 ### Community 60 - "Task System Upgrade"
 Cohesion: 0.11
@@ -498,6 +471,14 @@ Nodes (3): useFormField(), react, react
 Cohesion: 0.12
 Nodes (15): File Map, Files to CREATE, Files to MODIFY, Post-Implementation Setup, Summary, Task 1: Update Prisma Schema, Task 2: Install Dependencies, Task 3: Fuzzy Name Matching Utility (+7 more)
 
+### Community 75 - "next.config.ts"
+Cohesion: 0.50
+Nodes (3): nextConfig, portalHeaders, securityHeaders
+
+### Community 82 - ".sendMessage"
+Cohesion: 0.21
+Nodes (9): GET(), degradedTurn(), handleClientMessage(), handleOwnerMessage(), handleUnknownSender(), POST(), runSupportTurn(), notifyPossiblyMissedRequest() (+1 more)
+
 ### Community 83 - "Remove Time Tracking Feature"
 Cohesion: 0.12
 Nodes (15): Context, Dashboard & Pages, Database Migration, Decision, Documentation Updates, Files to Delete (11 files), Files to Delete (Additional), Files to Modify (20 files) (+7 more)
@@ -505,6 +486,14 @@ Nodes (15): Context, Dashboard & Pages, Database Migration, Decision, Documentat
 ### Community 85 - "Morning Brief"
 Cohesion: 0.13
 Nodes (14): Add `lastContactedAt` to Contact, AI Agent Prompt, Architecture, Cron Configuration, Cron Endpoint Security, Data Gathered for the Brief, Data Model, Files (+6 more)
+
+### Community 86 - "actions.ts"
+Cohesion: 0.60
+Nodes (3): decideOnQuote(), DecisionPanel(), clientDecisionSchema
+
+### Community 100 - "request-quote.test.ts"
+Cohesion: 0.25
+Nodes (4): phases, prismaMock, requests, wahaMock
 
 ### Community 110 - "Models"
 Cohesion: 0.14
@@ -518,9 +507,9 @@ Nodes (13): Remove Time Tracking Implementation Plan, Task 10: Update Prisma Sch
 Cohesion: 0.50
 Nodes (3): config, TONES, toneScale
 
-### Community 136 - "requests/[id]/page.tsx"
-Cohesion: 0.16
-Nodes (21): RequestForm(), AttachmentLinks(), IntakeDetails(), AiBadge(), AiMark(), SOURCE_ICONS, SourceBadge(), SourceIcon() (+13 more)
+### Community 136 - "types/contact.ts"
+Cohesion: 0.25
+Nodes (8): ClientProject, ContactListItem, ContactProject, ContactSource, ContactStatus, PhaseSummary, contactSource, contactStatus
 
 ### Community 137 - "🚀 מדריך פיתוח מלא - CRM System"
 Cohesion: 0.17
@@ -534,21 +523,17 @@ Nodes (12): 📚 Additional Resources, Code Standards Checklist, ✅ DO:, Docume
 Cohesion: 0.18
 Nodes (10): Customer Issue/Bug Form Implementation Plan, File Structure, Global Constraints, Manual setup (one-time, outside the automated tasks), Self-Review, Task 1: Schema changes + migration, Task 2: Client form-token endpoint + dashboard link UI, Task 3: Backend submit pipeline (validation, storage, service, public endpoint) (+2 more)
 
-### Community 140 - "agent-config/route.ts"
+### Community 140 - "request-extraction.service.ts"
 Cohesion: 0.29
-Nodes (5): createSchema, PATCH, POST, slugSchema, updateSchema
+Nodes (6): ExtractedRequest, ExtractionResult, ExtractionStats, MAX_MESSAGES_PER_CLIENT, MIN_CONFIDENCE, DraftRequestInput
 
-### Community 141 - "whatsapp-identity.ts"
-Cohesion: 0.31
-Nodes (10): ClientContact, findContactByExactPhone(), IdentifiedContact, identifySender(), IdentifySenderParams, isOwnerPhone(), MatchedContact, normalizePhone() (+2 more)
+### Community 142 - "alert.tsx"
+Cohesion: 0.40
+Nodes (4): Alert, AlertDescription, AlertTitle, alertVariants
 
-### Community 142 - "project-money.ts"
-Cohesion: 0.26
-Nodes (9): amount(), DecimalLike, Money, PhaseAmount, projectOutstanding(), projectPaid(), projectTotal(), sum() (+1 more)
-
-### Community 143 - "AgentConfigForm.tsx"
-Cohesion: 0.22
-Nodes (6): AgentConfigForm(), DEFAULT_VALUES, FormBody(), FormValues, Props, toFormValues()
+### Community 143 - "avatar.tsx"
+Cohesion: 0.50
+Nodes (3): Avatar, AvatarFallback, AvatarImage
 
 ### Community 144 - "Phase 2: Core Modules (שבועות 3-5)"
 Cohesion: 0.20
@@ -566,9 +551,9 @@ Nodes (9): Auth, Core Framework, Data / Forms, Dependencies Codemap, Dev / Testi
 Cohesion: 0.22
 Nodes (8): Daily Development, Deployment, 💻 Development Commands, MVP Requirements (Must Have), Nice to Have (Phase 2), 🎯 Success Criteria, 📅 לוח זמנים כללי, תוכנית פיתוח מפורטת - מערכת CRM
 
-### Community 148 - "migrate-data.ts"
-Cohesion: 0.28
-Nodes (8): mapLeadStatus(), mapTaskStatus(), migrate(), OldClient, OldLead, OldProject, OldTask, prisma
+### Community 148 - "badge.tsx"
+Cohesion: 0.67
+Nodes (3): Badge(), BadgeProps, badgeVariants
 
 ### Community 149 - "Common Issues and Solutions"
 Cohesion: 0.25
@@ -626,9 +611,9 @@ Nodes (5): 9. Deployment, Step 9.1: Prepare for Production, Step 9.2: Deploy to 
 Cohesion: 0.40
 Nodes (4): Architecture Codemap, Data Flow, Key Boundaries, System Diagram
 
-### Community 163 - "@prisma/client"
-Cohesion: 0.40
-Nodes (4): globalTeardown(), prisma, @prisma/client, @prisma/client
+### Community 163 - "projects/[id]/page.tsx"
+Cohesion: 0.12
+Nodes (44): ClientContact, ClientDetail, ClientDetailPage(), ClientRequest, ContactDetailPage(), ContactsPage(), isOverdue(), DashboardPage() (+36 more)
 
 ### Community 164 - "4. Layout & Navigation"
 Cohesion: 0.50
@@ -649,10 +634,6 @@ Nodes (4): 🎉 Launch Checklist, Launch Day, Post-Launch, Pre-Launch
 ### Community 168 - "Potential Risks & Mitigations"
 Cohesion: 0.50
 Nodes (4): Potential Risks & Mitigations, 📊 Risk Management, Technical Risks, Timeline Risks
-
-### Community 169 - "avatar.tsx"
-Cohesion: 0.50
-Nodes (3): Avatar, AvatarFallback, AvatarImage
 
 ### Community 170 - "README.md"
 Cohesion: 0.50
@@ -678,29 +659,33 @@ Nodes (3): Phase 4: אינטגרציות ואוטומציות (שבוע 8), יו
 Cohesion: 0.67
 Nodes (3): Phase 5: Testing & Deployment (שבוע 9), יום 57-59: Testing, יום 60-63: Deployment & Polish
 
-### Community 182 - "badge.tsx"
-Cohesion: 0.67
-Nodes (3): Badge(), BadgeProps, badgeVariants
+### Community 176 - "public-leads.test.ts"
+Cohesion: 0.29
+Nodes (4): agentMock, LEAD, prismaMock, wahaMock
+
+### Community 180 - "leads/route.ts"
+Cohesion: 0.11
+Nodes (21): Caller, callerOf(), notifyOwnerOfNewLead(), POST(), publicLeadSchema, appendSubmission(), budgetOf(), DUPLICATE_WINDOW_MS (+13 more)
 
 ## Knowledge Gaps
-- **905 isolated node(s):** `Development Commands`, `Project Overview`, `Business Context`, `Technology Stack`, `User` (+900 more)
+- **934 isolated node(s):** `TYPE_LABELS`, `PublicRequestSubmit`, `ResolvedClient`, `ClientOption`, `KINDS` (+929 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **62 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `dependencies` connect `dependencies` to `@prisma/client`, `axios`, `react-hot-toast`, `tailwind-merge`, `package.json`, `react`, `@ai-sdk/gateway`, `bcryptjs`, `class-variance-authority`, `clsx`, `date-fns`, `@hookform/resolvers`, `lucide-react`, `next`, `next-auth`, `next-themes`, `prisma`, `@radix-ui/react-alert-dialog`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`, `@radix-ui/react-popover`, `@radix-ui/react-progress`, `@radix-ui/react-select`, `@radix-ui/react-separator`, `@radix-ui/react-slot`, `react-hook-form`, `sonner`, `@supabase/supabase-js`, `zustand`?**
-  _High betweenness centrality (0.074) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `fixtures.ts`, `axios`, `react-hot-toast`, `tailwind-merge`, `@ai-sdk/openai-compatible`, `@auth/prisma-adapter`, `@itayost/wa`, `@radix-ui/react-avatar`, `@radix-ui/react-switch`, `@radix-ui/react-tabs`, `react-dom`, `zod`, `package.json`, `react`, `class-variance-authority`, `clsx`, `date-fns`, `@hookform/resolvers`, `lucide-react`, `next`, `next-auth`, `next-themes`, `prisma`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`, `@radix-ui/react-popover`, `@radix-ui/react-progress`, `@radix-ui/react-select`, `@radix-ui/react-separator`, `@radix-ui/react-slot`, `react-hook-form`, `sonner`, `@supabase/supabase-js`, `zustand`?**
+  _High betweenness centrality (0.072) - this node is a cross-community bridge._
 - **Why does `useFormField()` connect `react` to `request-form.tsx`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
 - **Why does `react` connect `react` to `dependencies`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
-- **What connects `Development Commands`, `Project Overview`, `Business Context` to the rest of the system?**
-  _905 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **What connects `TYPE_LABELS`, `PublicRequestSubmit`, `ResolvedClient` to the rest of the system?**
+  _934 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `product-card.service.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.0967741935483871 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06219426974143955 - nodes in this community are weakly interconnected._
 - **Should `support-media.service.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.0824524312896406 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08416389811738649 - nodes in this community are weakly interconnected._
 - **Should `requests/page.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.14761904761904762 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11884057971014493 - nodes in this community are weakly interconnected._
