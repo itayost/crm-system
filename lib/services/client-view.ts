@@ -19,6 +19,7 @@
  */
 
 import { prisma } from '@/lib/db/prisma'
+import { projectOutstanding, projectPaid, projectTotal } from '@/lib/utils/project-money'
 
 /**
  * DISMISSED is absent on purpose. A ticket Itay decided not to act on is not a
@@ -216,4 +217,180 @@ export async function getClientRequest(token: string, requestId: string) {
   })
 
   return row ? toClientRequest(row) : null
+}
+
+/* -------------------------------------------------------------------------
+ * Projects and phases, on the same terms as requests above.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * What a client may read about their own project.
+ *
+ * ProjectPhase is the safest model in the schema to expose - name, order,
+ * status, price, approvedAt, paidAt, and not one owner-private column among
+ * them. Every value is something this client already agreed to.
+ *
+ * Absent on purpose: `userId`, and the `agentConfig` and `productCard`
+ * relations. productCard in particular is machine-generated from the client's
+ * own repository to ground the support bot, is unreviewed, and is framed around
+ * what does NOT exist - it is not a customer-facing product description.
+ */
+export const clientProjectSelect = {
+  id: true,
+  name: true,
+  description: true,
+  type: true,
+  status: true,
+  startDate: true,
+  deadline: true,
+  completedAt: true,
+  advanceAmount: true,
+  advancePaidAt: true,
+  phases: {
+    select: {
+      id: true,
+      name: true,
+      order: true,
+      status: true,
+      price: true,
+      approvedAt: true,
+      paidAt: true,
+    },
+    orderBy: { order: 'asc' },
+  },
+} as const
+
+/**
+ * A phase in the client's words.
+ *
+ * The trap this exists to avoid: PhaseStatus.APPROVED means *delivered work was
+ * signed off*, and a phase created when a client approves a quote is born
+ * NOT_STARTED. Rendering the raw enum would tell a client the work is done
+ * because they agreed to pay for it. Same reasoning as clientStatusOf above.
+ */
+export type ClientPhaseStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'AWAITING_YOU' | 'DONE' | 'PAID'
+
+export function clientPhaseStatusOf(phase: {
+  status: string
+  paidAt: Date | string | null
+}): ClientPhaseStatus {
+  if (phase.paidAt) return 'PAID'
+  if (phase.status === 'APPROVED') return 'DONE'
+  if (phase.status === 'PENDING_APPROVAL' || phase.status === 'REVISIONS') return 'AWAITING_YOU'
+  if (phase.status === 'IN_PROGRESS') return 'IN_PROGRESS'
+  return 'SCHEDULED'
+}
+
+export interface ClientPhaseView {
+  id: string
+  name: string
+  status: ClientPhaseStatus
+  price: number
+}
+
+export interface ClientProjectView {
+  id: string
+  name: string
+  description: string | null
+  status: string
+  deadline: string | null
+  completedAt: string | null
+  phases: ClientPhaseView[]
+  /** Everything agreed: the advance plus every phase. */
+  total: number
+  paid: number
+  /** Signed-off work not yet settled. Never includes work merely quoted. */
+  outstanding: number
+}
+
+/** Whitelist, same discipline as toClientRequest. */
+export function toClientProject(row: {
+  id: string
+  name: string
+  description: string | null
+  status: string
+  deadline: Date | null
+  completedAt: Date | null
+  advanceAmount: unknown
+  advancePaidAt: Date | null
+  phases: {
+    id: string
+    name: string
+    status: string
+    price: unknown
+    approvedAt: Date | null
+    paidAt: Date | null
+  }[]
+}): ClientProjectView {
+  const phases = row.phases.map((phase) => ({
+    id: phase.id,
+    name: phase.name,
+    status: clientPhaseStatusOf(phase),
+    price: decimal(phase.price) ?? 0,
+  }))
+
+  const money = row.phases.map((p) => ({
+    price: decimal(p.price) ?? 0,
+    status: p.status,
+    paidAt: p.paidAt ? p.paidAt.toISOString() : null,
+  }))
+
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    status: row.status,
+    deadline: row.deadline?.toISOString() ?? null,
+    completedAt: row.completedAt?.toISOString() ?? null,
+    phases,
+    total: projectTotal(decimal(row.advanceAmount), money),
+    paid: projectPaid(decimal(row.advanceAmount), row.advancePaidAt, money),
+    outstanding: projectOutstanding(money),
+  }
+}
+
+/** Every project belonging to this token's client. */
+export async function listClientProjects(token: string): Promise<ClientProjectView[]> {
+  if (!token?.trim()) return []
+
+  const rows = await prisma.project.findMany({
+    where: { client: { formToken: token } },
+    select: clientProjectSelect,
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return rows.map(toClientProject)
+}
+
+/**
+ * The storage path of one attachment, resolved from an index.
+ *
+ * By index, never by path. Storage paths are `clientId/uuid/name`, so handing
+ * one to the browser would leak the client id and invite a caller to name a
+ * path of their own - and the bucket is shared with support media uploaded over
+ * WhatsApp, so that path could be another client's voice note. An index cannot
+ * address anything outside this request's own array, which turns a membership
+ * check into a bounds check the caller cannot argue with.
+ *
+ * tests/client-view.test.ts asserts raw paths never appear in the DTO; this is
+ * the other half of that promise.
+ */
+export async function resolveClientAttachment(
+  token: string,
+  requestId: string,
+  index: number,
+): Promise<string | null> {
+  if (!token?.trim() || !requestId) return null
+  if (!Number.isInteger(index) || index < 0) return null
+
+  const request = await prisma.request.findFirst({
+    where: {
+      id: requestId,
+      client: { formToken: token },
+      status: { in: [...CLIENT_VISIBLE_STATUSES] },
+    },
+    select: { attachments: true },
+  })
+
+  return request?.attachments[index] ?? null
 }

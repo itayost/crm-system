@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { ClientStatePill, BillingPill } from '@/components/portal/client-state-pill'
 import { QuoteCard } from '@/components/portal/quote-card'
+import { PortalAttachments } from '@/components/portal/portal-attachments'
 import { getClientRequest } from '@/lib/services/client-view'
 import { REQUEST_TYPE_LABELS, label } from '@/lib/design/labels'
 import { formatDate } from '@/lib/utils'
@@ -29,7 +30,7 @@ export default async function PortalRequestPage({
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <h1 className="text-xl font-semibold text-content-strong">הפנייה לא נמצאה</h1>
-          <Link href={`/r/${token}`} className="mt-3 inline-block text-sm underline">
+          <Link href={`/r/${token}/requests`} className="mt-3 inline-block text-sm underline">
             חזרה לפניות שלך
           </Link>
         </div>
@@ -39,7 +40,7 @@ export default async function PortalRequestPage({
 
   return (
     <>
-      <Link href={`/r/${token}`} className="text-sm text-content-muted underline">
+      <Link href={`/r/${token}/requests`} className="text-sm text-content-muted underline">
         חזרה לפניות שלך
       </Link>
 
@@ -67,14 +68,17 @@ export default async function PortalRequestPage({
             <Row term="נפתחה" value={<bdi>{formatDate(request.openedAt)}</bdi>} />
             <Row term="סוג" value={label(REQUEST_TYPE_LABELS, request.type)} />
             {request.projectName && <Row term="פרויקט" value={request.projectName} />}
-            {request.attachmentCount > 0 && (
-              <Row term="קבצים שצורפו" value={<bdi>{request.attachmentCount}</bdi>} />
-            )}
             {request.resolvedAt && (
               <Row term="הושלמה" value={<bdi>{formatDate(request.resolvedAt)}</bdi>} />
             )}
           </dl>
         </section>
+
+        <PortalAttachments
+          token={token}
+          requestId={request.id}
+          count={request.attachmentCount}
+        />
 
         {/* The conversation already lives in WhatsApp. A deep link back to it
             beats a comment thread the client would have to learn and check.

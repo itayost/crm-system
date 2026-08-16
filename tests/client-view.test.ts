@@ -12,9 +12,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { request: { findMany: vi.fn(), findFirst: vi.fn() } } }))
 
-const { clientStatusOf, isAwaitingClient, toClientRequest, CLIENT_VISIBLE_STATUSES } = await import(
-  '@/lib/services/client-view'
-)
+const {
+  clientStatusOf,
+  isAwaitingClient,
+  toClientRequest,
+  CLIENT_VISIBLE_STATUSES,
+  clientPhaseStatusOf,
+  toClientProject,
+} = await import('@/lib/services/client-view')
 
 const NO_QUOTE = { quotedAt: null, clientDecision: null, clientDecisionAt: null }
 
@@ -159,5 +164,84 @@ describe('the field whitelist', () => {
 
     expect(view.quotedPrice).toBe(1200)
     expect(view.estimateHours).toBe(3.5)
+  })
+})
+
+describe('what a client is told about a billing phase', () => {
+  const phase = (status: string, paidAt: Date | null = null) => clientPhaseStatusOf({ status, paidAt })
+
+  it('does not call a quote-approved phase finished', () => {
+    // The trap this exists for: a phase created when the client approves a
+    // quote is born NOT_STARTED. Showing the raw enum would be one thing; the
+    // real risk is anything that reads "approved" back to them as done.
+    expect(phase('NOT_STARTED')).toBe('SCHEDULED')
+  })
+
+  it('says work is under way', () => {
+    expect(phase('IN_PROGRESS')).toBe('IN_PROGRESS')
+  })
+
+  it('puts the ball back in their court when it is there', () => {
+    expect(phase('PENDING_APPROVAL')).toBe('AWAITING_YOU')
+    expect(phase('REVISIONS')).toBe('AWAITING_YOU')
+  })
+
+  it('calls signed-off work done', () => {
+    expect(phase('APPROVED')).toBe('DONE')
+  })
+
+  it('lets payment outrank everything', () => {
+    // A paid phase is settled whatever its work status says.
+    expect(phase('APPROVED', new Date())).toBe('PAID')
+    expect(phase('NOT_STARTED', new Date())).toBe('PAID')
+  })
+})
+
+describe('the project whitelist', () => {
+  const row = {
+    id: 'p1',
+    name: 'אימונים לגיל השלישי',
+    description: 'תיאור',
+    status: 'ACTIVE',
+    deadline: null,
+    completedAt: null,
+    advanceAmount: 0,
+    advancePaidAt: null,
+    phases: [
+      { id: 'ph1', name: 'פיתוח', status: 'APPROVED', price: 7000, approvedAt: new Date(), paidAt: null },
+      { id: 'ph2', name: 'הרחבה', status: 'NOT_STARTED', price: 1200, approvedAt: null, paidAt: null },
+    ],
+  }
+
+  it('sums the ledger the way the dashboard does', () => {
+    const view = toClientProject(row)
+
+    expect(view.total).toBe(8200)
+    expect(view.paid).toBe(0)
+    // Only signed-off work is owed. The 1,200 phase is agreed but not delivered,
+    // so a client must not open this and read that they owe for it.
+    expect(view.outstanding).toBe(7000)
+  })
+
+  it('never emits an internal field', () => {
+    const view = toClientProject({
+      ...row,
+      ...({ userId: 'u-1', agentConfig: { x: 1 }, productCard: { cardHe: 'סודי' } } as Record<
+        string,
+        unknown
+      >),
+    } as Parameters<typeof toClientProject>[0])
+
+    for (const forbidden of ['userId', 'agentConfig', 'productCard', 'advanceAmount']) {
+      expect(Object.keys(view)).not.toContain(forbidden)
+    }
+    expect(JSON.stringify(view)).not.toContain('סודי')
+  })
+
+  it('softens every phase status on the way out', () => {
+    const view = toClientProject(row)
+
+    expect(view.phases.map((p) => p.status)).toEqual(['DONE', 'SCHEDULED'])
+    expect(JSON.stringify(view)).not.toContain('NOT_STARTED')
   })
 })

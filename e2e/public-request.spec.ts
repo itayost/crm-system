@@ -29,7 +29,11 @@ test.describe('client form link UI', () => {
     const client = await createClient(request, `טסט קישור ${Date.now()}`)
 
     await page.goto(`/clients/${client.id}`)
-    await expect(page.getByText('טופס פניות')).toBeVisible()
+    // The link moved out of its own "טופס פניות" card and into the summary band
+    // at the top of the page, because it is something handed over mid
+    // conversation rather than a setting. The guard that matters is unchanged:
+    // the rendered URL must be a real, absolute portal link.
+    await expect(page.getByText('קישור הפניות של הלקוח')).toBeVisible()
     await page.getByRole('button', { name: 'צור קישור' }).click()
     await expect(page.locator('code', { hasText: '/r/' })).toBeVisible()
     const codeText = await page.locator('code', { hasText: '/r/' }).innerText()
