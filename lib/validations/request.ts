@@ -1,10 +1,24 @@
 import { z } from 'zod'
 import { intakeSchema } from './intake'
-import { requestType, requestStatus, requestSource, priority } from './enums'
+import {
+  requestType,
+  requestStatus,
+  requestSource,
+  priority,
+  requestBilling,
+  clientDecision,
+} from './enums'
 
 // Re-exported so existing importers keep working; defined in ./enums to avoid a
 // cycle with ./intake.
-export { requestType, requestStatus, requestSource, priority } from './enums'
+export {
+  requestType,
+  requestStatus,
+  requestSource,
+  priority,
+  requestBilling,
+  clientDecision,
+} from './enums'
 
 export const createRequestSchema = z.object({
   title: z.string().min(1, 'כותרת בקשה חובה'),
@@ -31,6 +45,26 @@ export const updateRequestSchema = z.object({
   intake: intakeSchema.optional(),
 })
 
+/**
+ * Sending a quote is a transition, not a field edit.
+ *
+ * Deliberately absent from updateRequestSchema above: pricing has guards of its
+ * own (a billable request needs a project to hang its phase on) and, once the
+ * client has answered, the price they agreed to must not be quietly editable
+ * through the generic update route.
+ */
+export const sendQuoteSchema = z.object({
+  billingKind: requestBilling,
+  estimateHours: z.coerce.number().positive().max(999).optional(),
+  quotedPrice: z.coerce.number().nonnegative().max(9_999_999).optional(),
+})
+
+/** What the portal posts back. The note is the client's own words on a decline. */
+export const clientDecisionSchema = z.object({
+  decision: clientDecision,
+  note: z.string().max(1000).optional(),
+})
+
 // One AI-drafted request produced by the extraction pass
 export const draftRequestSchema = z.object({
   title: z.string().min(1),
@@ -51,5 +85,7 @@ export const bulkDraftRequestsSchema = z.array(draftRequestSchema)
 
 export type CreateRequestInput = z.infer<typeof createRequestSchema>
 export type UpdateRequestInput = z.infer<typeof updateRequestSchema>
+export type SendQuoteInput = z.infer<typeof sendQuoteSchema>
+export type ClientDecisionInput = z.infer<typeof clientDecisionSchema>
 export type DraftRequestInput = z.infer<typeof draftRequestSchema>
 export type BulkDraftRequestsInput = z.infer<typeof bulkDraftRequestsSchema>

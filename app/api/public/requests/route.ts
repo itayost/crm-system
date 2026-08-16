@@ -97,13 +97,12 @@ async function notifyOwner(result: SubmitResult, type?: string) {
   await WahaService.sendMessage({ chatId: ownerChatId, text: lines.join('\n') })
 }
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
-}
+// No OPTIONS handler, and no Access-Control-* header anywhere in this file.
+//
+// There used to be one granting `Access-Control-Allow-Origin: *`, which was
+// half a CORS grant: the preflight passed, the POST wrote its row, and then the
+// caller could not read the reply because the POST response carried no such
+// header. So it never enabled a legitimate cross-origin form, and it did
+// advertise the endpoint as open. The form lives at /r/[token] and is
+// same-origin, which needs no preflight at all. Leaving CORS off is also what
+// keeps a page on another origin from reading a portal it got a token for.

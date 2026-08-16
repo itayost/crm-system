@@ -127,6 +127,10 @@ model ProjectPhase {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  /// Set when this phase was materialised from a client-approved billable
+  /// request, so the money has exactly one home instead of two.
+  request Request?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -440,6 +444,26 @@ model Request {
   taskId String? @unique
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
+  /// How this request gets paid for, and the quote the client answered.
+  ///
+  /// Null is the pre-existing world: no gate, approval creates the Task
+  /// immediately, exactly as every request written before this existed. The
+  /// commercial gate only engages once someone deliberately says BILLABLE or
+  /// QUOTE_REQUIRED, which is what keeps this back-compatible.
+  billingKind        RequestBilling?
+  estimateHours      Decimal?        @db.Decimal(5, 2)
+  quotedPrice        Decimal?        @db.Decimal(10, 2)
+  /// When the quote went out. Set means "the ball is in the client's court".
+  quotedAt           DateTime?
+  clientDecision     ClientDecision?
+  clientDecisionAt   DateTime?
+  clientDecisionNote String?         @db.Text
+
+  /// The billing phase this became when the client approved it. Unique, so a
+  /// double-tap on the portal's approve button cannot bill twice.
+  phaseId String?       @unique
+  phase   ProjectPhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   contactId String?
@@ -461,6 +485,10 @@ model Request {
   @@index([sourceMessageId])
   @@index([contactId])
   @@index([projectId])
+  /// Backs the derived "ממתין לתשובת הלקוח" filter in RequestsService.getAll.
+  /// Declared here as well as in scripts/16_request_billing.sql, or the next
+  /// schema diff would drop the index the migration just created.
+  @@index([userId, quotedAt])
 }
 
 enum RequestType {
@@ -485,4 +513,19 @@ enum RequestSource {
   EMAIL
   FORM
   OTHER
+}
+
+/// Who pays for a request, decided once and shown to the client in their own
+/// words. INCLUDED and WARRANTY cost the client nothing and need no sign-off;
+/// BILLABLE and QUOTE_REQUIRED cannot become work until the client approves.
+enum RequestBilling {
+  INCLUDED
+  BILLABLE
+  WARRANTY
+  QUOTE_REQUIRED
+}
+
+enum ClientDecision {
+  APPROVED
+  DECLINED
 }

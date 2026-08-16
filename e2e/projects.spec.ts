@@ -3,6 +3,7 @@ import {
   expectToastSuccess,
   expectToastError,
   getTableRow,
+  getStatusPill,
 } from './fixtures'
 
 test.describe('Projects', () => {
@@ -273,7 +274,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify ACTIVE status
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'פעיל' }).first()).toBeVisible()
+    await expect(getStatusPill(page, 'פעיל').first()).toBeVisible()
 
     // Click "סמן כהושלם" (ACTIVE -> COMPLETED)
     await page.locator('button').filter({ hasText: 'סמן כהושלם' }).click()
@@ -281,7 +282,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify COMPLETED status
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'הושלם' }).first()).toBeVisible()
+    await expect(getStatusPill(page, 'הושלם').first()).toBeVisible()
 
     // Click "הפעל מחדש" (COMPLETED -> ACTIVE)
     await page.locator('button').filter({ hasText: 'הפעל מחדש' }).click()
@@ -289,7 +290,7 @@ test.describe('Projects', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify back to ACTIVE
-    await expect(page.locator('[data-slot="badge"]').filter({ hasText: 'פעיל' }).first()).toBeVisible()
+    await expect(getStatusPill(page, 'פעיל').first()).toBeVisible()
   })
 
   test('delete-success: creates and deletes a project with no tasks', async ({ page }) => {

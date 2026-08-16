@@ -22,6 +22,23 @@ export const requestStatus = z.enum([
 
 export const requestSource = z.enum(['WHATSAPP', 'MANUAL', 'EMAIL', 'FORM', 'OTHER'])
 
+/**
+ * Who pays for a request.
+ *
+ * The split that matters is not four ways but two: INCLUDED and WARRANTY cost
+ * the client nothing and need no answer from them, while BILLABLE and
+ * QUOTE_REQUIRED cannot become work until they have approved a price. That is
+ * the whole point of the field - "אפשר להוסיף עוד פילטר?" should not silently
+ * become three unpaid hours.
+ */
+export const requestBilling = z.enum(['INCLUDED', 'BILLABLE', 'WARRANTY', 'QUOTE_REQUIRED'])
+
+/** The two answers a client can give a quote. Silence is neither. */
+export const clientDecision = z.enum(['APPROVED', 'DECLINED'])
+
+/** The kinds that put the ball in the client's court and gate the work item. */
+export const BILLING_NEEDS_APPROVAL = ['BILLABLE', 'QUOTE_REQUIRED'] as const
+
 export const contactStatus = z.enum([
   'NEW',
   'CONTACTED',

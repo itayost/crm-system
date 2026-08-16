@@ -61,6 +61,63 @@ export function resolvedRequestClientNotice(contactName: string | null, title: s
   return `${greeting(contactName)}סיימתי לטפל בפנייה שלך בנושא *${title}* ✅\nאם יש עוד משהו, אני כאן.`
 }
 
+/**
+ * A quote is waiting. This message is what makes the portal work at all - a
+ * price nobody knows about is a price nobody answers, and the client has no
+ * reason to open the link unprompted.
+ *
+ * The link goes in because it is where the אישור button lives; the amount goes
+ * in because a client should be able to decide from the message alone.
+ */
+export function quoteSentClientNotice(params: {
+  contactName: string | null
+  title: string
+  price: number
+  estimateHours: number | null
+  portalUrl: string
+}): string {
+  const { contactName, title, price, estimateHours, portalUrl } = params
+  const effort = estimateHours ? `\nהיקף משוער: ${estimateHours} שעות` : ''
+
+  return (
+    `${greeting(contactName)}הכנתי הצעת מחיר לבקשה שלך בנושא *${title}*.` +
+    `\n\nעלות: *${price.toLocaleString('he-IL')} ₪*${effort}` +
+    `\n\nאפשר לאשר או לחזור אליי כאן:\n${portalUrl}` +
+    `\n\nלא מתחיל לעבוד על זה לפני שתאשר.`
+  )
+}
+
+/** Itay's own line. The client answered, and the answer decides what happens next. */
+export function clientDecisionOwnerNotice(params: {
+  clientName: string
+  title: string
+  decision: 'APPROVED' | 'DECLINED'
+  price: number | null
+  note: string | null
+  /**
+   * A live Task on work the client just refused to pay for. Reachable whenever
+   * the request was approved before it was classified, which is the default
+   * habit - the gate only bites when billingKind is set first. Nothing is
+   * cancelled automatically; this line exists so the decision stays Itay's and
+   * the task does not quietly stay on the list.
+   */
+  openTaskTitle?: string | null
+}): string {
+  const { clientName, title, decision, price, note, openTaskTitle } = params
+  const amount = price ? ` (${price.toLocaleString('he-IL')} ₪)` : ''
+  const reason = note ? `\nהערה: ${note}` : ''
+
+  if (decision === 'APPROVED') {
+    return `${clientName} אישר את ההצעה לבקשה *${title}*${amount}.\nנוצרו שלב חיוב ומשימה.${reason}`
+  }
+
+  const openTask = openTaskTitle
+    ? `\n\n⚠️ יש משימה פתוחה על העבודה הזו: *${openTaskTitle}*.\nהיא לא בוטלה - תחליט אם לבטל אותה או לשלוח הצעה מתוקנת.`
+    : ''
+
+  return `${clientName} לא אישר את ההצעה לבקשה *${title}*${amount}.${reason}${openTask}`
+}
+
 interface FiledRequestNoticeParams {
   clientName: string
   contactName: string

@@ -348,6 +348,63 @@ all added 2026-08-13 after six leads were written from outside in six minutes:
   10 minutes writes nothing and sends no WhatsApp (200). The window is measured
   from `updatedAt`, so a client resubmitting months later is still heard
 
+## Client portal
+
+`/r/[token]` is the client's own page: their requests with plain-Hebrew
+statuses, the submit form, and the approve button on a quote. The token is
+`Client.formToken`, so **the URL is the credential** -- rotating it from
+`/clients/[id]` revokes access instantly.
+
+- **Server components only.** Reads go straight to Prisma; there is no public
+  JSON GET API, so there is nothing to enumerate and no CORS surface. The one
+  write is a Server Action in `app/r/[token]/actions.ts`
+- **One scoping rule.** Every portal query is
+  `where: { id, client: { formToken: token } }`. A caller can pass any request
+  id and still only reach their own client's rows. Never look a request up by
+  id alone here
+- **`lib/services/client-view.ts` decides what a client sees** -- the visible
+  statuses (never DISMISSED), the field whitelist, and `clientStatusOf()`, which
+  derives התקבלה / ממתין לביצוע / ממתין לאישורך / בפיתוח / הושלם / לא אושר from
+  the internal status plus the quote fields. The support bot's `getMyRequests`
+  reads the same module, so the two surfaces cannot tell a client two different
+  stories
+- **Headers.** `next.config.ts` gives `/r/:path*` `noindex` and, importantly,
+  `Referrer-Policy: no-referrer` -- the token is in the path, so anything else
+  leaks it to every outbound request
+
+## Request billing
+
+A request carries `billingKind` (INCLUDED / BILLABLE / WARRANTY /
+QUOTE_REQUIRED), `estimateHours`, `quotedPrice`, `quotedAt` and the client's
+`clientDecision`. **`billingKind` is nullable and null means today's behaviour**,
+so the gate is opt-in per request and nothing written before it existed changed.
+
+- `RequestsService.sendQuote` refuses a chargeable request with no price or no
+  project. Requiring the project at quote time is what guarantees the billing
+  phase has somewhere to land later
+- `ensureTask` withholds the Task while a BILLABLE / QUOTE_REQUIRED request has
+  no client approval. Owner triage still runs: `approve()` moves
+  PENDING_REVIEW -> OPEN, only the work item waits
+- `recordClientDecision(token, ...)` is scoped by the token, not by `userId` --
+  the caller is the client. Approving materialises a `ProjectPhase`, claimed via
+  a unique `Request.phaseId`, so a double-tap cannot bill twice
+- **The phase is born NOT_STARTED with `approvedAt` null.** The client approved
+  the *quote*, not the *work*. `PhaseStatus.APPROVED` is what
+  `projectOutstanding()` reads for "invoices worth chasing", so stamping it here
+  would put unearned money in the dashboard and the morning brief. Quote
+  sign-off lives on `Request.clientDecisionAt`; work sign-off stays on the phase
+- **The gate only bites when `billingKind` is set before approval.** Approve
+  first and the Task already exists, which is the state of every request that
+  predates the feature. So a decline can land on live work. It is **flagged,
+  never cancelled**: the owner notice names the open Task and the request page
+  offers one-click "בטל משימה". Auto-cancelling would kill work possibly already
+  half done, and a decline is often the opening of a negotiation rather than the
+  end of one -- both are calls only Itay can make
+- `clientBotChat()` takes `allowPhoneFallback`, granted **only** for the
+  owner-initiated quote notice. The automatic progress notices keep the strict
+  bot-session rule, because an unsolicited update on a batch-extracted request
+  really would arrive out of nowhere
+
 ## Prompt caching
 
 Both agent loops send `providerOptions: { gateway: { caching: 'auto' } }`.
@@ -389,11 +446,11 @@ Run with: `npm run test:e2e`
 ## Codebase Metrics
 
 - ~74 TypeScript files
-- 11 database models, 15 enums
+- 11 database models, 17 enums
 - 4 service classes
 - 9 API route files (7 resource routes + 2 auth routes)
 - 6 dashboard pages (+ detail pages for contacts and projects)
-- 62 E2E tests across 8 spec files, plus 223 Vitest tests in 22 files
+- 62 E2E tests across 8 spec files, plus 364 Vitest tests in 30 files
 - 23 shadcn/ui components
 
 ## Legacy Context

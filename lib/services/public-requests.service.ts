@@ -27,10 +27,23 @@ export interface SubmitResult {
 }
 
 export class PublicRequestsService {
-  // Resolve the owning client from a public form token. Callers validate the
-  // result before doing any side effects (e.g. uploading an attachment).
+  /**
+   * Resolve the owning client from a public form token. Callers validate the
+   * result before doing any side effects (e.g. uploading an attachment).
+   *
+   * findUnique, not findFirst, and the empty guard above it - both deliberate.
+   * `formToken` is nullable, so `findFirst({ where: { formToken: null } })`
+   * happily returns the first client that has never been given a token at all,
+   * handing a caller somebody's portal for nothing. Today's callers pass a
+   * Zod-checked string so it was only latent, but a route reading
+   * `searchParams.get('token')` gets `null` for free. findUnique types the
+   * field as `string`, which turns that whole class of bug into a compile
+   * error, and the guard covers the empty string it cannot type away.
+   */
   static async resolveClientByToken(token: string): Promise<ResolvedClient | null> {
-    return prisma.client.findFirst({
+    if (!token?.trim()) return null
+
+    return prisma.client.findUnique({
       where: { formToken: token },
       select: { id: true, name: true, userId: true },
     })

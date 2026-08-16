@@ -18,8 +18,18 @@ export function getTableRow(page: Page, containsText: string) {
   return page.locator('tr').filter({ hasText: containsText })
 }
 
-export function getStatusBadge(page: Page, text: string) {
-  return page.locator('[data-slot="badge"]').filter({ hasText: text })
+/**
+ * A status chip, wherever it renders.
+ *
+ * `status-pill`, not `badge`. Every status in the product moved to StatusPill
+ * in 877dcba (2026-08-03); Badge survives only for non-status chips and emits a
+ * different data-slot. Six assertions across three specs kept looking for the
+ * old one and had been failing ever since, because they were written against
+ * the markup rather than through this helper. Route status assertions here so
+ * the next redesign is one edit, not six.
+ */
+export function getStatusPill(page: Page, text: string) {
+  return page.locator('[data-slot="status-pill"]').filter({ hasText: text })
 }
 
 // --- Formatting ---
