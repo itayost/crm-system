@@ -34,6 +34,54 @@ export const REQUEST_SOURCE_LABELS: Record<string, string> = {
   OTHER: 'אחר',
 }
 
+/**
+ * How a request is paid for, phrased for the client rather than the books.
+ *
+ * 'בתשלום' beside a price is the whole point of the field: the moment a client
+ * reads it, "אפשר להוסיף עוד פילטר?" stops being free by default.
+ */
+export const REQUEST_BILLING_LABELS: Record<string, string> = {
+  INCLUDED: 'כלול בתחזוקה',
+  BILLABLE: 'בתשלום',
+  WARRANTY: 'באחריות',
+  QUOTE_REQUIRED: 'דורש הצעת מחיר',
+}
+
+/**
+ * What the client sees, which is not what the enum says.
+ *
+ * A client should never read 'ממתין לאישור' and wonder whose approval, nor see
+ * 'נדחה' at all. These are derived by clientStatusOf() in lib/services/
+ * client-view.ts from the internal status plus the quote fields, and they are
+ * the only request words the portal and the support bot are allowed to use.
+ */
+export const CLIENT_REQUEST_STATUS_LABELS: Record<string, string> = {
+  RECEIVED: 'התקבלה',
+  SCHEDULED: 'ממתין לביצוע',
+  AWAITING_YOU: 'ממתין לאישורך',
+  IN_PROGRESS: 'בפיתוח',
+  DONE: 'הושלם',
+  DECLINED: 'לא אושר',
+}
+
+/**
+ * The same six states as sentences, for WhatsApp.
+ *
+ * A chip in a table and a line in a chat want different lengths - 'התקבלה' is
+ * right beside a row of other chips and curt on its own in a message. Two
+ * renderings, one vocabulary: both are keyed by the ClientStatus that
+ * clientStatusOf() derives, so the portal and the bot cannot describe the same
+ * ticket as two different things.
+ */
+export const CLIENT_REQUEST_STATUS_SENTENCES: Record<string, string> = {
+  RECEIVED: 'התקבלה וממתינה לבדיקה של איתי',
+  SCHEDULED: 'אושרה וממתינה לתורה',
+  AWAITING_YOU: 'נשלחה אליך הצעת מחיר וממתינה לאישורך',
+  IN_PROGRESS: 'בטיפול',
+  DONE: 'טופלה',
+  DECLINED: 'לא אושרה',
+}
+
 export const CONTACT_STATUS_LABELS: Record<string, string> = {
   NEW: 'חדש',
   CONTACTED: 'נוצר קשר',

@@ -149,6 +149,36 @@ export const REQUEST_SOURCE_TONES: Record<string, Tone> = {
   OTHER: 'neutral',
 }
 
+/**
+ * Who pays. Only BILLABLE is accent - it is the one that costs the client
+ * money, and it should be the word their eye lands on. WARRANTY reads as
+ * success because "we broke it, we fix it" is good news, not a warning.
+ */
+export const REQUEST_BILLING_TONES: Record<string, Tone> = {
+  INCLUDED: 'info',
+  BILLABLE: 'accent',
+  WARRANTY: 'success',
+  QUOTE_REQUIRED: 'caution',
+}
+
+/**
+ * The client's view of a request, which follows a different lifecycle from the
+ * internal one - see clientStatusOf() in lib/services/client-view.ts.
+ *
+ * AWAITING_YOU is `caution` for the same reason PHASE_STATUS_TONES makes
+ * PENDING_APPROVAL caution: the ball is in someone else's court and it is a
+ * thing to chase, not a thing that went wrong. IN_PROGRESS stays `progress` so
+ * "in progress" is one colour here too.
+ */
+export const CLIENT_REQUEST_STATUS_TONES: Record<string, Tone> = {
+  RECEIVED: 'info',
+  SCHEDULED: 'neutral',
+  AWAITING_YOU: 'caution',
+  IN_PROGRESS: 'progress',
+  DONE: 'success',
+  DECLINED: 'neutral',
+}
+
 /** Falls back to neutral so an unmapped value is plain rather than invisible. */
 export function toneOf(map: Record<string, Tone>, value: string | null | undefined): Tone {
   return map[value ?? ''] ?? 'neutral'

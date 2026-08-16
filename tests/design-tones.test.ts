@@ -10,11 +10,13 @@ import {
   type Emphasis,
   type Tone,
   AGENT_STATUS_TONES,
+  CLIENT_REQUEST_STATUS_TONES,
   CONTACT_STATUS_TONES,
   PHASE_STATUS_TONES,
   PRIORITY_EMPHASIS,
   PRIORITY_TONES,
   PROJECT_STATUS_TONES,
+  REQUEST_BILLING_TONES,
   REQUEST_SOURCE_TONES,
   REQUEST_STATUS_TONES,
   REQUEST_TYPE_TONES,
@@ -29,10 +31,12 @@ const TONES = Object.keys(toneClass) as Tone[]
 
 const ALL_MAPS: Record<string, Record<string, Tone>> = {
   AGENT_STATUS_TONES,
+  CLIENT_REQUEST_STATUS_TONES,
   CONTACT_STATUS_TONES,
   PHASE_STATUS_TONES,
   PRIORITY_TONES,
   PROJECT_STATUS_TONES,
+  REQUEST_BILLING_TONES,
   REQUEST_SOURCE_TONES,
   REQUEST_STATUS_TONES,
   REQUEST_TYPE_TONES,
@@ -127,6 +131,16 @@ describe('the status maps', () => {
     expect(TASK_STATUS_TONES.IN_PROGRESS).toBe('progress')
     expect(REQUEST_STATUS_TONES.IN_PROGRESS).toBe('progress')
     expect(PHASE_STATUS_TONES.IN_PROGRESS).toBe('progress')
+    // The client's word for it is 'בפיתוח', but it is the same state and must
+    // not be a different colour on the portal than it is in the dashboard.
+    expect(CLIENT_REQUEST_STATUS_TONES.IN_PROGRESS).toBe('progress')
+  })
+
+  it('gives a waiting-on-someone-else state the same caution across maps', () => {
+    // A quote the client has not answered and a phase awaiting their sign-off
+    // are the same kind of thing: chase it, nothing is wrong.
+    expect(PHASE_STATUS_TONES.PENDING_APPROVAL).toBe('caution')
+    expect(CLIENT_REQUEST_STATUS_TONES.AWAITING_YOU).toBe('caution')
   })
 })
 

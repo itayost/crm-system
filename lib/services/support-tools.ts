@@ -6,6 +6,12 @@ import { fileDraftAsRequest } from './support-filing'
 import { priority, requestType } from '@/lib/validations/request'
 import { intakeFrequency, mergeIntake, EMPTY_INTAKE, type Intake } from '@/lib/validations/intake'
 import { ClientProfileService } from './client-profile.service'
+import {
+  CLIENT_VISIBLE_STATUSES,
+  clientRequestSelect,
+  toClientRequest,
+} from './client-view'
+import { CLIENT_REQUEST_STATUS_SENTENCES } from '@/lib/design/labels'
 
 /**
  * Tools for the client-facing support agent.
@@ -55,16 +61,6 @@ const MAX_CONFIRMATION_ROUNDS = 3
 
 /** Below this, two summaries are about different things and one of them is unseen. */
 const SAME_SUMMARY_SIMILARITY = 0.6
-
-const CLIENT_VISIBLE_STATUSES = ['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] as const
-
-/** What the client is told about each status. Dismissals stay invisible to them. */
-const CLIENT_STATUS_LABELS: Record<string, string> = {
-  PENDING_REVIEW: 'התקבלה וממתינה לבדיקה של איתי',
-  OPEN: 'נפתחה ומחכה לטיפול',
-  IN_PROGRESS: 'בטיפול',
-  RESOLVED: 'טופלה',
-}
 
 const NO_CONFIRMATION_YET =
   'הלקוח עדיין לא אישר את הסיכום. אל תגיד ללקוח שנפתחה פנייה - היא לא נפתחה. הצג לו את הסיכום, חכה לתשובה שלו, ורק בהודעה הבאה פתח את הפנייה.'
@@ -141,7 +137,7 @@ export function createSupportTools(context: SupportToolContext) {
 
     getMyRequests: tool({
       description:
-        "Answer 'what is happening with my request?' questions. Returns the writing client's own tickets in plain language. Never mention internal ids or statuses verbatim.",
+        "Answer 'what is happening with my request?' questions. Returns the writing client's own tickets in plain language. Never mention internal ids or statuses verbatim. A ticket marked awaitingDecision is waiting on the client to approve a price - say so and give the amount.",
       inputSchema: z.object({}),
       execute: async () => {
         const requests = await prisma.request.findMany({
@@ -150,22 +146,26 @@ export function createSupportTools(context: SupportToolContext) {
             userId: context.userId,
             status: { in: [...CLIENT_VISIBLE_STATUSES] },
           },
-          select: {
-            title: true,
-            status: true,
-            createdAt: true,
-            project: { select: { name: true } },
-          },
+          select: clientRequestSelect,
           orderBy: { createdAt: 'desc' },
           take: 10,
         })
 
+        // Same derivation the portal renders, so a client who asks here and
+        // then opens their link is told one story rather than two.
+        const views = requests
+          .map(toClientRequest)
+          .filter((view): view is NonNullable<typeof view> => view !== null)
+
         return {
-          requests: requests.map((request) => ({
-            title: request.title,
-            state: CLIENT_STATUS_LABELS[request.status] ?? request.status,
-            project: request.project?.name ?? null,
-            openedAt: request.createdAt.toISOString(),
+          requests: views.map((view) => ({
+            title: view.title,
+            state:
+              CLIENT_REQUEST_STATUS_SENTENCES[view.clientStatus] ?? view.clientStatus,
+            project: view.projectName,
+            openedAt: view.openedAt,
+            awaitingDecision: view.awaitingDecision,
+            quotedPrice: view.quotedPrice,
           })),
         }
       },
