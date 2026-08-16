@@ -73,6 +73,22 @@ export const CLIENT_REQUEST_STATUS_LABELS: Record<string, string> = {
  * clientStatusOf() derives, so the portal and the bot cannot describe the same
  * ticket as two different things.
  */
+/**
+ * A billing phase in the client's words.
+ *
+ * Not the PhaseStatus enum: 'אושר' there means Itay signed off delivered work,
+ * and a phase born from an approved quote sits at NOT_STARTED. Showing the raw
+ * enum would tell a client their work is finished because they agreed to pay
+ * for it.
+ */
+export const CLIENT_PHASE_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: 'ממתין לביצוע',
+  IN_PROGRESS: 'בעבודה',
+  AWAITING_YOU: 'ממתין לאישורך',
+  DONE: 'הושלם',
+  PAID: 'שולם',
+}
+
 export const CLIENT_REQUEST_STATUS_SENTENCES: Record<string, string> = {
   RECEIVED: 'התקבלה וממתינה לבדיקה של איתי',
   SCHEDULED: 'אושרה וממתינה לתורה',

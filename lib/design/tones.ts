@@ -179,6 +179,18 @@ export const CLIENT_REQUEST_STATUS_TONES: Record<string, Tone> = {
   DECLINED: 'neutral',
 }
 
+/**
+ * The client's view of a billing phase. AWAITING_YOU is caution for the same
+ * reason it is on a request: the ball is in their court.
+ */
+export const CLIENT_PHASE_STATUS_TONES: Record<string, Tone> = {
+  SCHEDULED: 'neutral',
+  IN_PROGRESS: 'progress',
+  AWAITING_YOU: 'caution',
+  DONE: 'success',
+  PAID: 'success',
+}
+
 /** Falls back to neutral so an unmapped value is plain rather than invisible. */
 export function toneOf(map: Record<string, Tone>, value: string | null | undefined): Tone {
   return map[value ?? ''] ?? 'neutral'
