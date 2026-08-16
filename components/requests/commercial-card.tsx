@@ -16,7 +16,13 @@ import type { RequestBilling, RequestRecord } from '@/lib/types/request'
 const KINDS: RequestBilling[] = ['INCLUDED', 'BILLABLE', 'WARRANTY', 'QUOTE_REQUIRED']
 
 /** The two that cannot become work until the client has agreed to a price. */
-const CHARGEABLE: RequestBilling[] = ['BILLABLE', 'QUOTE_REQUIRED']
+/**
+ * Both of these gate the work item until the client agrees. Only BILLABLE
+ * carries a number, though - QUOTE_REQUIRED is "chargeable, not priced yet",
+ * which is exactly the state a big unscoped job sits in before you have
+ * scoped it.
+ */
+const GATED: RequestBilling[] = ['BILLABLE', 'QUOTE_REQUIRED']
 
 /**
  * How this request gets paid for, and the quote the client answered.
@@ -44,7 +50,8 @@ export function CommercialCard({
   // "יקר מדי" is exactly the moment to re-quote, and sendQuote supports it, so
   // the form has to stay on screen for it.
   const locked = request.clientDecision === 'APPROVED'
-  const chargeable = CHARGEABLE.includes(kind as RequestBilling)
+  const gated = GATED.includes(kind as RequestBilling)
+  const priced = kind === 'BILLABLE'
 
   const send = async () => {
     if (!kind) return
@@ -61,9 +68,9 @@ export function CommercialCard({
       // saying "נשלח" would be a lie. Tell Itay to send the link himself.
       // The route replies with the request itself - createResponse does not
       // wrap anything in a `data` envelope, so there is no second hop here.
-      if (chargeable && data?.notified === false) setUnreachable(true)
+      if (priced && data?.notified === false) setUnreachable(true)
 
-      toast.success(chargeable ? 'ההצעה נשמרה' : 'הסיווג נשמר')
+      toast.success(priced ? 'ההצעה נשלחה' : 'הסיווג נשמר')
       onChanged()
     } catch (error) {
       const message =
@@ -114,7 +121,7 @@ export function CommercialCard({
               </div>
             </div>
 
-            {chargeable && (
+            {priced && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm text-content-muted" htmlFor="quoted-price">
@@ -143,14 +150,23 @@ export function CommercialCard({
               </div>
             )}
 
-            {chargeable && !request.projectId && (
+            {priced && !request.projectId && (
               <p className="text-sm text-tone-caution-foreground">
                 יש לשייך את הפניה לפרויקט לפני שליחת הצעת מחיר. שלב החיוב נוצר על הפרויקט.
               </p>
             )}
 
+            {/* The state a big unscoped job sits in: it already blocks work,
+                but there is nothing to send yet. Saying so is what stops it
+                looking like a quote that failed to go out. */}
+            {gated && !priced && (
+              <p className="text-sm text-content-muted">
+                לא ייווצרו משימות עד שתישלח הצעת מחיר ותאושר. אחרי שתתמחר, שנו ל&quot;בתשלום&quot;.
+              </p>
+            )}
+
             <Button type="button" onClick={send} disabled={!kind || saving}>
-              {saving ? 'שומר...' : chargeable ? 'שלח הצעת מחיר ללקוח' : 'שמור סיווג'}
+              {saving ? 'שומר...' : priced ? 'שלח הצעת מחיר ללקוח' : 'שמור סיווג'}
             </Button>
 
             {unreachable && (
