@@ -31,8 +31,16 @@ interface RequestFilters {
   excludePending?: boolean
   /** Quoted and not yet answered. Derived, not a status - see getAll. */
   awaitingClient?: boolean
+  /**
+   * One of the decision queues on the dashboard, so a counter and the list it
+   * links to can never disagree about what they are counting.
+   */
+  queue?: 'needsPricing' | 'unclassified' | 'awaitingClient' | 'withoutTask'
   search?: string
 }
+
+/** Live in the sense that matters: still someone's problem. Mirrors LIVE in request-metrics. */
+const LIVE_STATUSES = ['PENDING_REVIEW', 'OPEN', 'IN_PROGRESS'] as const
 
 const REQUEST_INCLUDE = {
   client: { select: { id: true, name: true } },
@@ -370,6 +378,26 @@ export class RequestsService {
       // be answered - leaving it in the chase list would be chasing nothing.
       // Expressed as NOT so it cannot clobber the status filter set above.
       where.NOT = { status: 'DISMISSED' }
+    }
+
+    // The dashboard's decision queues. Each predicate is the same one the
+    // counter uses, so a tile that says 6 always opens a list of 6.
+    if (filters?.queue) {
+      if (filters.queue === 'needsPricing') {
+        where.status = { in: [...LIVE_STATUSES] }
+        where.billingKind = { in: ['BILLABLE', 'QUOTE_REQUIRED'] }
+        where.quotedAt = null
+      } else if (filters.queue === 'unclassified') {
+        where.status = { in: [...LIVE_STATUSES] }
+        where.billingKind = null
+      } else if (filters.queue === 'awaitingClient') {
+        where.quotedAt = { not: null }
+        where.clientDecisionAt = null
+        where.NOT = { status: 'DISMISSED' }
+      } else if (filters.queue === 'withoutTask') {
+        where.status = { in: [...LIVE_STATUSES] }
+        where.taskId = null
+      }
     }
 
     if (filters?.search) {
