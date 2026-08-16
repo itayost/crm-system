@@ -366,10 +366,21 @@ describe('support agent', () => {
   it('answers status questions only from the writing client own requests', async () => {
     prismaMock.request.findMany.mockResolvedValue([
       {
+        id: 'req-1',
         title: 'תיקון כפתור',
+        description: null,
+        type: 'BUG',
         status: 'PENDING_REVIEW',
         createdAt: new Date('2026-07-01'),
-        project: { name: 'האתר' },
+        resolvedAt: null,
+        attachments: [],
+        billingKind: null,
+        estimateHours: null,
+        quotedPrice: null,
+        quotedAt: null,
+        clientDecision: null,
+        clientDecisionAt: null,
+        project: { id: 'proj-1', name: 'האתר' },
       },
     ])
 
@@ -387,6 +398,46 @@ describe('support agent', () => {
       })
     )
     expect(toolResult?.requests[0].state).toBe('התקבלה וממתינה לבדיקה של איתי')
+  })
+
+  it('tells the client a quote is waiting on them, with the amount', async () => {
+    // The whole reason the bot and the portal share clientStatusOf: a client
+    // who asks here must hear the same thing their link shows them.
+    prismaMock.request.findMany.mockResolvedValue([
+      {
+        id: 'req-2',
+        title: 'לוגו שגוי בחשבונית',
+        description: null,
+        type: 'REQUEST',
+        status: 'OPEN',
+        createdAt: new Date('2026-08-01'),
+        resolvedAt: null,
+        attachments: [],
+        billingKind: 'BILLABLE',
+        estimateHours: 3,
+        quotedPrice: 1200,
+        quotedAt: new Date('2026-08-10'),
+        clientDecision: null,
+        clientDecisionAt: null,
+        project: { id: 'proj-1', name: 'האתר' },
+      },
+    ])
+
+    let toolResult:
+      | { requests: Array<{ state: string; awaitingDecision: boolean; quotedPrice: number | null }> }
+      | undefined
+    driver = async ({ tools }) => {
+      toolResult = (await tools.getMyRequests.execute({})) as typeof toolResult
+      return { text: 'יש הצעת מחיר שממתינה לך' }
+    }
+
+    await SupportAgentService.handleMessage(input)
+
+    expect(toolResult?.requests[0]).toMatchObject({
+      state: 'נשלחה אליך הצעת מחיר וממתינה לאישורך',
+      awaitingDecision: true,
+      quotedPrice: 1200,
+    })
   })
 
   it('hides dismissed requests from the client', async () => {

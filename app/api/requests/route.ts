@@ -13,6 +13,7 @@ export const GET = withAuth(async (req: NextRequest, { userId }) => {
     projectId: searchParams.get('projectId') || undefined,
     pendingReview: searchParams.get('pendingReview') === 'true' || undefined,
     excludePending: searchParams.get('excludePending') === 'true' || undefined,
+    awaitingClient: searchParams.get('awaitingClient') === 'true' || undefined,
     search: searchParams.get('search') || undefined,
   })
 

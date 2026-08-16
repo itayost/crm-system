@@ -68,6 +68,32 @@ describe('projectOutstanding', () => {
   })
 })
 
+describe('a phase materialised from an approved client quote', () => {
+  /**
+   * What RequestsService.ensurePhase writes when a client approves a quote in
+   * the portal: the price they agreed to, NOT_STARTED, and no approvedAt.
+   */
+  const FROM_QUOTE = { price: 1200, status: 'NOT_STARTED', paidAt: null }
+
+  it('counts towards what the client has agreed to pay', () => {
+    expect(projectTotal(0, [FROM_QUOTE])).toBe(1200)
+  })
+
+  it('is not owed yet - the client approved the quote, not the work', () => {
+    // This is the assertion that keeps unearned money out of the dashboard's
+    // "chase this" tile and out of the morning brief. Sold is not delivered.
+    expect(projectOutstanding([FROM_QUOTE])).toBe(0)
+  })
+
+  it('becomes owed once the delivered work is signed off', () => {
+    expect(projectOutstanding([{ ...FROM_QUOTE, status: 'APPROVED' }])).toBe(1200)
+  })
+
+  it('is never counted as paid before it is paid', () => {
+    expect(projectPaid(0, null, [FROM_QUOTE])).toBe(0)
+  })
+})
+
 describe('the seeded projects keep their old totals', () => {
   // The e2e specs pin 5,000 and 15,000. They used to be Project.price and are
   // now computed, so this is the guard that the migration preserved meaning.
