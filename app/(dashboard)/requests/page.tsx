@@ -342,10 +342,12 @@ export default function RequestsPage() {
               {requests.map((request) => (
                 <TableRow
                   key={request.id}
+                  data-testid="row"
+                  data-row-id={request.id}
                   className="cursor-pointer"
                   onClick={() => router.push(`/requests/${request.id}`)}
                 >
-                  <TableCell className="font-medium">
+                  <TableCell data-col="title" className="font-medium">
                     <div className="flex items-center gap-2">
                       <span>{request.title}</span>
                       <AiMark isAiGenerated={request.isAiGenerated} />
@@ -357,13 +359,13 @@ export default function RequestsPage() {
                     </div>
                   </TableCell>
                   {/* The one pill in the row, and so the one the eye lands on. */}
-                  <TableCell>
+                  <TableCell data-col="status">
                     <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
                       {label(REQUEST_STATUS_LABELS, request.status)}
                     </StatusPill>
                   </TableCell>
                   {/* Silent unless it is not. */}
-                  <TableCell>
+                  <TableCell data-col="priority">
                     <StatusPill
                       tone={toneOf(PRIORITY_TONES, request.priority)}
                       emphasis={emphasisOf(PRIORITY_EMPHASIS, request.priority)}
@@ -373,7 +375,7 @@ export default function RequestsPage() {
                   </TableCell>
                   {/* Unclassified is the loud case here: it means the billing
                       gate never engaged and the work is running unpriced. */}
-                  <TableCell>
+                  <TableCell data-col="billing">
                     {request.billingKind ? (
                       <StatusPill
                         tone={toneOf(REQUEST_BILLING_TONES, request.billingKind)}
@@ -388,18 +390,18 @@ export default function RequestsPage() {
                       </StatusPill>
                     )}
                   </TableCell>
-                  <TableCell className="tabular-nums">
+                  <TableCell data-col="price" className="tabular-nums">
                     {request.quotedPrice ? (
                       <bdi>{formatCurrency(request.quotedPrice)}</bdi>
                     ) : (
                       <span className="text-content-faint">-</span>
                     )}
                   </TableCell>
-                  <TableCell>{request.client?.name ?? '-'}</TableCell>
-                  <TableCell className="tabular-nums">
+                  <TableCell data-col="client">{request.client?.name ?? '-'}</TableCell>
+                  <TableCell data-col="age" className="tabular-nums">
                     <RequestAge createdAt={request.createdAt} status={request.status} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="task">
                     {request.task ? (
                       <StatusPill tone={toneOf(TASK_STATUS_TONES, request.task.status)} emphasis="quiet" dot>
                         {label(TASK_STATUS_LABELS, request.task.status)}

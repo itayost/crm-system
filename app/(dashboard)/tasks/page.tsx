@@ -344,13 +344,15 @@ export default function TasksPage() {
               {tasks.map((task) => (
                 <TableRow
                   key={task.id}
+                  data-testid="row"
+                  data-row-id={task.id}
                   className="cursor-pointer"
                   onClick={() => {
                     setEditingTask(task)
                     setShowForm(true)
                   }}
                 >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell data-col="done" onClick={(e) => e.stopPropagation()}>
                     <button
                       className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                         task.status === 'COMPLETED'
@@ -370,7 +372,7 @@ export default function TasksPage() {
                       )}
                     </button>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="title">
                     <div
                       className={`font-medium ${
                         task.status === 'COMPLETED'
@@ -398,12 +400,12 @@ export default function TasksPage() {
                       </Link>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="status">
                     <StatusPill tone={toneOf(TASK_STATUS_TONES, task.status)} dot>
                       {label(TASK_STATUS_LABELS, task.status)}
                     </StatusPill>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="priority">
                     <StatusPill
                       tone={toneOf(PRIORITY_TONES, task.priority)}
                       emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
@@ -411,7 +413,7 @@ export default function TasksPage() {
                       {label(PRIORITY_LABELS, task.priority)}
                     </StatusPill>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="due">
                     <span
                       className={
                         isOverdue(task.dueDate, task.status)
@@ -422,14 +424,14 @@ export default function TasksPage() {
                       {formatDate(task.dueDate)}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="category">
                     {task.category && (
                       <StatusPill tone={toneOf(TASK_CATEGORY_TONES, task.category)} emphasis="quiet" dot>
                         {label(TASK_CATEGORY_LABELS, task.category)}
                       </StatusPill>
                     )}
                   </TableCell>
-                  <TableCell className="text-content-subtle">
+                  <TableCell data-col="project" className="text-content-subtle">
                     {task.project?.name ?? '-'}
                   </TableCell>
                 </TableRow>

@@ -64,9 +64,15 @@ export function Header() {
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-40">
       <div className="flex items-center justify-between px-6 py-4">
-        {/* Greeting and Date */}
+        {/* Greeting and Date.
+         *
+         * `data-volatile` is the screenshot mask target. The greeting changes by
+         * hour and the clock ticks every minute, so a baseline that includes
+         * this block fails on its own once a minute - which reads as flakiness
+         * and trains everyone to accept new snapshots blind. Masking the element
+         * rather than the whole <header> survives the shell rewrite. */}
         <div className="flex items-center gap-6">
-          <div>
+          <div data-volatile>
             <h2 className="text-xl font-semibold text-content-strong">
               {getGreeting()}, {getUserDisplayName()}!
             </h2>
@@ -88,7 +94,11 @@ export function Header() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2"
+                aria-label="תפריט משתמש"
+              >
                 <div className="w-8 h-8 bg-surface-muted rounded-full flex items-center justify-center">
                   <span className="text-sm font-medium">{getUserInitials()}</span>
                 </div>

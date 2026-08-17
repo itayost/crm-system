@@ -108,13 +108,15 @@ export default function ClientsPage() {
               {clients.map((client) => (
                 <TableRow
                   key={client.id}
+                  data-testid="row"
+                  data-row-id={client.id}
                   className="cursor-pointer"
                   onClick={() => router.push(`/clients/${client.id}`)}
                 >
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>{client._count.contacts}</TableCell>
-                  <TableCell>{client._count.projects}</TableCell>
-                  <TableCell>
+                  <TableCell data-col="name" className="font-medium">{client.name}</TableCell>
+                  <TableCell data-col="contacts">{client._count.contacts}</TableCell>
+                  <TableCell data-col="projects">{client._count.projects}</TableCell>
+                  <TableCell data-col="vip">
                     {client.isVip && (
                       <Star role="img" aria-label="VIP" className="w-4 h-4 text-marker-vip fill-marker-vip" />
                     )}

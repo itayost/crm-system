@@ -170,22 +170,24 @@ function ProjectsPageContent() {
               {projects.map((project) => (
                 <TableRow
                   key={project.id}
+                  data-testid="row"
+                  data-row-id={project.id}
                   className="cursor-pointer"
                   onClick={() => router.push(`/projects/${project.id}`)}
                 >
-                  <TableCell className="font-medium">
+                  <TableCell data-col="name" className="font-medium">
                     {project.name}
                   </TableCell>
-                  <TableCell>{project.client?.name ?? '-'}</TableCell>
-                  <TableCell>
+                  <TableCell data-col="client">{project.client?.name ?? '-'}</TableCell>
+                  <TableCell data-col="type">
                     {label(PROJECT_TYPE_LABELS, project.type)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="status">
                     <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
                       {label(PROJECT_STATUS_LABELS, project.status)}
                     </StatusPill>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-col="priority">
                     <StatusPill
                       tone={toneOf(PRIORITY_TONES, project.priority)}
                       emphasis={emphasisOf(PRIORITY_EMPHASIS, project.priority)}
@@ -193,8 +195,8 @@ function ProjectsPageContent() {
                       {label(PRIORITY_LABELS, project.priority)}
                     </StatusPill>
                   </TableCell>
-                  <TableCell>{formatDate(project.deadline)}</TableCell>
-                  <TableCell>
+                  <TableCell data-col="deadline">{formatDate(project.deadline)}</TableCell>
+                  <TableCell data-col="total">
                     {formatCurrency(projectTotal(project.advanceAmount, project.phases))}
                   </TableCell>
                 </TableRow>

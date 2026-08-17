@@ -155,8 +155,12 @@ export default function DashboardPage() {
     )
   }
 
+  // `key` is the test handle. Reaching a tile by its Hebrew title and then
+  // hopping to a parent by DOM depth breaks on any wrapper change; `data-kpi`
+  // survives the rebuild and does not render.
   const kpiCards = [
     {
+      key: 'revenue',
       title: 'הכנסות',
       value: formatCurrency(data.revenue),
       // Revenue is money received; when something is signed off but unpaid,
@@ -170,6 +174,7 @@ export default function DashboardPage() {
       href: undefined as string | undefined,
     },
     {
+      key: 'active-projects',
       title: 'פרויקטים פעילים',
       value: String(data.projects.active),
       description: `${data.projects.completed} הושלמו`,
@@ -178,6 +183,7 @@ export default function DashboardPage() {
       href: '/projects',
     },
     {
+      key: 'leads',
       title: 'לידים בצנרת',
       value: String(data.contacts.leads),
       description: `${data.contacts.clients} לקוחות`,
@@ -186,6 +192,7 @@ export default function DashboardPage() {
       href: '/contacts',
     },
     {
+      key: 'pending-tasks',
       title: 'משימות ממתינות',
       value: String(data.tasks.pending),
       description: data.tasks.overdue > 0
@@ -198,6 +205,7 @@ export default function DashboardPage() {
       href: '/tasks',
     },
     {
+      key: 'open-requests',
       title: 'פניות לקוחות',
       value: String(data.requests.open),
       description: data.requests.pendingReview > 0
@@ -244,7 +252,8 @@ export default function DashboardPage() {
           const Icon = kpi.icon
           return (
             <Card
-              key={kpi.title}
+              key={kpi.key}
+              data-kpi={kpi.key}
               className={
                 kpi.href
                   ? 'cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-ring'
@@ -300,7 +309,7 @@ export default function DashboardPage() {
       {/* Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Tasks */}
-        <Card>
+        <Card data-section="pending-tasks">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">המשימות הקרובות</CardTitle>
             <Button
@@ -377,7 +386,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Active Projects */}
-        <Card>
+        <Card data-section="active-projects">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">הפרויקטים בעבודה</CardTitle>
             <Button

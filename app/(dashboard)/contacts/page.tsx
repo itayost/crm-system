@@ -136,10 +136,12 @@ export default function ContactsPage() {
                   {contacts.map((contact) => (
                     <TableRow
                       key={contact.id}
+                      data-testid="row"
+                      data-row-id={contact.id}
                       className="cursor-pointer"
                       onClick={() => router.push(`/contacts/${contact.id}`)}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell data-col="name" className="font-medium">
                         {contact.name}
                         {contact.company && (
                           <span className="text-xs text-content-subtle mr-2">
@@ -147,16 +149,16 @@ export default function ContactsPage() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell dir="ltr" className="text-right">
+                      <TableCell data-col="phone" dir="ltr" className="text-right">
                         {contact.phone}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-col="status">
                         <StatusPill tone={toneOf(CONTACT_STATUS_TONES, contact.status)} dot>
                           {label(CONTACT_STATUS_LABELS, contact.status)}
                         </StatusPill>
                       </TableCell>
                       {isLeadsTab && (
-                        <TableCell>
+                        <TableCell data-col="next-action">
                           {contact.nextActionAt ? (
                             <div className="flex items-center gap-2">
                               <StatusPill
@@ -177,10 +179,10 @@ export default function ContactsPage() {
                           )}
                         </TableCell>
                       )}
-                      <TableCell>
+                      <TableCell data-col="source">
                         {label(CONTACT_SOURCE_LABELS, contact.source)}
                       </TableCell>
-                      <TableCell>{formatDate(contact.createdAt)}</TableCell>
+                      <TableCell data-col="created">{formatDate(contact.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

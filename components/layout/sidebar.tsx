@@ -77,7 +77,7 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4">
+      <nav className="flex-1 overflow-y-auto py-4" aria-label="ניווט ראשי">
         <div className="px-3 mb-2">
           <p className="text-xs font-semibold text-content-faint uppercase tracking-wider">
             ראשי
@@ -92,6 +92,10 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              // The active link is expressed semantically, not only as a colour
+              // class. A test that asserts on `text-link` breaks the moment the
+              // active treatment changes; aria-current survives any restyle.
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-150',
                 'hover:bg-surface-subtle',

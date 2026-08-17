@@ -43,6 +43,11 @@ export function PendingReviewCard({
           {pending.map((request) => (
             <div
               key={request.id}
+              // The e2e suite reached this row by its three Tailwind classes
+              // (`div.rounded-lg.border.bg-white`), so restyling it broke the
+              // test. The handle is explicit now and does not render.
+              data-testid="pending-review-item"
+              data-request-id={request.id}
               className="flex items-start justify-between gap-4 p-3 rounded-lg border bg-white"
             >
               <div className="flex-1">
