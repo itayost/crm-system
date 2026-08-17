@@ -86,10 +86,16 @@ export const NAV_FOOTER: NavItem[] = []
 
 export const ALL_NAV = [...NAV_PRIMARY, ...NAV_REGISTRY, ...NAV_FOOTER]
 
-/** Compact money for a badge: ₪18.4k rather than ₪18,400. */
+/**
+ * Compact money for a badge: `18.4k ₪` rather than `18,400 ₪`.
+ *
+ * Sign after the number, because that is how `formatCurrency` renders money
+ * everywhere else in the product and a badge is not the place to invent a
+ * second convention.
+ */
 export function shortMoney(value: number): string {
-  if (value >= 1000) return `₪${(value / 1000).toFixed(1).replace(/\.0$/, '')}k`
-  return `₪${value}`
+  if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k ₪`
+  return `${value} ₪`
 }
 
 export function isActiveHref(pathname: string, href: string): boolean {

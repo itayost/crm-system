@@ -1,64 +1,58 @@
 import { test, expect } from '@playwright/test'
-import { kpi, section } from './fixtures'
+import { section } from './fixtures'
 
-test.describe('Dashboard', () => {
+/**
+ * היום, not דשבורד.
+ *
+ * The old page was five identical KPI tiles plus three quick-action buttons.
+ * These assertions follow the question the page now answers - "what is owed,
+ * and in what order" - rather than the old furniture. Blocks 1-6 render only
+ * when they have something in them, so what is asserted here is the two that
+ * always exist: the day line and the state strip.
+ */
+test.describe('Today', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
   })
 
-  test('kpi-cards: renders the KPI tiles with data', async ({ page }) => {
-    // Addressed by key rather than by Hebrew copy, so renaming a tile's label
-    // is a copy change and not a test failure.
-    for (const key of ['revenue', 'active-projects', 'leads', 'pending-tasks']) {
-      await expect(kpi(page, key)).toBeVisible()
+  test('day-line: names the day and says whether anything is owed', async ({ page }) => {
+    const dayLine = section(page, 'day-line')
+    await expect(dayLine).toBeVisible()
+    // Either a count of what needs you, or an explicit all-clear. Never blank.
+    await expect(dayLine).toContainText(/דורשים אותך|באיחור|היום נקי/)
+  })
+
+  test('state-strip: four figures, each a real link', async ({ page }) => {
+    const strip = section(page, 'state')
+    await expect(strip).toBeVisible()
+
+    for (const [name, href] of [
+      ['פרויקטים פעילים', '/projects'],
+      ['פניות פתוחות', '/requests'],
+      ['לידים בצנרת', '/leads'],
+      ['הכנסות', '/money'],
+    ]) {
+      await expect(strip.locator('a', { hasText: name })).toHaveAttribute('href', href)
     }
   })
 
-  test('revenue-format: displays amount with shekel symbol', async ({ page }) => {
-    // Previously `locator('text=הכנסות').locator('..')` - "whatever element
-    // happens to wrap the word revenue". One extra wrapper div moved the
-    // assertion off the value it meant to check.
-    await expect(kpi(page, 'revenue')).toContainText('₪')
+  test('revenue-format: the money figure carries a shekel sign', async ({ page }) => {
+    await expect(section(page, 'state').locator('a', { hasText: 'הכנסות' })).toContainText('₪')
   })
-
 
   test('active-projects: shows seeded projects', async ({ page }) => {
-    // Previously a double parent-hop from the heading text.
-    const activeProjects = section(page, 'active-projects')
+    const projects = section(page, 'active-projects')
+    await expect(projects).toBeVisible()
 
-    // "פרויקט אפליקציה" is IN_PROGRESS so it should appear in active projects
-    const projectNames = ['פרויקט אתר', 'פרויקט אפליקציה']
-    let foundCount = 0
-    for (const name of projectNames) {
-      const count = await activeProjects.locator(`text=${name}`).count()
-      foundCount += count
-    }
-    expect(foundCount).toBeGreaterThan(0)
+    const names = ['פרויקט אתר', 'פרויקט אפליקציה']
+    let found = 0
+    for (const name of names) found += await projects.locator(`text=${name}`).count()
+    expect(found).toBeGreaterThan(0)
   })
 
-  test('quick-actions: buttons navigate to correct pages', async ({ page }) => {
-    // Click "ליד חדש" -> navigates to /leads
-    const newLeadBtn = page.locator('button').filter({ hasText: 'ליד חדש' })
-    await newLeadBtn.click()
+  test('navigation: the state strip goes where it says', async ({ page }) => {
+    await section(page, 'state').locator('a', { hasText: 'לידים בצנרת' }).click()
     await expect(page).toHaveURL(/\/leads/)
-
-    // Go back to dashboard
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Click "פרויקט חדש" button -> navigates to /projects
-    const newProjectBtn = page.locator('button').filter({ hasText: 'פרויקט חדש' }).first()
-    await newProjectBtn.click()
-    await expect(page).toHaveURL(/\/projects/)
-
-    // Go back to dashboard
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Click "משימה חדשה" button -> navigates to /tasks
-    const newTaskBtn = page.locator('button').filter({ hasText: 'משימה חדשה' })
-    await newTaskBtn.click()
-    await expect(page).toHaveURL(/\/tasks/)
   })
 })

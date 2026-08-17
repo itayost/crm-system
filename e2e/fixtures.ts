@@ -110,18 +110,6 @@ export function userMenuTrigger(page: Page): Locator {
   return page.getByRole('button', { name: 'תפריט משתמש' })
 }
 
-// --- Requests ---
-
-/**
- * A row in the AI review queue.
- *
- * Previously `div.rounded-lg.border.bg-white` - a conjunction of three Tailwind
- * classes that every list-page table wrapper also carries.
- */
-export function pendingReviewItem(page: Page, title: string): Locator {
-  return page.locator('[data-testid="pending-review-item"]').filter({ hasText: title })
-}
-
 // --- Formatting ---
 
 export function formatILS(amount: number): string {

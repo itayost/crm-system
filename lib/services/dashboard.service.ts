@@ -70,6 +70,13 @@ export class DashboardService {
         include: {
           client: { select: { id: true, name: true } },
           _count: { select: { tasks: true } },
+          // Enough for the phase strip and the total on the היום cockpit, so
+          // that list says where each project actually is rather than only
+          // naming it.
+          phases: {
+            select: { price: true, status: true, paidAt: true },
+            orderBy: { order: 'asc' },
+          },
         },
       }),
       prisma.task.findMany({

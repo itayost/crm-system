@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { BASE_URL } from './base-url'
-import { pendingReviewItem } from './fixtures'
+import { row } from './fixtures'
 
 /**
  * Every client this file mints, so afterEach can take it back out.
@@ -148,14 +148,16 @@ test.describe('requests dashboard shows form tickets', () => {
     })
     await pub.dispose()
 
-    // A pending ticket lives only in the review queue card - the main table
-    // hides PENDING_REVIEW so the same ticket is not listed twice.
-    await page.goto('/requests')
-    // Previously matched on `div.rounded-lg.border.bg-white` - a conjunction of
-    // three Tailwind classes that every list-page table wrapper also carries.
-    const item = pendingReviewItem(page, title)
+    // The review queue is a segment now, not a card stacked above the table
+    // this page is named after. Same predicate (`pendingReview`), one list.
+    await page.goto('/requests?view=triage')
+    await page.waitForLoadState('networkidle')
+
+    const item = row(page, title)
     await expect(item).toBeVisible()
-    await expect(item.getByText('טופס')).toBeVisible()
+    // Source is rendered as an icon with an accessible name rather than as a
+    // text badge, since the row already carries several signals.
+    await expect(item.getByRole('img', { name: /טופס/ })).toBeVisible()
   })
 })
 

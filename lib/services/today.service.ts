@@ -36,7 +36,173 @@ export interface TodayBadges {
   botPaused: boolean
 }
 
+export interface TodayBoard {
+  /** Leads with a next action promised for today or earlier. */
+  dueLeads: {
+    id: string
+    name: string
+    status: string
+    nextActionAt: string | null
+    nextActionNote: string | null
+    overdue: boolean
+  }[]
+  /** Client tickets nobody has triaged. */
+  triage: {
+    id: string
+    title: string
+    type: string
+    clientName: string | null
+    createdAt: string
+  }[]
+  /** Rotting, but not the owner's move. Counts plus how old the oldest is. */
+  atClient: {
+    phasesAwaitingApproval: number
+    quotesUnanswered: number
+    quietLeads: number
+  }
+  /** Approved and unpaid, plus unpaid advances. */
+  collect: {
+    id: string
+    projectId: string
+    projectName: string
+    clientName: string | null
+    name: string
+    price: number
+    kind: 'phase' | 'advance'
+  }[]
+}
+
 export class TodayService {
+  /**
+   * The action blocks of the היום cockpit.
+   *
+   * Ordered by who is blocked: the owner first, then a decision only the owner
+   * can make, then what is sitting with the client, then the money. Every
+   * predicate is one the morning brief already asks - which is the point of
+   * putting them here rather than re-deriving them per surface.
+   */
+  static async getBoard(userId: string, now: Date = new Date()): Promise<TodayBoard> {
+    const todayStart = startOfIsraelDay(now)
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+
+    const [dueLeads, triage, phasesAwaiting, quotesUnanswered, quietLeads, phases, advances] =
+      await Promise.all([
+        prisma.contact.findMany({
+          where: {
+            userId,
+            status: { in: [...LEAD_STATUSES] },
+            nextActionAt: { lt: todayEnd },
+          },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            nextActionAt: true,
+            nextActionNote: true,
+          },
+          orderBy: { nextActionAt: 'asc' },
+          take: 6,
+        }),
+        prisma.request.findMany({
+          where: { userId, status: 'PENDING_REVIEW' },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            createdAt: true,
+            client: { select: { name: true } },
+          },
+          orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+          take: 5,
+        }),
+        prisma.projectPhase.count({
+          where: { status: 'PENDING_APPROVAL', project: { userId, status: 'ACTIVE' } },
+        }),
+        prisma.request.count({
+          where: {
+            userId,
+            quotedAt: { not: null },
+            clientDecisionAt: null,
+            status: { not: 'DISMISSED' },
+          },
+        }),
+        prisma.contact.count({
+          where: {
+            userId,
+            status: { in: [...LEAD_STATUSES] },
+            nextActionAt: null,
+            OR: [
+              { lastContactedAt: { lt: threeDaysAgo } },
+              { lastContactedAt: null, createdAt: { lt: threeDaysAgo } },
+            ],
+          },
+        }),
+        prisma.projectPhase.findMany({
+          where: { status: 'APPROVED', paidAt: null, project: { userId } },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            project: {
+              select: { id: true, name: true, client: { select: { name: true } } },
+            },
+          },
+          orderBy: { approvedAt: 'asc' },
+        }),
+        prisma.project.findMany({
+          where: { userId, advancePaidAt: null, advanceAmount: { gt: 0 } },
+          select: {
+            id: true,
+            name: true,
+            advanceAmount: true,
+            client: { select: { name: true } },
+          },
+        }),
+      ])
+
+    const collect: TodayBoard['collect'] = [
+      ...phases.map((p) => ({
+        id: p.id,
+        projectId: p.project.id,
+        projectName: p.project.name,
+        clientName: p.project.client?.name ?? null,
+        name: p.name,
+        price: Number(p.price ?? 0),
+        kind: 'phase' as const,
+      })),
+      ...advances.map((p) => ({
+        id: `advance:${p.id}`,
+        projectId: p.id,
+        projectName: p.name,
+        clientName: p.client?.name ?? null,
+        name: 'מקדמה',
+        price: Number(p.advanceAmount ?? 0),
+        kind: 'advance' as const,
+      })),
+    ].sort((a, b) => b.price - a.price)
+
+    return {
+      dueLeads: dueLeads.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        nextActionAt: c.nextActionAt?.toISOString() ?? null,
+        nextActionNote: c.nextActionNote,
+        overdue: Boolean(c.nextActionAt && c.nextActionAt < todayStart),
+      })),
+      triage: triage.map((r) => ({
+        id: r.id,
+        title: r.title,
+        type: r.type,
+        clientName: r.client?.name ?? null,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      atClient: { phasesAwaitingApproval: phasesAwaiting, quotesUnanswered, quietLeads },
+      collect,
+    }
+  }
+
   static async getBadges(userId: string, now: Date = new Date()): Promise<TodayBadges> {
     const todayStart = startOfIsraelDay(now)
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)

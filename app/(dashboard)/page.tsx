@@ -1,49 +1,36 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { format } from 'date-fns'
-import {
-  DollarSign,
-  Briefcase,
-  Users,
-  CheckSquare,
-  Plus,
-  ArrowLeft,
-  Calendar,
-  Inbox,
-} from 'lucide-react'
+import { he } from 'date-fns/locale'
+import { Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { EmptyState, PhaseStrip } from '@/components/patterns'
 import {
   toneOf,
   emphasisOf,
-  toneClass,
-  type Tone,
-  TASK_CATEGORY_TONES,
-  PROJECT_STATUS_TONES,
+  CONTACT_STATUS_TONES,
   PRIORITY_TONES,
   PRIORITY_EMPHASIS,
+  REQUEST_TYPE_TONES,
 } from '@/lib/design/tones'
 import {
   label,
-  PROJECT_STATUS_LABELS,
+  CONTACT_STATUS_LABELS,
   PRIORITY_LABELS,
-  TASK_CATEGORY_LABELS,
+  REQUEST_TYPE_LABELS,
 } from '@/lib/design/labels'
-import { formatCurrency } from '@/lib/utils'
-import { RequestPipeline } from '@/components/requests/request-pipeline'
-import { DecisionsCard } from '@/components/requests/decisions-card'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { projectTotal } from '@/lib/utils/project-money'
+import type { TodayBoard } from '@/lib/services/today.service'
 import type { RequestMetrics } from '@/lib/services/request-metrics.service'
+import type { PhaseSummary } from '@/lib/types/project'
 
 interface PendingTask {
   id: string
@@ -61,387 +48,465 @@ interface ActiveProject {
   status: string
   type: string
   deadline?: string | null
-  client: {
-    id: string
-    name: string
-  } | null
-  _count: {
-    tasks: number
-  }
+  client: { id: string; name: string } | null
+  advanceAmount?: number | string | null
+  phases?: PhaseSummary[]
+  _count: { tasks: number }
 }
 
 interface DashboardData {
   revenue: number
-  /** Approved but unpaid - work signed off that has not been settled. */
   outstanding: number
-  contacts: {
-    leads: number
-    clients: number
-  }
-  projects: {
-    active: number
-    completed: number
-  }
-  tasks: {
-    pending: number
-    overdue: number
-  }
-  requests: {
-    pendingReview: number
-    open: number
-  }
+  contacts: { leads: number; clients: number }
+  projects: { active: number; completed: number }
+  tasks: { pending: number; overdue: number }
+  requests: { pendingReview: number; open: number }
   activeProjects: ActiveProject[]
   pendingTasks: PendingTask[]
 }
 
-export default function DashboardPage() {
-  const router = useRouter()
+/** A block that only exists when it has something in it. */
+function Block({
+  id,
+  title,
+  count,
+  action,
+  children,
+}: {
+  /** Stable English handle. The Hebrew title is copy and may change. */
+  id: string
+  title: string
+  count?: React.ReactNode
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section data-section={id} className="overflow-hidden rounded-lg border bg-card">
+      <header className="flex items-center gap-2 border-b bg-surface-subtle px-3 py-2">
+        <h2 className="text-ui-sm font-semibold text-content-strong">{title}</h2>
+        {count != null && (
+          <span className="font-mono text-ui-2xs tabular-nums text-content-subtle">{count}</span>
+        )}
+        {action && <div className="ms-auto">{action}</div>}
+      </header>
+      {children}
+    </section>
+  )
+}
+
+function Row({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 border-b px-3 last:border-b-0 [&:not(:last-child)]:border-b">
+      <div className="flex h-row w-full items-center gap-2 text-ui-sm">{children}</div>
+    </div>
+  )
+}
+
+function isOverdue(iso: string | null) {
+  if (!iso) return false
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  return new Date(iso) < start
+}
+
+/**
+ * היום - "מה אני חייב לעשות עכשיו, ובאיזה סדר."
+ *
+ * This page used to be five identical KPI tiles: same size, same weight, same
+ * layout for revenue (money), a lead count (people) and an open-request count
+ * (a queue), with three of the five going neutral on a quiet day - so a calm
+ * morning rendered as five grey boxes. Five aggregates measuring five unrelated
+ * things is a report, and the person reading it already knows how many projects
+ * he has. What he does not know is which of eleven possible things is oldest
+ * and blocked on him.
+ *
+ * The ordering rule is who is blocked: you first, then a decision only you can
+ * make, then what is sitting with the client, then the money.
+ *
+ * Blocks 1-6 render only when non-empty - the same discipline MorningBriefService
+ * applies when it drops empty sections rather than printing eleven "אין" lines.
+ * A calm day is therefore short and dignified, not a wall of zeroes.
+ */
+export default function TodayPage() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [board, setBoard] = useState<TodayBoard | null>(null)
   const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        // Two calls in parallel rather than one fatter aggregate: the request
-        // metrics are read by /requests too, and the dashboard aggregate is
-        // already thirteen queries that every load pays for.
-        const [dashboard, requestMetrics] = await Promise.all([
-          api.get('/dashboard'),
-          api.get('/requests/metrics').catch(() => null),
-        ])
-        setData(dashboard.data)
-        if (requestMetrics) setMetrics(requestMetrics.data)
-      } catch {
-        toast.error('שגיאה בטעינת נתוני דשבורד')
-      } finally {
-        setLoading(false)
-      }
+  const fetchAll = useCallback(async () => {
+    try {
+      const [dashboard, todayBoard, requestMetrics] = await Promise.all([
+        api.get('/dashboard'),
+        api.get('/today/board'),
+        api.get('/requests/metrics').catch(() => null),
+      ])
+      setData(dashboard.data)
+      setBoard(todayBoard.data)
+      if (requestMetrics) setMetrics(requestMetrics.data)
+    } catch {
+      toast.error('שגיאה בטעינת המסך')
+    } finally {
+      setLoading(false)
     }
-    fetchDashboard()
   }, [])
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
+
+  const triageAct = async (id: string, action: 'approve' | 'dismiss') => {
+    setBusyId(id)
     try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
+      await api.post(`/requests/${id}/action`, { action })
+      toast.success(action === 'approve' ? 'הפנייה אושרה' : 'הפנייה נדחתה')
+      fetchAll()
     } catch {
-      return '-'
+      toast.error('שגיאה בעדכון הפנייה')
+    } finally {
+      setBusyId(null)
     }
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-        </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-40 w-full" />
       </div>
     )
   }
 
-  if (!data) {
+  if (!data || !board) {
     return (
-      <div className="text-center py-12 text-content-subtle">
-        <p>שגיאה בטעינת הנתונים</p>
-      </div>
+      <EmptyState
+        kind="filtered"
+        title="שגיאה בטעינת הנתונים"
+        description="נסה לרענן. אם זה חוזר, שווה להסתכל בלוג."
+      />
     )
   }
 
-  // `key` is the test handle. Reaching a tile by its Hebrew title and then
-  // hopping to a parent by DOM depth breaks on any wrapper change; `data-kpi`
-  // survives the rebuild and does not render.
-  const kpiCards = [
-    {
-      key: 'revenue',
-      title: 'הכנסות',
-      value: formatCurrency(data.revenue),
-      // Revenue is money received; when something is signed off but unpaid,
-      // that is the more actionable number to put under it.
-      description:
-        data.outstanding > 0
-          ? `${data.outstanding.toLocaleString()} ₪ ממתין לתשלום`
-          : `${data.projects.completed} פרויקטים שהושלמו`,
-      icon: DollarSign,
-      tone: 'success' as Tone,
-      href: undefined as string | undefined,
-    },
-    {
-      key: 'active-projects',
-      title: 'פרויקטים פעילים',
-      value: String(data.projects.active),
-      description: `${data.projects.completed} הושלמו`,
-      icon: Briefcase,
-      tone: 'info' as Tone,
-      href: '/projects',
-    },
-    {
-      key: 'leads',
-      title: 'לידים בצנרת',
-      value: String(data.contacts.leads),
-      description: `${data.contacts.clients} לקוחות`,
-      icon: Users,
-      tone: 'accent' as Tone,
-      href: '/leads',
-    },
-    {
-      key: 'pending-tasks',
-      title: 'משימות ממתינות',
-      value: String(data.tasks.pending),
-      description: data.tasks.overdue > 0
-        ? `${data.tasks.overdue} באיחור`
-        : 'אין משימות באיחור',
-      icon: CheckSquare,
-      // Only the backlog that is actually late is alarming. The calm state used
-      // to be orange here and amber on the next card, for the same meaning.
-      tone: (data.tasks.overdue > 0 ? 'danger' : 'neutral') as Tone,
-      href: '/tasks',
-    },
-    {
-      key: 'open-requests',
-      title: 'פניות לקוחות',
-      value: String(data.requests.open),
-      description: data.requests.pendingReview > 0
-        ? `${data.requests.pendingReview} ממתינות לאישור`
-        : 'אין פניות לאישור',
-      icon: Inbox,
-      tone: (data.requests.pendingReview > 0 ? 'caution' : 'neutral') as Tone,
-      href: '/requests',
-    },
-  ]
+  const decisions = metrics?.decisions
+  const blockedOnYou = (decisions?.needsPricing ?? 0) + (decisions?.unclassified ?? 0)
+  const atClientTotal =
+    board.atClient.phasesAwaitingApproval +
+    board.atClient.quotesUnanswered +
+    board.atClient.quietLeads
+  const collectTotal = board.collect.reduce((s, r) => s + r.price, 0)
+
+  const needsYou = board.dueLeads.length + board.triage.length + blockedOnYou
+  const overdueLeads = board.dueLeads.filter((l) => l.overdue).length
+  const overdueTasks = data.tasks.overdue
+
+  const dayTasks = data.pendingTasks.filter(
+    (t) => t.dueDate && new Date(t.dueDate) <= new Date(new Date().setHours(23, 59, 59, 999)),
+  )
+
+  const calm = needsYou === 0 && dayTasks.length === 0 && board.collect.length === 0
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-content-strong">דשבורד</h1>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => router.push('/leads')}>
-            <Plus className="w-4 h-4" />
-            ליד חדש
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push('/projects?new=true')}
-          >
-            <Plus className="w-4 h-4" />
-            פרויקט חדש
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push('/tasks')}
-          >
-            <Plus className="w-4 h-4" />
-            משימה חדשה
-          </Button>
-        </div>
+    <div className="flex flex-col gap-3">
+      {/* The day line, not a page title. */}
+      <div data-section="day-line" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-0.5">
+        <h1 className="text-ui-lg font-semibold text-content-strong">
+          {format(new Date(), 'EEEE, d בMMMM', { locale: he })}
+        </h1>
+        <p className="text-ui-sm text-content-muted">
+          {calm
+            ? 'היום נקי'
+            : [
+                needsYou > 0 ? `${needsYou} דברים דורשים אותך` : null,
+                overdueLeads + overdueTasks > 0 ? `${overdueLeads + overdueTasks} באיחור` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+        </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpiCards.map((kpi) => {
-          const Icon = kpi.icon
-          return (
-            <Card
-              key={kpi.key}
-              data-kpi={kpi.key}
-              className={
-                kpi.href
-                  ? 'cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-ring'
-                  : ''
-              }
-              role={kpi.href ? 'link' : undefined}
-              tabIndex={kpi.href ? 0 : undefined}
-              onClick={() => kpi.href && router.push(kpi.href)}
-              onKeyDown={(e) => {
-                if (!kpi.href) return
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  router.push(kpi.href)
-                }
-              }}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-content-subtle">
-                      {kpi.title}
-                    </p>
-                    <p className="text-2xl font-bold mt-1">{kpi.value}</p>
-                    <p className="text-xs text-content-faint mt-1">
-                      {kpi.description}
-                    </p>
-                  </div>
-                  {/* The tile takes its whole colour from one tone, the same
-                      way a status pill does. `.tone-*` sets the surface; the
-                      icon reads the hue at full chroma off the same binding. */}
-                  <div
-                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${toneClass[kpi.tone]}`}
-                  >
-                    <Icon className="w-6 h-6" style={{ color: 'hsl(var(--t-mark))' }} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* The request cockpit. Above the task and project lists because an
-          unpriced request is money not yet asked for, which outranks a task
-          that is already scheduled. */}
-      {metrics && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RequestPipeline metrics={metrics} />
-          <DecisionsCard metrics={metrics} />
-        </div>
+      {calm && (
+        <EmptyState
+          kind="calm"
+          title="אין דבר שחסום עליך"
+          description="הבוט מסנן ומתייק, ואתה מאשר. כשמשהו יגיע - הוא יופיע כאן."
+        />
       )}
 
-      {/* Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Tasks */}
-        <Card data-section="pending-tasks">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">המשימות הקרובות</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/tasks')}
-            >
-              הצג הכל
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {data.pendingTasks.length === 0 ? (
-              <p className="text-sm text-content-subtle text-center py-4">
-                אין משימות ממתינות
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {data.pendingTasks.map((task) => {
-                  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date()
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-subtle cursor-pointer transition-colors"
-                      onClick={() => router.push('/tasks')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          router.push('/tasks')
-                        }
-                      }}
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-content-subtle">
-                            {task.project?.name ?? 'ללא פרויקט'}
-                          </span>
-                          {task.category && (
-                            <StatusPill
-                              tone={toneOf(TASK_CATEGORY_TONES, task.category)}
-                              emphasis="quiet"
-                              dot
-                            >
-                              {label(TASK_CATEGORY_LABELS, task.category)}
-                            </StatusPill>
-                          )}
-                          {task.dueDate && (
-                            <span
-                              className={`text-xs ${
-                                isOverdue
-                                  ? 'text-tone-danger-mark font-medium'
-                                  : 'text-content-subtle'
-                              }`}
-                            >
-                              | {formatDate(task.dueDate)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <StatusPill
-                        tone={toneOf(PRIORITY_TONES, task.priority)}
-                        emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
-                      >
-                        {label(PRIORITY_LABELS, task.priority)}
-                      </StatusPill>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* 1 · What you promised yourself about a named lead. */}
+      {board.dueLeads.length > 0 && (
+        <Block
+          id="due-leads" title="פעולות להיום" count={board.dueLeads.length}>
+          {board.dueLeads.map((lead) => (
+            <Row key={lead.id}>
+              <Link
+                href={`/contacts/${lead.id}`}
+                className="font-medium text-content-strong hover:underline"
+              >
+                {lead.name}
+              </Link>
+              <StatusPill tone={toneOf(CONTACT_STATUS_TONES, lead.status)} emphasis="quiet" dot>
+                {label(CONTACT_STATUS_LABELS, lead.status)}
+              </StatusPill>
+              <span className="min-w-0 flex-1 truncate text-content-subtle">
+                {lead.nextActionNote}
+              </span>
+              {lead.overdue ? (
+                <StatusPill tone="danger" emphasis="solid">
+                  <bdi className="font-mono">{formatDate(lead.nextActionAt)}</bdi>
+                </StatusPill>
+              ) : (
+                <bdi className="font-mono text-ui-xs tabular-nums text-content-subtle">
+                  {formatDate(lead.nextActionAt)}
+                </bdi>
+              )}
+            </Row>
+          ))}
+        </Block>
+      )}
 
-        {/* Active Projects */}
-        <Card data-section="active-projects">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">הפרויקטים בעבודה</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/projects')}
-            >
-              הצג הכל
-              <ArrowLeft className="w-4 h-4" />
+      {/* 2 · Client tickets nobody has triaged. Where the <2h target lives. */}
+      {board.triage.length > 0 && (
+        <Block
+          id="triage"
+          title="ממתין לך — פניות"
+          count={board.triage.length}
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/requests?view=triage">הכל</Link>
             </Button>
-          </CardHeader>
-          <CardContent>
-            {data.activeProjects.length === 0 ? (
-              <p className="text-sm text-content-subtle text-center py-4">
-                אין פרויקטים פעילים
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {data.activeProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-subtle cursor-pointer transition-colors"
-                    onClick={() => router.push(`/projects/${project.id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        router.push(`/projects/${project.id}`)
-                      }
-                    }}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{project.name}</p>
-                        <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
-                          {label(PROJECT_STATUS_LABELS, project.status)}
-                        </StatusPill>
-                      </div>
-                      <p className="text-xs text-content-subtle mt-1">
-                        {project.client?.name ?? '-'} | {project._count.tasks} משימות
-                      </p>
-                    </div>
-                    {project.deadline && (
-                      <div className="flex items-center gap-1 text-xs text-content-subtle">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatDate(project.deadline)}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          }
+        >
+          {board.triage.map((request) => (
+            <Row key={request.id}>
+              <Link
+                href={`/requests/${request.id}`}
+                className="min-w-0 flex-1 truncate font-medium text-content-strong hover:underline"
+              >
+                {request.title}
+              </Link>
+              <StatusPill tone={toneOf(REQUEST_TYPE_TONES, request.type)} emphasis="quiet" dot>
+                {label(REQUEST_TYPE_LABELS, request.type)}
+              </StatusPill>
+              <span className="text-content-subtle">{request.clientName ?? '—'}</span>
+              <Button
+                size="sm"
+                disabled={busyId === request.id}
+                onClick={() => triageAct(request.id, 'approve')}
+              >
+                <Check className="size-3.5" />
+                אשר
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busyId === request.id}
+                onClick={() => triageAct(request.id, 'dismiss')}
+              >
+                <X className="size-3.5" />
+                דחה
+              </Button>
+            </Row>
+          ))}
+        </Block>
+      )}
+
+      {/* 3 · Only the two queues that are blocked on you. awaitingClient and
+             withoutTask are not - they live in block 5 and on /requests. */}
+      {blockedOnYou > 0 && (
+        <Block
+          id="decisions" title="חסום על החלטה שלך">
+          {(decisions?.needsPricing ?? 0) > 0 && (
+            <Row>
+              <Link href="/requests?view=needsPricing" className="flex-1 hover:underline">
+                ממתין לתמחור
+              </Link>
+              <StatusPill tone="warning">
+                <bdi className="font-mono">{decisions?.needsPricing}</bdi>
+              </StatusPill>
+            </Row>
+          )}
+          {(decisions?.unclassified ?? 0) > 0 && (
+            <Row>
+              <Link href="/requests?view=unclassified" className="flex-1 hover:underline">
+                ללא סיווג חיוב
+              </Link>
+              <StatusPill tone="caution">
+                <bdi className="font-mono">{decisions?.unclassified}</bdi>
+              </StatusPill>
+            </Row>
+          )}
+        </Block>
+      )}
+
+      {/* 4 · Overdue and due today. */}
+      {dayTasks.length > 0 && (
+        <Block
+          id="day-tasks"
+          title="משימות — באיחור ולהיום"
+          count={dayTasks.length}
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/tasks?view=today">הכל</Link>
+            </Button>
+          }
+        >
+          {dayTasks.slice(0, 8).map((task) => (
+            <Row key={task.id}>
+              <span className="min-w-0 flex-1 truncate font-medium text-content-strong">
+                {task.title}
+              </span>
+              {task.project && (
+                <Link
+                  href={`/projects/${task.project.id}`}
+                  className="text-content-subtle hover:underline"
+                >
+                  {task.project.name}
+                </Link>
+              )}
+              <StatusPill
+                tone={toneOf(PRIORITY_TONES, task.priority)}
+                emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
+              >
+                {label(PRIORITY_LABELS, task.priority)}
+              </StatusPill>
+              <bdi
+                className={`font-mono text-ui-xs tabular-nums ${
+                  isOverdue(task.dueDate) ? 'font-semibold text-tone-danger-foreground' : 'text-content-subtle'
+                }`}
+              >
+                {formatDate(task.dueDate)}
+              </bdi>
+            </Row>
+          ))}
+        </Block>
+      )}
+
+      {/* 5 · Rotting, but not your move. */}
+      {atClientTotal > 0 && (
+        <Block
+          id="at-client" title="אצל הלקוח">
+          {board.atClient.phasesAwaitingApproval > 0 && (
+            <Row>
+              <span className="flex-1">שלבים ממתינים לאישור לקוח</span>
+              <StatusPill tone="caution" emphasis="quiet" dot>
+                <bdi className="font-mono">{board.atClient.phasesAwaitingApproval}</bdi>
+              </StatusPill>
+            </Row>
+          )}
+          {board.atClient.quotesUnanswered > 0 && (
+            <Row>
+              <Link href="/requests?view=awaitingClient" className="flex-1 hover:underline">
+                הצעות מחיר שלא נענו
+              </Link>
+              <StatusPill tone="caution" emphasis="quiet" dot>
+                <bdi className="font-mono">{board.atClient.quotesUnanswered}</bdi>
+              </StatusPill>
+            </Row>
+          )}
+          {board.atClient.quietLeads > 0 && (
+            <Row>
+              <Link href="/leads?view=pipeline" className="flex-1 hover:underline">
+                לידים ששקטו
+              </Link>
+              <StatusPill tone="neutral" emphasis="quiet" dot>
+                <bdi className="font-mono">{board.atClient.quietLeads}</bdi>
+              </StatusPill>
+            </Row>
+          )}
+        </Block>
+      )}
+
+      {/* 6 · The outstanding KPI, itemised. A total with nothing to click is a
+             fact; a list with a button is a collection. */}
+      {board.collect.length > 0 && (
+        <Block
+          id="collect"
+          title="לגבייה"
+          action={
+            <span className="flex items-center gap-2">
+              <bdi className="font-mono text-ui-sm font-semibold tabular-nums text-figure-due">
+                {formatCurrency(collectTotal)}
+              </bdi>
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/money">הכל</Link>
+              </Button>
+            </span>
+          }
+        >
+          {board.collect.slice(0, 3).map((row) => (
+            <Row key={row.id}>
+              <span className="text-content-subtle">{row.clientName ?? '—'}</span>
+              <Link
+                href={`/projects/${row.projectId}`}
+                className="font-medium text-content-strong hover:underline"
+              >
+                {row.projectName}
+              </Link>
+              <span className="min-w-0 flex-1 truncate text-content-subtle">{row.name}</span>
+              <bdi className="font-mono text-ui-sm font-semibold tabular-nums">
+                {formatCurrency(row.price)}
+              </bdi>
+            </Row>
+          ))}
+        </Block>
+      )}
+
+      {/* 7 · Always renders. Four figures, no tiles, no icons. */}
+      <div data-section="state" className="flex flex-wrap overflow-hidden rounded-lg border bg-card">
+        {[
+          { k: 'פרויקטים פעילים', v: String(data.projects.active), href: '/projects' },
+          { k: 'פניות פתוחות', v: String(data.requests.open), href: '/requests' },
+          { k: 'לידים בצנרת', v: String(data.contacts.leads), href: '/leads' },
+          { k: 'הכנסות', v: formatCurrency(data.revenue), href: '/money' },
+        ].map((figure) => (
+          <Link
+            key={figure.k}
+            href={figure.href}
+            className="flex min-w-[9rem] flex-1 flex-col gap-0.5 border-e px-4 py-2.5 transition-colors duration-fast last:border-e-0 hover:bg-surface-subtle"
+          >
+            <span className="text-ui-2xs text-content-subtle">{figure.k}</span>
+            <bdi className="font-mono text-ui-md font-semibold tabular-nums text-content-strong">
+              {figure.v}
+            </bdi>
+          </Link>
+        ))}
       </div>
+
+      {/* On a calm day the useful question shifts from "what is on fire" to
+          "what should I push", and that is a project, not a task. */}
+      {data.activeProjects.length > 0 && (
+        <Block
+          id="active-projects"
+          title="הפרויקטים בעבודה"
+          count={data.activeProjects.length}
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/projects">הכל</Link>
+            </Button>
+          }
+        >
+          {data.activeProjects.slice(0, 5).map((project) => (
+            <Row key={project.id}>
+              <Link
+                href={`/projects/${project.id}`}
+                className="w-40 truncate font-medium text-content-strong hover:underline"
+              >
+                {project.name}
+              </Link>
+              <span className="min-w-0 flex-1 truncate text-content-subtle">
+                {project.client?.name ?? '—'}
+              </span>
+              {project.phases && project.phases.length > 0 && (
+                <PhaseStrip phases={project.phases} className="w-28" />
+              )}
+              <bdi className="font-mono text-ui-xs tabular-nums text-content-subtle">
+                {formatCurrency(projectTotal(project.advanceAmount, project.phases ?? []))}
+              </bdi>
+            </Row>
+          ))}
+        </Block>
+      )}
     </div>
   )
 }
