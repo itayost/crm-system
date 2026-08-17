@@ -10,6 +10,7 @@ import { BASE_URL } from './base-url'
  * to a human, and the decision pinned above the fold.
  */
 const createdClientIds: string[] = []
+const createdProjectIds: string[] = []
 
 async function mintPortal(request: import('@playwright/test').APIRequestContext) {
   const res = await request.post('/api/clients', { data: { name: `טסט פורטל ${Date.now()}` } })
@@ -22,7 +23,41 @@ async function mintPortal(request: import('@playwright/test').APIRequestContext)
   return { clientId: client.id, formToken }
 }
 
+/**
+ * Teardown has to run inwards-out, because nothing here cascades by accident.
+ *
+ * ClientsService.delete refuses a client that still has projects, and
+ * ProjectsService.delete refuses a project that still has tasks - both on
+ * purpose, since they are the guards that stop a mis-click destroying a real
+ * client's history. The consequence for a test is that deleting only the client
+ * silently fails and leaves the whole tree behind, and this suite runs against
+ * the same database as production.
+ *
+ * So: tasks, then requests, then projects (phases cascade with them), then the
+ * client.
+ */
 test.afterEach(async ({ request }) => {
+  while (createdProjectIds.length) {
+    const projectId = createdProjectIds.pop()!
+
+    const tasks = await request.get(`/api/tasks?projectId=${projectId}`)
+    if (tasks.ok()) {
+      for (const task of await tasks.json()) {
+        await request.delete(`/api/tasks/${task.id}`)
+      }
+    }
+
+    const requests = await request.get(`/api/requests?projectId=${projectId}`)
+    if (requests.ok()) {
+      const body = await requests.json()
+      for (const item of Array.isArray(body) ? body : (body.requests ?? [])) {
+        await request.delete(`/api/requests/${item.id}`)
+      }
+    }
+
+    await request.delete(`/api/projects/${projectId}`)
+  }
+
   while (createdClientIds.length) {
     await request.delete(`/api/clients/${createdClientIds.pop()!}`)
   }
@@ -72,6 +107,77 @@ test.describe('portal on a phone', () => {
     // The form is not on this page any more.
     await expect(page.locator('textarea[name="description"]')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'פנייה חדשה' }).first()).toBeVisible()
+  })
+
+  /**
+   * The one thing this surface exists for.
+   *
+   * A client opens the portal from a WhatsApp message that says "I prepared a
+   * quote" and arrives to answer exactly one question, one-handed, on a phone.
+   * So the assertions here are about reach, not about markup: the price is
+   * above the fold, and so are the two buttons.
+   */
+  test('a quote can be answered without scrolling for the buttons', async ({ page, request }) => {
+    const { clientId, formToken } = await mintPortal(request)
+
+    const proj = await request.post('/api/projects', {
+      data: { name: `פרויקט פורטל ${Date.now()}`, type: 'WEBSITE', priority: 'MEDIUM', clientId },
+    })
+    expect(proj.ok()).toBeTruthy()
+    const project = await proj.json()
+    createdProjectIds.push(project.id)
+
+    const req = await request.post('/api/requests', {
+      data: {
+        title: 'עמוד הזמנת שולחן',
+        description: 'עמוד ייעודי להזמנת שולחן.',
+        type: 'REQUEST',
+        priority: 'MEDIUM',
+        clientId,
+        projectId: project.id,
+      },
+    })
+    expect(req.ok()).toBeTruthy()
+    const created = await req.json()
+
+    // sendQuote refuses a chargeable request with no project and no form token,
+    // which is exactly why both were minted above.
+    const quoted = await request.post(`/api/requests/${created.id}/quote`, {
+      data: { billingKind: 'BILLABLE', quotedPrice: 1850, estimateHours: 6 },
+    })
+    expect(quoted.ok()).toBeTruthy()
+
+    await page.goto(`/r/${formToken}/${created.id}`)
+
+    // The price leads the page, in the display face.
+    await expect(page.getByText('1,850 ₪')).toBeVisible()
+    await expect(page.getByText('לא מתחילים לעבוד על זה לפני שתאשרו.')).toBeVisible()
+
+    const approve = page.getByRole('button', { name: 'אישור ההצעה' })
+    const decline = page.getByRole('button', { name: 'לא עכשיו' })
+
+    // Both reachable in the first viewport, before any scrolling. This is the
+    // assertion that would have caught the old layout, where the decision sat
+    // below the description, the details list and the attachments.
+    const fold = page.viewportSize()!.height
+    for (const control of [approve, decline]) {
+      const box = await control.boundingBox()
+      expect(box, 'the decision must render').not.toBeNull()
+      expect(box!.y + box!.height).toBeLessThanOrEqual(fold)
+      // And large enough to hit with a thumb.
+      expect(box!.height).toBeGreaterThanOrEqual(44)
+    }
+
+    // Declining opens a note rather than firing, because "no" is usually
+    // "not at that price".
+    await decline.click()
+    await expect(page.getByLabel('מה לא מתאים? (לא חובה)')).toBeVisible()
+    await page.getByRole('button', { name: 'ביטול' }).click()
+
+    await approve.click()
+    await expect(page.getByText('אושרה על ידך')).toBeVisible()
+    // And the timeline now says it in the second person.
+    await expect(page.getByText('אישרת את ההצעה')).toBeVisible()
   })
 
   test('an invalid token still offers a way to reach us', async ({ page }) => {
