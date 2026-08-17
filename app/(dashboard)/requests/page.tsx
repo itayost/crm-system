@@ -327,15 +327,15 @@ export default function RequestsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">כותרת</TableHead>
-                <TableHead className="text-right">סטטוס</TableHead>
-                <TableHead className="text-right">עדיפות</TableHead>
-                <TableHead className="text-right">חיוב</TableHead>
-                <TableHead className="text-right">מחיר</TableHead>
-                <TableHead className="text-right">לקוח</TableHead>
-                <TableHead className="text-right">גיל</TableHead>
-                <TableHead className="text-right">משימה</TableHead>
-                <TableHead className="text-right w-12" />
+                <TableHead>כותרת</TableHead>
+                <TableHead>סטטוס</TableHead>
+                <TableHead>עדיפות</TableHead>
+                <TableHead>חיוב</TableHead>
+                <TableHead>מחיר</TableHead>
+                <TableHead>לקוח</TableHead>
+                <TableHead>גיל</TableHead>
+                <TableHead>משימה</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>

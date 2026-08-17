@@ -23,6 +23,44 @@ const PAGES = [
   { name: 'requests', path: '/requests' },
 ]
 
+/**
+ * Detail pages, reached by clicking rather than by id.
+ *
+ * The ids are seeded per run, so a static path would need a lookup. Following
+ * the first row of a deterministically sorted list is simpler and also
+ * exercises that the row is a real link.
+ */
+const DETAIL_PAGES = [
+  {
+    name: 'client-detail',
+    from: '/clients',
+    settlesAt: /\/clients\/[\w-]+/,
+    // The page fires three fetches and only one drives its skeleton, so
+    // `networkidle` alone photographs the loading state. Wait for something
+    // that only exists once the data is in.
+    ready: '[data-slot="money-line"]',
+  },
+]
+
+for (const page of DETAIL_PAGES) {
+  test(`visual: ${page.name}`, async ({ page: browserPage }) => {
+    await browserPage.goto(page.from)
+    await browserPage.waitForLoadState('networkidle')
+    await browserPage.locator('[data-testid="row"]').first().locator('a').first().click()
+    // App Router navigation is client-side, so there is no load event to wait
+    // for - assert on the URL settling, or the screenshot catches the list.
+    await browserPage.waitForURL(page.settlesAt)
+    await browserPage.locator(page.ready).waitFor({ state: 'visible' })
+    await browserPage.waitForLoadState('networkidle')
+    await browserPage.waitForTimeout(500)
+
+    await expect(browserPage).toHaveScreenshot(`${page.name}.png`, {
+      fullPage: true,
+      mask: [browserPage.locator('[data-volatile]')],
+    })
+  })
+}
+
 for (const page of PAGES) {
   test(`visual: ${page.name}`, async ({ page: browserPage }) => {
     await browserPage.goto(page.path)

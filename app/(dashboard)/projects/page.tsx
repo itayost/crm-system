@@ -157,13 +157,13 @@ function ProjectsPageContent() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">שם</TableHead>
-                <TableHead className="text-right">לקוח</TableHead>
-                <TableHead className="text-right">סוג</TableHead>
-                <TableHead className="text-right">סטטוס</TableHead>
-                <TableHead className="text-right">עדיפות</TableHead>
-                <TableHead className="text-right">דדליין</TableHead>
-                <TableHead className="text-right">סה&quot;כ</TableHead>
+                <TableHead>שם</TableHead>
+                <TableHead>לקוח</TableHead>
+                <TableHead>סוג</TableHead>
+                <TableHead>סטטוס</TableHead>
+                <TableHead>עדיפות</TableHead>
+                <TableHead>דדליין</TableHead>
+                <TableHead>סה&quot;כ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

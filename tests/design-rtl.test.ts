@@ -47,8 +47,13 @@ const PHYSICAL = new RegExp(
 /**
  * Today's count. Lower it in the same commit that removes offenders; never
  * raise it. Phase 6 takes this to the `dir="ltr"` islands only.
+ *
+ * 75 -> 23 when the primitives landed: `TableHead` now defaults to `text-start`,
+ * which made 32 hand-written `text-right` overrides redundant, and the shadcn
+ * dialog/dropdown/select bugs were fixed at the source rather than per call
+ * site.
  */
-const BUDGET = 75
+const BUDGET = 23
 
 /**
  * Directories written during the rebuild. These start clean and stay clean -
@@ -66,9 +71,25 @@ function walk(dir: string): string[] {
   })
 }
 
+/**
+ * Blank out comments, keeping line numbers intact.
+ *
+ * Without this the rule fires on its own documentation: a comment explaining
+ * *why* `right-3` was wrong counts as an instance of `right-3`. A guard that
+ * punishes you for writing down the reason is a guard people delete.
+ *
+ * `//` is only treated as a comment when it is not preceded by `:`, so URLs
+ * inside string literals do not swallow the rest of the line.
+ */
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (_m, lead: string) => lead)
+}
+
 function offendersIn(files: string[]) {
   return files.flatMap((f) =>
-    readFileSync(join(ROOT, f), 'utf8')
+    stripComments(readFileSync(join(ROOT, f), 'utf8'))
       .split('\n')
       .flatMap((line, i) =>
         (line.match(PHYSICAL) ?? []).map((hit) => `${f}:${i + 1} ${hit}`),

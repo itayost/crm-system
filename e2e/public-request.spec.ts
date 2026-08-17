@@ -52,15 +52,16 @@ test.describe('client form link UI', () => {
     const client = await createClient(request, `טסט קישור ${Date.now()}`)
 
     await page.goto(`/clients/${client.id}`)
-    // The link moved out of its own "טופס פניות" card and into the summary band
-    // at the top of the page, because it is something handed over mid
-    // conversation rather than a setting. The guard that matters is unchanged:
-    // the rendered URL must be a real, absolute portal link.
-    await expect(page.getByText('קישור הפניות של הלקוח')).toBeVisible()
-    await page.getByRole('button', { name: 'צור קישור' }).click()
-    await expect(page.locator('code', { hasText: '/r/' })).toBeVisible()
-    const codeText = await page.locator('code', { hasText: '/r/' }).innerText()
-    expect(codeText).toMatch(/^https?:\/\/.+\/r\/[0-9a-f-]{36}$/)
+    // The link has moved twice now: out of its own "טופס פניות" card, into the
+    // summary band, and now into the fact rail with a copy button promoted to
+    // the page's primary action - because handing this over mid-conversation is
+    // what the page is opened for. The guard that matters has never changed:
+    // the rendered URL must be a real, absolute portal link, since the client
+    // pastes it into WhatsApp.
+    await page.getByRole('button', { name: 'צור קישור פורטל' }).click()
+    const portalUrl = page.getByTestId('portal-url')
+    await expect(portalUrl).toBeVisible()
+    expect(await portalUrl.innerText()).toMatch(/^https?:\/\/.+\/r\/[0-9a-f-]{36}$/)
   })
 })
 

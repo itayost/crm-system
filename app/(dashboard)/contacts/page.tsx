@@ -124,12 +124,12 @@ export default function ContactsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">שם</TableHead>
-                    <TableHead className="text-right">טלפון</TableHead>
-                    <TableHead className="text-right">סטטוס</TableHead>
-                    {isLeadsTab && <TableHead className="text-right">פעולה הבאה</TableHead>}
-                    <TableHead className="text-right">מקור</TableHead>
-                    <TableHead className="text-right">תאריך</TableHead>
+                    <TableHead>שם</TableHead>
+                    <TableHead>טלפון</TableHead>
+                    <TableHead>סטטוס</TableHead>
+                    {isLeadsTab && <TableHead>פעולה הבאה</TableHead>}
+                    <TableHead>מקור</TableHead>
+                    <TableHead>תאריך</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

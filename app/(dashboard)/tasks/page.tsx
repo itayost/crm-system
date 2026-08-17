@@ -332,12 +332,12 @@ export default function TasksPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12"></TableHead>
-                <TableHead className="text-right">כותרת</TableHead>
-                <TableHead className="text-right">סטטוס</TableHead>
-                <TableHead className="text-right">עדיפות</TableHead>
-                <TableHead className="text-right">תאריך יעד</TableHead>
-                <TableHead className="text-right">קטגוריה</TableHead>
-                <TableHead className="text-right">פרויקט</TableHead>
+                <TableHead>כותרת</TableHead>
+                <TableHead>סטטוס</TableHead>
+                <TableHead>עדיפות</TableHead>
+                <TableHead>תאריך יעד</TableHead>
+                <TableHead>קטגוריה</TableHead>
+                <TableHead>פרויקט</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
