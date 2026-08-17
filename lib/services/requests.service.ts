@@ -156,16 +156,24 @@ async function clientPortalUrl(userId: string, requestId: string): Promise<strin
 
   // Optional all the way down: this runs inside the notify try/catch, so a
   // throw here would swallow the whole message rather than just the link.
-  return row?.client?.formToken ? portalUrl(row.client.formToken) : null
+  return row?.client?.formToken ? portalUrl(row.client.formToken, requestId) : null
 }
 
-function portalUrl(formToken: string): string | null {
+/**
+ * Deep-links to the request when one is named.
+ *
+ * Every notice we send is about a specific request, and the client's next act
+ * is to answer it - so landing them on the portal root and asking them to find
+ * it again is a step we are choosing to add. One tap from the message to the
+ * button.
+ */
+function portalUrl(formToken: string, requestId?: string): string | null {
   const base = (process.env.NEXTAUTH_URL ?? '').trim().replace(/\/$/, '')
   // Without an origin this would send the client the literal text "/r/<token>",
   // which is not a link and cannot be tapped. Better to report the quote as
   // undelivered and let the dashboard say so.
   if (!base) return null
-  return `${base}/r/${formToken}`
+  return requestId ? `${base}/r/${formToken}/${requestId}` : `${base}/r/${formToken}`
 }
 
 /**
@@ -191,7 +199,7 @@ async function notifyClientOfQuote(userId: string, requestId: string): Promise<b
     const formToken = request?.client.formToken
     if (!chat || !request || !formToken) return false
 
-    const url = portalUrl(formToken)
+    const url = portalUrl(formToken, requestId)
     if (!url) return false
 
     await WahaService.sendMessage({

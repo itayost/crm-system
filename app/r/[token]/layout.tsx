@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 
+import { PortalHeader, PortalFooter } from '@/components/portal/portal-shell'
+import { whatsappLink } from '@/lib/portal/whatsapp-link'
+
 /**
  * Belt to the X-Robots-Tag header set for /r/:path* in next.config.ts.
  *
@@ -14,8 +17,14 @@ export const metadata: Metadata = {
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main dir="rtl" lang="he" className="mx-auto max-w-2xl p-4 sm:p-6">
-      {children}
-    </main>
+    <div dir="rtl" lang="he" className="flex min-h-dvh flex-col bg-surface-app">
+      <PortalHeader />
+
+      {/* pb-24 leaves room for the sticky decision bar on a request page, so
+          the last card is never trapped underneath it. */}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-4 sm:px-6">{children}</main>
+
+      <PortalFooter whatsapp={whatsappLink()} />
+    </div>
   )
 }
