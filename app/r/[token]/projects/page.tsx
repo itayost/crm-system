@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { InvalidToken } from '@/components/portal/invalid-token'
 import { PortalNav } from '@/components/portal/portal-nav'
 import { PortalProjectCard } from '@/components/portal/project-card'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
@@ -22,16 +23,7 @@ export default async function PortalProjectsPage({
   const { token } = await params
   const client = await PublicRequestsService.resolveClientByToken(token)
 
-  if (!client) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-content-strong">הקישור אינו תקין</h1>
-          <p className="mt-2 text-content-muted">בדקו את הקישור או פנו אלינו ישירות.</p>
-        </div>
-      </div>
-    )
-  }
+  if (!client) return <InvalidToken />
 
   const [projects, requests] = await Promise.all([
     listClientProjects(token),

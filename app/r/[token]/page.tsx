@@ -1,12 +1,11 @@
 import Link from 'next/link'
-import { MessageCircle } from 'lucide-react'
 
 import { PublicRequestForm } from '@/components/forms/public-request-form'
+import { InvalidToken } from '@/components/portal/invalid-token'
 import { PortalNav } from '@/components/portal/portal-nav'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
 import { listClientProjects, listClientRequests } from '@/lib/services/client-view'
 import { formatCurrency } from '@/lib/utils'
-import { whatsappLink } from '@/lib/portal/whatsapp-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,30 +33,9 @@ export default async function PortalHomePage({
   const { token } = await params
   const client = await PublicRequestsService.resolveClientByToken(token)
 
-  if (!client) {
-    // A client whose token was rotated is a client who needs to reach a human
-    // right now. This used to be a dead end with nothing to click.
-    const whatsapp = whatsappLink()
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
-        <h1 className="text-ui-lg font-semibold text-content-strong">הקישור אינו תקין</h1>
-        <p className="max-w-sm text-ui-sm text-content-muted">
-          ייתכן שהקישור התחלף. אפשר לבקש קישור חדש, ובינתיים פשוט לכתוב לנו.
-        </p>
-        {whatsapp && (
-          <a
-            href={whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-4 text-ui-sm font-medium text-primary-foreground"
-          >
-            <MessageCircle aria-hidden className="size-4" />
-            כתבו לנו בוואטסאפ
-          </a>
-        )}
-      </div>
-    )
-  }
+  // A client whose token was rotated is a client who needs to reach a human
+  // right now. This used to be a dead end with nothing to click.
+  if (!client) return <InvalidToken />
 
   const [requests, projects] = await Promise.all([
     listClientRequests(token),

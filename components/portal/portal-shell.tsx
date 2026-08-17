@@ -9,15 +9,18 @@ import { MessageCircle } from 'lucide-react'
  * colleague read like the client's own site rather than like something we sent
  * them. This matters twice: identifying whose system it is, and being worth
  * showing on a proposal call.
+ *
+ * Taller than the console's 44px header because nothing here is competing for
+ * vertical space with a seven-column table.
  */
 export function PortalHeader() {
   return (
-    <header className="sticky top-0 z-sticky flex h-11 items-center gap-2 border-b bg-card px-4">
-      <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-ui-2xs font-bold text-primary-foreground">
+    <header className="sticky top-0 z-sticky flex h-14 items-center gap-2.5 border-b bg-surface-app px-gutter">
+      <span className="grid size-7 shrink-0 place-items-center rounded-sm bg-primary text-portal-2xs font-semibold text-primary-foreground">
         IO
       </span>
-      <span className="text-ui-sm font-semibold text-content-strong">ItayOst</span>
-      <span className="ms-auto text-ui-xs text-content-subtle">שירות ותמיכה</span>
+      <span className="text-portal-lg font-semibold text-content-strong">ItayOst</span>
+      <span className="ms-auto text-portal-xs text-content-muted">שירות ותמיכה</span>
     </header>
   )
 }
@@ -32,16 +35,16 @@ export function PortalHeader() {
  */
 export function PortalFooter({ whatsapp }: { whatsapp: string | null }) {
   return (
-    <footer className="mt-10 flex flex-col gap-1.5 border-t px-4 py-5 text-ui-xs text-content-subtle">
+    <footer className="mt-12 flex flex-col gap-2 border-t px-gutter py-6 text-portal-xs text-content-muted">
       <span>נוצר על ידי ItayOst</span>
       {whatsapp && (
         <a
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex w-max items-center gap-1.5 text-link hover:underline"
+          className="inline-flex w-max items-center gap-1.5 font-semibold text-link underline decoration-border-strong underline-offset-4 hover:decoration-current"
         >
-          <MessageCircle aria-hidden className="size-3.5" />
+          <MessageCircle aria-hidden className="size-4" />
           יש שאלה? כתבו לנו בוואטסאפ
         </a>
       )}

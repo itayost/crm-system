@@ -62,7 +62,7 @@ const BUDGET = 4
  * Directories written during the rebuild. These start clean and stay clean -
  * there is no reason for a brand new primitive to contain a physical utility.
  */
-const GREENFIELD = ['components/patterns']
+const GREENFIELD = ['components/patterns', 'components/portal']
 
 function walk(dir: string): string[] {
   const abs = join(ROOT, dir)
