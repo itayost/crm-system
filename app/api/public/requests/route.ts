@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { publicRequestSchema } from '@/lib/validations/public-request'
-import { StorageService, validateAttachment } from '@/lib/services/storage.service'
+import {
+  MAX_ATTACHMENTS,
+  StorageService,
+  validateAttachment,
+} from '@/lib/services/storage.service'
 import { PublicRequestsService, SubmitResult } from '@/lib/services/public-requests.service'
 import { WahaService } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
@@ -41,10 +45,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'הקישור אינו תקין' }, { status: 404 })
     }
 
-    // Optional single attachment.
+    /**
+     * Up to five attachments.
+     *
+     * `form.get` returned exactly one, so a client reporting a bug across three
+     * screens had to pick which screenshot mattered - and the usual answer to
+     * "one file only" is a WhatsApp message with the other two, which lands
+     * outside the ticket. The cap exists because each file is a 5MB upload on a
+     * public endpoint; it is a bound on the work, not on what a client can say.
+     */
+    const files = form
+      .getAll('file')
+      .filter((f): f is File => f instanceof File && f.size > 0)
+      .slice(0, MAX_ATTACHMENTS)
+
     const attachments: string[] = []
-    const file = form.get('file')
-    if (file instanceof File && file.size > 0) {
+    for (const file of files) {
       const check = validateAttachment(file)
       if (!check.ok) {
         return NextResponse.json({ success: false, error: check.error }, { status: 400 })
@@ -91,7 +107,7 @@ async function notifyOwner(result: SubmitResult, type?: string) {
     `*סוג:* ${TYPE_LABELS[type ?? 'REQUEST'] ?? 'בקשה'}`,
   ]
   if (result.reporterName) lines.push(`*מאת:* ${result.reporterName}`)
-  if (result.attachmentCount > 0) lines.push('*צורף קובץ:* כן')
+  if (result.attachmentCount > 0) lines.push(`*קבצים:* ${result.attachmentCount}`)
   lines.push('', 'ממתין לאישור בלוח הבקשות.')
 
   await WahaService.sendMessage({ chatId: ownerChatId, text: lines.join('\n') })

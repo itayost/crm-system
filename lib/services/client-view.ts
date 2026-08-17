@@ -521,6 +521,15 @@ export interface ClientProjectView {
   status: string
   deadline: string | null
   completedAt: string | null
+  /**
+   * The advance, as its own line.
+   *
+   * It is part of `total` and part of `paid`, but it is not a phase - so a
+   * client reading the phase rail could add every row up and land short of the
+   * total with nothing on the page explaining the gap. Exposed so the rail can
+   * carry it as the step it actually is. Null when there is no advance.
+   */
+  advance: { amount: number; paidAt: string | null } | null
   phases: ClientPhaseView[]
   /** Everything agreed: the advance plus every phase. */
   total: number
@@ -572,6 +581,7 @@ export function toClientProject(row: {
     paidAt: p.paidAt ? p.paidAt.toISOString() : null,
   }))
 
+  const advanceAmount = decimal(row.advanceAmount) ?? 0
   const total = projectTotal(decimal(row.advanceAmount), money)
   const paid = projectPaid(decimal(row.advanceAmount), row.advancePaidAt, money)
   const outstanding = projectOutstanding(money)
@@ -583,6 +593,10 @@ export function toClientProject(row: {
     status: row.status,
     deadline: row.deadline?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
+    advance:
+      advanceAmount > 0
+        ? { amount: advanceAmount, paidAt: row.advancePaidAt?.toISOString() ?? null }
+        : null,
     phases,
     total,
     paid,

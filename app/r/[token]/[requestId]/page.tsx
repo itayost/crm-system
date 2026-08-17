@@ -1,11 +1,13 @@
 import Link from 'next/link'
 
+import { AttachmentGrid } from '@/components/portal/attachment-grid'
 import { ClientStatePill, BillingPill } from '@/components/portal/client-state-pill'
-import { QuoteCard } from '@/components/portal/quote-card'
-import { PortalAttachments } from '@/components/portal/portal-attachments'
-import { getClientRequest } from '@/lib/services/client-view'
-import { REQUEST_TYPE_LABELS, label } from '@/lib/design/labels'
-import { formatDate } from '@/lib/utils'
+import { IntakePlayback } from '@/components/portal/intake-playback'
+import { JourneyRail, timelineSteps } from '@/components/portal/journey-rail'
+import { PortalBack, PortalSection, PortalTitle } from '@/components/portal/portal-page'
+import { QuoteDecision } from '@/components/portal/quote-decision'
+import { buildClientTimeline, getClientRequest } from '@/lib/services/client-view'
+import { whatsappLink } from '@/lib/portal/whatsapp-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +18,11 @@ export const dynamic = 'force-dynamic'
  * request id belonging to another client resolves to nothing and lands on the
  * same "not found" screen as a typo. Identical output for both is deliberate:
  * a different message would confirm which ids exist.
+ *
+ * The page has two modes. When a quote is outstanding the decision is the
+ * spine - price, scope, what happens next, and the buttons - and the history
+ * moves below it. Otherwise the journey rail leads, because the question a
+ * client arrives with then is "is this moving?" rather than "what do I owe?".
  */
 export default async function PortalRequestPage({
   params,
@@ -27,96 +34,86 @@ export default async function PortalRequestPage({
 
   if (!request) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-content-strong">הפנייה לא נמצאה</h1>
-          <Link href={`/r/${token}/requests`} className="mt-3 inline-block text-sm underline">
-            חזרה לפניות שלך
-          </Link>
-        </div>
+      <div className="flex min-h-[55vh] flex-col items-center justify-center gap-4 text-center">
+        <PortalTitle>הפנייה לא נמצאה</PortalTitle>
+        <Link
+          href={`/r/${token}/requests`}
+          className="text-portal-sm font-semibold text-link underline underline-offset-4"
+        >
+          חזרה לפניות שלך
+        </Link>
       </div>
     )
   }
 
-  return (
-    <>
-      <Link href={`/r/${token}/requests`} className="text-sm text-content-muted underline">
-        חזרה לפניות שלך
-      </Link>
+  const deciding = request.awaitingDecision
+  const timeline = buildClientTimeline(request)
+  const whatsapp = whatsappLink()
 
-      <header className="mt-4 mb-6">
-        <h1 className="text-2xl font-bold text-content-strong">{request.title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+  return (
+    <div className="flex flex-col gap-7">
+      <PortalBack href={`/r/${token}/requests`}>חזרה לפניות שלך</PortalBack>
+
+      <header className="flex flex-col gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <ClientStatePill state={request.clientStatus} />
           <BillingPill billingKind={request.billingKind} />
         </div>
+        <PortalTitle>{request.title}</PortalTitle>
       </header>
 
-      <div className="space-y-6">
-        <QuoteCard request={request} token={token} />
+      <QuoteDecision request={request} token={token} />
 
-        {request.description && (
-          <section>
-            <h2 className="mb-2 font-semibold text-content-strong">מה ביקשתם</h2>
-            <p className="whitespace-pre-wrap text-content-muted">{request.description}</p>
-          </section>
-        )}
-
-        <section>
-          <h2 className="mb-2 font-semibold text-content-strong">פרטים</h2>
-          <dl className="space-y-1 text-sm">
-            <Row term="נפתחה" value={<bdi>{formatDate(request.openedAt)}</bdi>} />
-            <Row term="סוג" value={label(REQUEST_TYPE_LABELS, request.type)} />
-            {request.projectName && <Row term="פרויקט" value={request.projectName} />}
-            {request.resolvedAt && (
-              <Row term="הושלמה" value={<bdi>{formatDate(request.resolvedAt)}</bdi>} />
-            )}
-          </dl>
-        </section>
-
-        <PortalAttachments
-          token={token}
-          requestId={request.id}
-          count={request.attachmentCount}
-        />
-
-        {/* The conversation already lives in WhatsApp. A deep link back to it
-            beats a comment thread the client would have to learn and check.
-            Rendered only when there is a number to link to. */}
-        {whatsappLink() && (
-          <p className="text-sm text-content-muted">
-            יש שאלה על הפנייה הזו?{' '}
-            <a href={whatsappLink()!} className="underline" target="_blank" rel="noreferrer">
-              אפשר לכתוב לנו בוואטסאפ
-            </a>
-            .
+      {/* The description is the quote's scope while a quote is open, so
+          QuoteDecision has already shown it. Repeating it here would be the same
+          paragraph twice on one screen. */}
+      {!deciding && request.description && (
+        <PortalSection heading="מה ביקשתם">
+          <p className="whitespace-pre-wrap text-portal-sm text-content-body">
+            {request.description}
           </p>
-        )}
-      </div>
-    </>
-  )
-}
+        </PortalSection>
+      )}
 
-/**
- * The business WhatsApp number as a wa.me link, or nothing.
- *
- * Read server-side per render rather than baked into a NEXT_PUBLIC_ var: this
- * page is force-dynamic, so there is no build-time inlining to gain, and the
- * number stays out of the client bundle for every other page in the app.
- */
-function whatsappLink(): string | null {
-  const raw = (process.env.OWNER_PHONE ?? '').replace(/\D/g, '')
-  if (!raw) return null
+      {!deciding && (
+        <PortalSection heading="איפה זה עומד">
+          <div className="rounded-lg border p-4">
+            <JourneyRail steps={timelineSteps(timeline)} />
+          </div>
+        </PortalSection>
+      )}
 
-  const international = raw.startsWith('0') ? `972${raw.slice(1)}` : raw
-  return `https://wa.me/${international}`
-}
+      {request.intake.length > 0 && (
+        <PortalSection heading="כך הבנתי אותך">
+          <IntakePlayback answers={request.intake} />
+          <p className="text-portal-xs text-content-muted">
+            משהו כאן לא מדויק? כתבו לנו והפנייה תתעדכן.
+          </p>
+        </PortalSection>
+      )}
 
-function Row({ term, value }: { term: string; value: React.ReactNode }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="text-content-muted">{term}:</dt>
-      <dd className="text-content-strong">{value}</dd>
+      {request.attachments.length > 0 && (
+        <PortalSection heading="קבצים שצירפת">
+          <AttachmentGrid token={token} requestId={request.id} attachments={request.attachments} />
+        </PortalSection>
+      )}
+
+      {/* The conversation already lives in WhatsApp. A deep link back to it
+          beats a comment thread the client would have to learn and check. */}
+      {whatsapp && (
+        <p className="text-portal-xs text-content-muted">
+          יש שאלה על הפנייה הזו?{' '}
+          <a
+            href={whatsapp}
+            className="font-semibold text-link underline underline-offset-4"
+            target="_blank"
+            rel="noreferrer"
+          >
+            אפשר לכתוב לנו בוואטסאפ
+          </a>
+          .
+        </p>
+      )}
     </div>
   )
 }

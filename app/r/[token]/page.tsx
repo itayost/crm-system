@@ -1,29 +1,33 @@
 import Link from 'next/link'
 
-import { PublicRequestForm } from '@/components/forms/public-request-form'
 import { InvalidToken } from '@/components/portal/invalid-token'
+import { JourneyRail, phaseSteps } from '@/components/portal/journey-rail'
 import { PortalNav } from '@/components/portal/portal-nav'
+import { portalButton } from '@/components/portal/portal-button'
+import { PortalAnswer, PortalCard, PortalSection } from '@/components/portal/portal-page'
+import { CLIENT_PHASE_STATUS_LABELS } from '@/lib/design/labels'
+import {
+  listClientProjects,
+  listClientRequests,
+  type ClientProjectView,
+  type ClientRequestView,
+} from '@/lib/services/client-view'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
-import { listClientProjects, listClientRequests } from '@/lib/services/client-view'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * The client's home.
+ * The client's home, which is one sentence and then the evidence for it.
  *
- * This page used to drop them straight into a list of sixteen requests, which
- * answers everything except the question they actually arrived with: is
- * anything waiting on me. That answer is now the first thing on the page, and
- * the list moved to its own tab.
+ * It used to open with three counters - requests, in development, to pay - that
+ * all read zero on a healthy account, and then a six-field form. So the first
+ * thing a client saw about their own work was three zeros and a wall of inputs.
  *
- * Every read goes through client-view.ts. The project list here used to reach
- * for Prisma directly, which made it the one query on the portal outside the
- * whitelist discipline; listClientProjects now covers it.
- *
- * The submit form stays here rather than moving with the list: it is what a
- * client comes to do, and e2e/public-request.spec.ts asserts both it and its
- * heading at this exact URL.
+ * The answer comes first now, in a sentence, because they arrive holding
+ * exactly one question and should not have to assemble the answer out of
+ * numbers. Everything below it is the evidence: what is moving, and what moved
+ * last. The form has its own route.
  */
 export default async function PortalHomePage({
   params,
@@ -43,91 +47,157 @@ export default async function PortalHomePage({
   ])
 
   const awaiting = requests.filter((r) => r.awaitingDecision)
-  const inProgress = requests.filter((r) => r.clientStatus === 'IN_PROGRESS').length
-  const owed = projects.reduce((sum, p) => sum + p.outstanding, 0)
+  const active = projects.filter((p) => !p.completedAt)
 
   return (
-    <>
+    <div className="flex flex-col gap-8">
       <PortalNav token={token} active="home" awaiting={awaiting.length} />
 
-      {/* The client's own name is context, not the page's identity - the
-          header above says whose system this is. */}
-      <header className="mb-5">
-        <p className="text-ui-2xs text-content-subtle">עבור</p>
-        <h1 className="text-ui-xl font-semibold text-content-strong">{client.name}</h1>
+      <header className="flex flex-col gap-2">
+        {/* The client's own name is context, not the page's identity - the
+            header above says whose system this is. */}
+        <p className="text-portal-2xs text-content-muted">עבור {client.name}</p>
+        <PortalAnswer>{answer(awaiting, requests, active)}</PortalAnswer>
       </header>
 
-      {/* The answer first. Everything below it is detail. */}
-      {awaiting.length > 0 ? (
-        <section className="mb-6 rounded-lg border border-tone-caution-mark/40 bg-tone-caution-surface/40 p-5">
-          <h2 className="font-semibold text-content-strong">
-            {awaiting.length === 1
-              ? 'יש הצעת מחיר אחת שממתינה לאישורך'
-              : `יש ${awaiting.length} הצעות מחיר שממתינות לאישורך`}
-          </h2>
-          <ul className="mt-3 space-y-2">
+      {awaiting.length > 0 && (
+        <PortalSection>
+          <div className="flex flex-col gap-3 rounded-lg border border-tone-caution-mark/45 bg-tone-caution-surface/50 p-4">
             {awaiting.map((request) => (
-              <li key={request.id}>
-                <Link
-                  href={`/r/${token}/${request.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2 hover:shadow-sm"
-                >
-                  <span className="font-medium text-content-strong">{request.title}</span>
-                  <span className="tabular-nums text-content-muted">
+              <div key={request.id} className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-portal-base font-semibold text-content-strong">
+                      {request.title}
+                    </span>
+                    {request.estimateHours != null && (
+                      <span className="text-portal-2xs text-content-muted">
+                        היקף משוער: <bdi className="font-mono tabular-nums">{request.estimateHours}</bdi>{' '}
+                        שעות
+                      </span>
+                    )}
+                  </div>
+                  <span className="shrink-0 font-display text-portal-title font-medium leading-none tabular-nums text-content-strong">
                     <bdi>{formatCurrency(request.quotedPrice)}</bdi>
                   </span>
+                </div>
+                <Link href={`/r/${token}/${request.id}`} className={portalButton('ink', 'w-full')}>
+                  לצפייה ואישור
                 </Link>
-              </li>
+              </div>
             ))}
-          </ul>
-        </section>
-      ) : (
-        <section className="mb-6 rounded-lg border border-border p-5">
-          <h2 className="font-semibold text-content-strong">הכל מטופל</h2>
-          <p className="mt-1 text-sm text-content-muted">אין כרגע שום דבר שממתין לאישור שלך.</p>
-        </section>
+            <p className="text-portal-2xs text-tone-caution-foreground">
+              לא מתחילים לעבוד על זה לפני שתאשרו.
+            </p>
+          </div>
+        </PortalSection>
       )}
 
-      <dl className="mb-10 grid grid-cols-3 gap-3">
-        <Stat term="הפניות שלך" value={String(requests.length)} href={`/r/${token}/requests`} />
-        <Stat term="בפיתוח" value={String(inProgress)} href={`/r/${token}/requests`} />
-        <Stat
-          term="לתשלום"
-          value={formatCurrency(owed)}
-          href={projects.length > 0 ? `/r/${token}/projects` : undefined}
-        />
-      </dl>
+      {active.map((project) => (
+        <PulseSection key={project.id} token={token} project={project} />
+      ))}
 
-      {/* Heading asserted by e2e/public-request.spec.ts - it is the guard that
-          the form stayed reachable from the one link a client is given. */}
-      <section id="new-request" className="scroll-mt-6">
-        <h2 className="mb-1 text-lg font-semibold text-content-strong">דיווח תקלה / בקשה</h2>
-        <p className="mb-4 text-sm text-content-muted">מלאו את הטופס ונחזור אליכם בהקדם.</p>
-        <PublicRequestForm
-          token={token}
-          clientName={client.name}
-          projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-        />
-      </section>
-    </>
+      <LastMovement requests={requests} />
+
+      <Link href={`/r/${token}/requests/new`} className={portalButton('quiet', 'w-full')}>
+        פנייה חדשה
+      </Link>
+    </div>
   )
 }
 
-function Stat({ term, value, href }: { term: string; value: string; href?: string }) {
-  const body = (
-    <>
-      <dt className="text-xs text-content-faint">{term}</dt>
-      <dd className="text-xl font-bold tabular-nums text-content-strong">
-        <bdi>{value}</bdi>
-      </dd>
-    </>
-  )
+/**
+ * The sentence.
+ *
+ * Ordered by what the client can act on: something waiting on them beats work
+ * in flight, which beats nothing at all. The last case is not an error state -
+ * a client with no open requests and no live project is a client whose things
+ * are all done, and the page should say so rather than showing an empty list.
+ */
+function answer(
+  awaiting: ClientRequestView[],
+  requests: ClientRequestView[],
+  active: ClientProjectView[],
+): string {
+  if (awaiting.length === 1) return 'יש הצעת מחיר אחת שממתינה לך.'
+  if (awaiting.length > 1) return `יש ${awaiting.length} הצעות מחיר שממתינות לך.`
 
-  return href ? (
-    <Link href={href} className="rounded-lg border border-border p-3 hover:shadow-sm">
-      {body}
-    </Link>
-  ) : (
-    <div className="rounded-lg border border-border p-3">{body}</div>
+  const live = requests.some(
+    (r) => r.clientStatus === 'IN_PROGRESS' || r.clientStatus === 'SCHEDULED',
+  )
+  if (live || active.length > 0) return 'הכול בתנועה. אין שום דבר שממתין לך.'
+
+  return 'הכול מטופל. אין שום דבר פתוח כרגע.'
+}
+
+/** Where the work is, as the three steps around the current one. */
+function PulseSection({ token, project }: { token: string; project: ClientProjectView }) {
+  // No advance here: the glance version is about where the *work* is, and an
+  // unpaid advance would present itself as the current step of the project.
+  const steps = phaseSteps(project.phases, CLIENT_PHASE_STATUS_LABELS)
+  const current = steps.findIndex((s) => s.state === 'now')
+  if (current < 0) return null
+
+  // One step behind and one ahead is enough to read as motion. The whole rail
+  // lives on the project page; this is the glance version.
+  const window = steps.slice(Math.max(0, current - 1), current + 2)
+
+  return (
+    <PortalSection
+      heading="מה בתנועה"
+      aside={
+        <>
+          שלב <bdi className="font-mono tabular-nums">{current + 1}</bdi> מתוך{' '}
+          <bdi className="font-mono tabular-nums">{project.phases.length}</bdi>
+        </>
+      }
+    >
+      <PortalCard className="flex flex-col gap-3.5">
+        <Link
+          href={`/r/${token}/projects`}
+          className="flex flex-col gap-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="text-portal-base font-semibold text-content-strong">{project.name}</span>
+          <span className="text-portal-2xs text-content-muted">{steps[current].title}</span>
+        </Link>
+        <JourneyRail steps={window} />
+      </PortalCard>
+    </PortalSection>
+  )
+}
+
+/**
+ * The most recent thing that actually happened.
+ *
+ * Recency is the reassurance: "we resolved this on Tuesday" answers "is anyone
+ * working on my account" better than any status chip can. Picks the newest of
+ * the dates the data can prove, and renders nothing when there is none.
+ */
+function LastMovement({ requests }: { requests: ClientRequestView[] }) {
+  const moved = requests
+    .map((r) => ({
+      request: r,
+      at: r.resolvedAt ?? r.decidedAt ?? r.quotedAt,
+      what: r.resolvedAt ? 'הושלמה' : r.decidedAt ? 'קיבלה תשובה' : 'קיבלה הצעת מחיר',
+    }))
+    .filter((m): m is { request: ClientRequestView; at: string; what: string } => m.at !== null)
+    .sort((a, b) => b.at.localeCompare(a.at))
+
+  const latest = moved[0]
+  if (!latest) return null
+
+  return (
+    <PortalSection heading="מה קרה לאחרונה">
+      <div className="flex flex-col gap-1 rounded-lg border p-4">
+        <span className="text-portal-sm text-content-body">
+          הפנייה{' '}
+          <span className="font-semibold text-content-strong">{latest.request.title}</span>{' '}
+          {latest.what}
+        </span>
+        <span className="text-portal-2xs text-content-faint">
+          <bdi>{formatDate(latest.at)}</bdi>
+        </span>
+      </div>
+    </PortalSection>
   )
 }

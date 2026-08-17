@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { Button } from '@/components/ui/button'
+import { PortalButton } from '@/components/portal/portal-button'
 import { decideOnQuote } from '@/app/r/[token]/actions'
 
 /**
@@ -43,8 +43,8 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
 
   if (decliningNote !== null) {
     return (
-      <div className="space-y-3">
-        <label htmlFor="decline-note" className="block text-sm font-medium text-content-strong">
+      <div className="flex flex-col gap-3">
+        <label htmlFor="decline-note" className="text-portal-xs font-semibold text-content-strong">
           מה לא מתאים? (לא חובה)
         </label>
         <textarea
@@ -56,26 +56,25 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
           value={decliningNote}
           onChange={(e) => setDecliningNote(e.target.value)}
           placeholder="המחיר גבוה מדי, אפשר בלי החלק השני, נדבר על זה בחודש הבא..."
-          className="w-full rounded-md border border-border bg-background p-3 text-sm"
+          className="w-full rounded-md border border-border-strong bg-card p-3.5 text-portal-sm text-content-body placeholder:text-content-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        {error && <p className="text-sm text-tone-danger-foreground">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button
+        <DecisionError error={error} />
+        <div className="flex flex-wrap gap-2.5">
+          <PortalButton
             type="button"
-            variant="outline"
             disabled={pending}
             onClick={() => submit('DECLINED', decliningNote)}
           >
-            שליחת התשובה
-          </Button>
-          <Button
+            {pending ? 'רגע...' : 'שליחת התשובה'}
+          </PortalButton>
+          <PortalButton
             type="button"
-            variant="ghost"
+            tone="ghost"
             disabled={pending}
             onClick={() => setDecliningNote(null)}
           >
             ביטול
-          </Button>
+          </PortalButton>
         </div>
       </div>
     )
@@ -91,27 +90,41 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
    * follows; above `sm` it settles back into the flow.
    */
   return (
-    <div className="space-y-3">
-      {error && <p className="text-sm text-tone-danger-foreground">{error}</p>}
-      <div className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t bg-card p-3 shadow-e2 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-        <Button
-          type="button"
-          className="h-11 flex-1 sm:h-9 sm:flex-none"
-          disabled={pending}
-          onClick={() => submit('APPROVED')}
-        >
-          {pending ? 'רגע...' : 'אישור הצעת המחיר'}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 flex-none sm:h-9"
-          disabled={pending}
-          onClick={() => setDecliningNote('')}
-        >
-          לא עכשיו
-        </Button>
+    <div className="flex flex-col gap-3">
+      <DecisionError error={error} />
+      <div className="fixed inset-x-0 bottom-0 z-sticky flex flex-col gap-2 border-t bg-surface-app/95 px-gutter pb-4 pt-3 shadow-e2 backdrop-blur-sm sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
+        <div className="mx-auto flex w-full max-w-2xl gap-2.5">
+          <PortalButton
+            type="button"
+            className="flex-[2]"
+            disabled={pending}
+            onClick={() => submit('APPROVED')}
+          >
+            {pending ? 'רגע...' : 'אישור ההצעה'}
+          </PortalButton>
+          <PortalButton
+            type="button"
+            tone="ghost"
+            className="flex-1"
+            disabled={pending}
+            onClick={() => setDecliningNote('')}
+          >
+            לא עכשיו
+          </PortalButton>
+        </div>
+        <p className="text-center text-portal-2xs text-content-muted sm:text-start">
+          לא מתחילים לעבוד על זה לפני שתאשרו.
+        </p>
       </div>
     </div>
+  )
+}
+
+/** Announced, because a failure here is the one thing on the page that matters. */
+function DecisionError({ error }: { error: string | null }) {
+  return (
+    <p role="status" aria-live="polite" className="text-portal-xs text-tone-danger-foreground">
+      {error}
+    </p>
   )
 }

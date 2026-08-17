@@ -500,3 +500,31 @@ describe('the ledger reconciles', () => {
     expect(view.phases[0].approvedAt).toBe(new Date('2026-07-04').toISOString())
   })
 })
+
+describe('the advance is a line, not a gap', () => {
+  it('reaches the rail so the steps can add up to the total', () => {
+    // Without this the phase rail sums to 14,800 under a statement that says
+    // 18,400, and nothing on the page accounts for the difference.
+    const view = toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null,
+      advanceAmount: 3600, advancePaidAt: new Date('2026-06-02'),
+      phases: [
+        { id: 'a', name: 'שלב א', status: 'APPROVED', price: 2400, approvedAt: new Date(), paidAt: new Date() },
+      ] as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+    expect(view.advance).toEqual({ amount: 3600, paidAt: new Date('2026-06-02').toISOString() })
+    expect(view.advance!.amount + view.phases.reduce((s, p) => s + p.price, 0)).toBe(view.total)
+  })
+
+  it('is absent rather than zero when there is no advance', () => {
+    const view = toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null, advanceAmount: 0, advancePaidAt: null,
+      phases: [] as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+    expect(view.advance).toBeNull()
+  })
+})

@@ -172,8 +172,12 @@ test.describe('public form page', () => {
     const tokRes = await request.post(`/api/clients/${client.id}/form-token`)
     const { formToken } = await tokRes.json()
 
+    // The form is its own route now. It used to be the body of the home page,
+    // above anything about the client's own work.
     await page.goto(`/r/${formToken}`)
-    await expect(page.getByRole('heading', { name: /דיווח תקלה/ })).toBeVisible()
+    await page.getByRole('link', { name: 'פנייה חדשה' }).first().click()
+    await expect(page).toHaveURL(new RegExp(`/r/${formToken}/requests/new$`))
+    await expect(page.getByRole('heading', { name: 'מה קרה?' })).toBeVisible()
 
     await page.locator('input[name="title"]').fill(`תקלה מהדפדפן ${Date.now()}`)
     await page.locator('textarea[name="description"]').fill('משהו לא עובד')

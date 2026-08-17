@@ -49,13 +49,29 @@ test.describe('portal on a phone', () => {
 
   test('the submit form is properly labelled', async ({ page, request }) => {
     const { formToken } = await mintPortal(request)
-    await page.goto(`/r/${formToken}`)
+    await page.goto(`/r/${formToken}/requests/new`)
 
     // Every field reachable by its label - the old form had bare <label>
     // elements with no htmlFor, so none of these resolved.
     await expect(page.getByLabel('כותרת')).toBeVisible()
     await expect(page.getByLabel('תיאור')).toBeVisible()
-    await expect(page.getByLabel('סוג הפנייה')).toBeVisible()
+    // The type is a radiogroup of chips now, not a <select>. The fieldset's
+    // legend is what names it, and each chip is a real radio underneath.
+    await expect(page.getByRole('group', { name: 'סוג הפנייה' })).toBeVisible()
+    await expect(page.getByRole('radio', { name: 'תקלה' })).toBeChecked()
+  })
+
+  test('the home page answers before it asks', async ({ page, request }) => {
+    const { formToken } = await mintPortal(request)
+    await page.goto(`/r/${formToken}`)
+
+    // A brand new client has nothing open, and the page should say so in a
+    // sentence rather than showing three counters that all read zero.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('הכול מטופל')
+
+    // The form is not on this page any more.
+    await expect(page.locator('textarea[name="description"]')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'פנייה חדשה' }).first()).toBeVisible()
   })
 
   test('an invalid token still offers a way to reach us', async ({ page }) => {
