@@ -1,0 +1,1566 @@
+<title>Ledger Console</title>
+
+<style>
+/* ============================================================
+   DOCUMENT CHROME — theme aware
+   ============================================================ */
+:root{
+  --bg:#FBFBFC;
+  --surface:#FFFFFF;
+  --surface-2:#F4F6F8;
+  --ink:#11151B;
+  --ink-2:#39434F;
+  --muted:#66707D;
+  --faint:#98A1AD;
+  --rule:#E3E7EC;
+  --rule-2:#CBD2DB;
+
+  --problem:#B4321E;
+  --problem-bg:#FBEEEB;
+  --problem-rule:#EFCFC7;
+  --good:#0E6B4A;
+  --good-bg:#E9F5EF;
+  --good-rule:#C2E0D2;
+
+  --shadow-frame:0 1px 2px rgba(16,22,30,.06), 0 8px 28px -12px rgba(16,22,30,.22);
+
+  --w:1120px;
+  --sp:clamp(56px, 7vw, 96px);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C0F14;
+    --surface:#141920;
+    --surface-2:#1B212A;
+    --ink:#E9EDF3;
+    --ink-2:#B4BDC9;
+    --muted:#8D97A4;
+    --faint:#6B7684;
+    --rule:#242C37;
+    --rule-2:#333D4A;
+
+    --problem:#F08A72;
+    --problem-bg:#2A1712;
+    --problem-rule:#4A2A21;
+    --good:#59C79A;
+    --good-bg:#0F2219;
+    --good-rule:#1F4032;
+
+    --shadow-frame:0 1px 2px rgba(0,0,0,.4), 0 10px 34px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C0F14;
+  --surface:#141920;
+  --surface-2:#1B212A;
+  --ink:#E9EDF3;
+  --ink-2:#B4BDC9;
+  --muted:#8D97A4;
+  --faint:#6B7684;
+  --rule:#242C37;
+  --rule-2:#333D4A;
+
+  --problem:#F08A72;
+  --problem-bg:#2A1712;
+  --problem-rule:#4A2A21;
+  --good:#59C79A;
+  --good-bg:#0F2219;
+  --good-rule:#1F4032;
+
+  --shadow-frame:0 1px 2px rgba(0,0,0,.4), 0 10px 34px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  margin:0;
+  padding:0 24px 120px;
+}
+
+.wrap{max-width:var(--w);margin:0 auto}
+
+/* --- document typography --- */
+h1,h2,h3,h4{text-wrap:balance;margin:0;letter-spacing:-.02em;line-height:1.15}
+h1{font-size:clamp(34px,5vw,52px);font-weight:700;letter-spacing:-.035em}
+h2{font-size:clamp(24px,3vw,31px);font-weight:660}
+h3{font-size:19px;font-weight:640;letter-spacing:-.012em}
+h4{font-size:15px;font-weight:640;letter-spacing:-.008em}
+p{margin:0}
+a{color:inherit}
+
+.eyebrow{
+  font-size:11px;font-weight:680;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);
+}
+.lede{font-size:19px;line-height:1.55;color:var(--ink-2);max-width:64ch}
+.body{font-size:15.5px;line-height:1.65;color:var(--ink-2);max-width:70ch}
+.small{font-size:13.5px;line-height:1.6;color:var(--muted);max-width:74ch}
+.tiny{font-size:12px;line-height:1.55;color:var(--faint)}
+
+code,.mono{
+  font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.88em;
+  font-variant-numeric:tabular-nums;
+}
+p code,li code,td code{
+  background:var(--surface-2);
+  border:1px solid var(--rule);
+  border-radius:4px;
+  padding:1px 5px;
+}
+
+/* --- layout primitives --- */
+section{padding-block:var(--sp)}
+section + section{border-top:1px solid var(--rule)}
+.stack{display:flex;flex-direction:column;gap:16px}
+.stack-lg{display:flex;flex-direction:column;gap:32px}
+.stack-sm{display:flex;flex-direction:column;gap:8px}
+.head{display:flex;flex-direction:column;gap:12px;margin-bottom:36px}
+
+/* --- masthead --- */
+.masthead{padding-block:clamp(72px,10vw,128px) var(--sp)}
+.masthead h1{margin-block:18px 22px}
+.rule-accent{width:52px;height:3px;background:var(--ink);border-radius:2px}
+
+.figures{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  gap:1px;
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-radius:10px;
+  overflow:hidden;
+  margin-top:44px;
+}
+.fig{background:var(--surface);padding:18px 18px 16px;display:flex;flex-direction:column;gap:5px}
+.fig b{
+  font-size:27px;font-weight:660;letter-spacing:-.03em;line-height:1;
+  font-variant-numeric:tabular-nums;color:var(--problem);
+}
+.fig span{font-size:12.5px;line-height:1.4;color:var(--muted)}
+
+/* --- verdict pair --- */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:800px){.pair{grid-template-columns:1fr}}
+.panel{
+  border:1px solid var(--rule);border-radius:10px;padding:20px 22px;
+  background:var(--surface);display:flex;flex-direction:column;gap:10px;
+}
+.panel.is-problem{background:var(--problem-bg);border-color:var(--problem-rule)}
+.panel.is-good{background:var(--good-bg);border-color:var(--good-rule)}
+.panel-label{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase}
+.is-problem .panel-label{color:var(--problem)}
+.is-good .panel-label{color:var(--good)}
+.panel ul{margin:0;padding-inline-start:18px;font-size:14px;line-height:1.65;color:var(--ink-2)}
+.panel li{margin-block:3px}
+
+/* --- frame around a mockup --- */
+.frame{
+  margin-top:28px;
+  border:1px solid var(--rule-2);
+  border-radius:12px;
+  background:#EEF0F3;
+  box-shadow:var(--shadow-frame);
+  overflow:hidden;
+}
+/* Break a frame out of the prose column so a 1180px app mock isn't clipped. */
+.bleed{
+  width:min(1460px, calc(100vw - 48px));
+  position:relative;
+  left:50%;
+  transform:translateX(-50%);
+}
+.frame-bar{
+  height:34px;display:flex;align-items:center;gap:12px;padding-inline:14px;
+  background:linear-gradient(#FAFBFC,#F1F3F6);
+  border-bottom:1px solid #DFE3E9;
+}
+.dots{display:flex;gap:6px}
+.dots i{width:9px;height:9px;border-radius:50%;background:#D3D8DF;display:block}
+.frame-url{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:#7A838F;
+  background:#FFF;border:1px solid #E1E5EA;border-radius:5px;padding:2px 10px;
+}
+.frame-scroll{overflow-x:auto;background:#fff}
+.caption{
+  font-size:12.5px;color:var(--faint);margin-top:12px;display:flex;gap:8px;align-items:baseline;
+}
+.caption b{color:var(--muted);font-weight:620}
+
+/* ============================================================
+   PRODUCT MOCKUP TOKENS — locked light. These are screenshots.
+   Values are the real ones from app/globals.css.
+   ============================================================ */
+.m{
+  --app:hsl(220 14.3% 95.9%);
+  --card:#fff;
+  --strong:hsl(220.9 39.3% 11%);
+  --bodyc:hsl(216.9 19.1% 26.7%);
+  --mutedc:hsl(215 13.8% 34.1%);
+  --subtle:hsl(220 8.9% 46.1%);
+  --faintc:hsl(217.9 10.6% 64.9%);
+  --line:hsl(214.3 31.8% 91.4%);
+  --line-2:hsl(216 12.2% 83.9%);
+  --sub:hsl(210 20% 98%);
+
+  /* proposed: primary is ink, link moves off blue-600 */
+  --primary:hsl(220.9 39.3% 11%);
+  --link:hsl(225.9 70.7% 40.2%);
+
+  --n-s:hsl(220 14.3% 95.9%); --n-f:hsl(216.9 19.1% 26.7%); --n-m:hsl(220 8.9% 46.1%);
+  --i-s:hsl(214.3 94.6% 92.7%); --i-f:hsl(225.9 70.7% 40.2%); --i-m:hsl(217.2 91.2% 59.8%);
+  --su-s:hsl(140.6 84.2% 92.5%); --su-f:hsl(142.8 64.2% 24.1%); --su-m:hsl(142.1 76.2% 36.3%);
+  --w-s:hsl(34.3 100% 91.8%); --w-f:hsl(15 79.1% 33.7%); --w-m:hsl(20.5 90.2% 48.2%);
+  --c-s:hsl(54.9 96.7% 88%); --c-f:hsl(31.8 81% 28.8%); --c-m:hsl(45.4 93.4% 47.5%);
+  --d-s:hsl(0 93.3% 94.1%); --d-f:hsl(0 70% 35.3%); --d-m:hsl(0 72.2% 50.6%);
+  --a-s:hsl(268.7 100% 95.5%); --a-f:hsl(272.9 67.2% 39.4%); --a-m:hsl(270.7 91% 65.1%);
+  --pr-s:hsl(167.2 85.5% 89.2%); --pr-f:hsl(176.1 69.4% 21.8%); --pr-m:hsl(174.7 83.9% 31.6%);
+
+  --paid:hsl(142.4 71.8% 29.2%);
+  --due:hsl(17.5 88.3% 40.4%);
+  --vip:hsl(45.4 93.4% 47.5%);
+
+  font-family:"Assistant","Heebo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:13px;
+  line-height:1.45;
+  color:var(--bodyc);
+  background:var(--app);
+  direction:rtl;
+  text-align:start;
+}
+.m *{box-sizing:border-box}
+.num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* tone pills — the real tone x emphasis model */
+.pill{
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;vertical-align:middle;
+  border-radius:999px;border:1px solid transparent;padding:1px 7px;font-size:11px;font-weight:500;
+}
+.pill .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--m)}
+.pill.soft{background:var(--s);color:var(--f);border-color:color-mix(in srgb,var(--m) 22%,transparent)}
+.pill.solid{background:var(--sol,var(--m));color:#fff;border-color:transparent;font-weight:640}
+.pill.outline{background:transparent;color:var(--f);border-color:var(--m)}
+.pill.quiet{background:transparent;color:var(--bodyc);border-color:transparent;padding-inline:0}
+
+.t-n{--s:var(--n-s);--f:var(--n-f);--m:var(--n-m)}
+.t-i{--s:var(--i-s);--f:var(--i-f);--m:var(--i-m)}
+.t-su{--s:var(--su-s);--f:var(--su-f);--m:var(--su-m)}
+.t-w{--s:var(--w-s);--f:var(--w-f);--m:var(--w-m)}
+.t-c{--s:var(--c-s);--f:var(--c-f);--m:var(--c-m);--sol:hsl(45.4 93.4% 47.5%)}
+.t-c.solid{color:hsl(220.9 39.3% 11%)}
+.t-d{--s:var(--d-s);--f:var(--d-f);--m:var(--d-m)}
+.t-a{--s:var(--a-s);--f:var(--a-f);--m:var(--a-m)}
+.t-pr{--s:var(--pr-s);--f:var(--pr-f);--m:var(--pr-m)}
+
+/* THE SIGNATURE: phase strip.
+   Fill = work state (hue). Underline = money (ink, always the same mark).
+   The two axes must not share a hue, or "approved" and "paid" collapse into
+   one green and the whole point of the device is lost. */
+.strip{display:flex;gap:2px;height:10px;align-items:flex-start;min-width:72px}
+.strip i{display:block;height:4px;border-radius:1px;background:var(--seg,var(--line-2));position:relative}
+.strip i[data-paid]::after{
+  content:"";position:absolute;inset-inline:0;top:6px;height:2px;border-radius:1px;background:var(--strong);
+}
+.strip.big{height:26px;gap:3px}
+.strip.big i{height:11px;border-radius:2px}
+.strip.big i[data-paid]::after{top:15px;height:5px;border-radius:2px}
+.seg-todo{--seg:hsl(216 12.2% 83.9%)}
+.seg-prog{--seg:var(--pr-m)}
+.seg-wait{--seg:var(--c-m)}
+.seg-rev{--seg:var(--w-m)}
+.seg-ok{--seg:var(--su-m)}
+
+/* app shell */
+.m-app{display:grid;grid-template-columns:224px 1fr;min-height:660px;width:1180px}
+.m-side{background:#fff;border-inline-start:0;border-inline-end:1px solid var(--line);display:flex;flex-direction:column}
+.m-brand{height:52px;display:flex;align-items:center;gap:9px;padding-inline:16px;border-bottom:1px solid var(--line)}
+.m-mark{
+  width:22px;height:22px;border-radius:6px;background:var(--primary);color:#fff;flex:none;
+  display:grid;place-items:center;font-size:11px;font-weight:700;letter-spacing:-.02em;
+}
+.m-brand b{font-size:13px;font-weight:640;color:var(--strong);letter-spacing:-.01em}
+.m-nav{padding:8px 8px;display:flex;flex-direction:column;gap:1px}
+.m-nav hr{border:0;border-top:1px solid var(--line);margin:8px 8px}
+.m-item{
+  height:30px;border-radius:6px;padding-inline:9px;display:flex;align-items:center;gap:9px;
+  font-size:13px;color:var(--bodyc);
+}
+.m-item .ico{width:15px;height:15px;flex:none;opacity:.62}
+.m-item .lbl{flex:1}
+.m-item .cnt{
+  font-size:11px;font-weight:640;padding:0 6px;height:17px;border-radius:999px;display:grid;place-items:center;
+  background:var(--n-s);color:var(--n-f);
+}
+.m-item.hot .cnt{background:var(--d-m);color:#fff}
+.m-item.warn .cnt{background:var(--c-m);color:var(--strong)}
+.m-item.is-on{background:hsl(220 14.3% 95.9%);color:var(--strong);font-weight:600}
+.m-item.is-on .ico{opacity:1}
+.m-side-foot{margin-top:auto;border-top:1px solid var(--line);padding:9px 10px;display:flex;align-items:center;gap:9px}
+.m-av{width:24px;height:24px;border-radius:50%;background:var(--n-s);color:var(--n-f);display:grid;place-items:center;font-size:10.5px;font-weight:640;flex:none}
+
+.m-main{display:flex;flex-direction:column;min-width:0;background:var(--app)}
+.m-top{
+  height:44px;background:#fff;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding-inline:16px;flex:none;
+}
+.m-crumb{font-size:12.5px;color:var(--subtle)}
+.m-crumb b{color:var(--strong);font-weight:600}
+.m-search{
+  flex:1;max-width:420px;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--sub);
+  display:flex;align-items:center;gap:7px;padding-inline:9px;font-size:12px;color:var(--faintc);
+}
+.kbd{
+  margin-inline-start:auto;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--subtle);
+  background:#fff;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:0 4px;
+}
+.m-page{padding:16px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+
+/* page header + segments + filters */
+.m-h{display:flex;align-items:center;gap:10px}
+.m-h h1{font-size:18px;font-weight:640;color:var(--strong);letter-spacing:-.015em;margin:0;line-height:1.2}
+.m-h .of{font-size:12.5px;color:var(--faintc)}
+.m-h .sp{flex:1}
+.btn{
+  height:26px;border-radius:6px;padding-inline:10px;display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;font-weight:560;border:1px solid var(--line-2);background:#fff;color:var(--bodyc);
+  white-space:nowrap;flex:none;
+}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--mutedc)}
+.btn.sm{height:22px;font-size:11.5px;padding-inline:8px}
+
+.segs{display:flex;gap:2px;background:var(--n-s);padding:2px;border-radius:7px;width:max-content;max-width:100%;overflow:auto}
+.seg{
+  height:26px;border-radius:5px;padding-inline:10px;display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;color:var(--mutedc);white-space:nowrap;
+}
+.seg b{font-size:11px;font-weight:640;color:var(--subtle);font-variant-numeric:tabular-nums}
+.seg.is-on{background:#fff;color:var(--strong);font-weight:600;box-shadow:0 1px 2px rgba(16,22,30,.09)}
+.seg.is-on b{color:var(--strong)}
+
+.filters{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.fld{
+  height:26px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  display:inline-flex;align-items:center;gap:6px;padding-inline:9px;font-size:12px;color:var(--subtle);
+}
+.fld.w{min-width:190px}
+
+/* table */
+.tbl{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tbl table{width:100%;border-collapse:collapse}
+.tbl th{
+  text-align:start;font-size:11px;font-weight:620;letter-spacing:.02em;color:var(--subtle);
+  padding:7px 10px;border-bottom:1px solid var(--line);background:var(--sub);white-space:nowrap;
+}
+.tbl td{padding:0 10px;height:32px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--bodyc);white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.hov td{background:hsl(210 20% 98%)}
+.tbl .ti{color:var(--strong);font-weight:560}
+.tbl .end{text-align:end}
+.tbl .cnum{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;font-size:12px;letter-spacing:-.02em}
+.tbl-foot{
+  display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--sub);
+  border-top:1px solid var(--line);font-size:11.5px;color:var(--subtle);
+}
+.muted{color:var(--subtle)}
+.faint{color:var(--faintc)}
+.due{color:var(--due);font-weight:600}
+.paidc{color:var(--paid);font-weight:600}
+.star{color:var(--vip)}
+
+/* cockpit blocks */
+.blocks{display:flex;flex-direction:column;gap:10px}
+.blk{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.blk-h{
+  display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--line);background:var(--sub);
+}
+.blk-h b{font-size:12.5px;font-weight:640;color:var(--strong)}
+.blk-h .n{font-size:11px;color:var(--subtle);font-variant-numeric:tabular-nums}
+.blk-h .sp{flex:1}
+.row{display:flex;align-items:center;gap:9px;padding:0 11px;height:32px;border-bottom:1px solid var(--line);font-size:12.5px;white-space:nowrap}
+.row:last-child{border-bottom:0}
+.row .nm{color:var(--strong);font-weight:560}
+.row .sp{flex:1}
+.dayline{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.dayline b{font-size:18px;font-weight:640;color:var(--strong);letter-spacing:-.015em}
+.dayline span{font-size:12.5px;color:var(--mutedc)}
+.statestrip{
+  display:flex;gap:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+}
+.statestrip div{flex:1;padding:9px 12px;border-inline-end:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.statestrip div:last-child{border-inline-end:0}
+.statestrip .k{font-size:11px;color:var(--subtle)}
+.statestrip .v{font-size:16px;font-weight:640;color:var(--strong);font-variant-numeric:tabular-nums;letter-spacing:-.02em;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.calm{
+  border:1px dashed var(--line-2);border-radius:8px;padding:22px;text-align:center;background:#fff;
+}
+.calm b{display:block;font-size:14px;color:var(--strong);font-weight:620;margin-bottom:3px}
+.calm span{font-size:12.5px;color:var(--subtle)}
+
+/* detail page */
+.m-detail{display:grid;grid-template-columns:1fr 244px;gap:14px;align-items:start}
+.rail{display:flex;flex-direction:column;gap:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rail .rr{display:flex;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line);font-size:12px}
+.rail .rr:last-child{border-bottom:0}
+.rail dt{color:var(--subtle);flex:none;width:74px}
+.rail dd{margin:0;color:var(--bodyc);min-width:0}
+.money{display:flex;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.money div{flex:1;padding:9px 13px;border-inline-end:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.money div:last-child{border-inline-end:0}
+.money .k{font-size:11px;color:var(--subtle)}
+.money .v{font-size:17px;font-weight:600;letter-spacing:-.025em;color:var(--strong);font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+.money .v.o{color:var(--due)}
+.tabs{display:flex;gap:16px;border-bottom:1px solid var(--line);padding-inline:2px}
+.tab{padding:7px 1px;font-size:12.5px;color:var(--subtle);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;gap:6px;align-items:center}
+.tab b{font-size:11px;color:var(--faintc);font-variant-numeric:tabular-nums}
+.tab.is-on{color:var(--strong);font-weight:620;border-bottom-color:var(--primary)}
+
+/* mobile */
+.m-phone{
+  width:340px;flex:none;background:#fff;border:1px solid var(--line-2);border-radius:22px;overflow:hidden;
+  display:flex;flex-direction:column;height:620px;box-shadow:0 1px 2px rgba(16,22,30,.07),0 10px 30px -14px rgba(16,22,30,.3);
+}
+.ph-top{height:38px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;padding-inline:13px;flex:none}
+.ph-top b{font-size:14px;font-weight:640;color:var(--strong);flex:1}
+.ph-body{flex:1;overflow:hidden;background:var(--app);padding:11px;display:flex;flex-direction:column;gap:8px}
+.ph-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:5px}
+.ph-card .l1{display:flex;align-items:center;gap:7px}
+.ph-card .l1 b{font-size:13px;font-weight:600;color:var(--strong);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph-card .l2{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--subtle)}
+.ph-bar{
+  height:54px;background:#fff;border-top:1px solid var(--line);display:flex;flex:none;padding-bottom:5px;
+}
+.ph-bar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--subtle);position:relative}
+.ph-bar a.is-on{color:var(--strong);font-weight:620}
+.ph-bar .ico{width:18px;height:18px;opacity:.66}
+.ph-bar a.is-on .ico{opacity:1}
+.ph-bar .bdot{position:absolute;top:6px;inset-inline-end:26px;width:6px;height:6px;border-radius:50%;background:var(--d-m)}
+.ph-sticky{
+  border-top:1px solid var(--line);background:#fff;padding:9px 11px;display:flex;gap:7px;flex:none;
+  box-shadow:0 -4px 14px -8px rgba(16,22,30,.28);
+}
+.ph-sticky .btn{flex:1;height:38px;justify-content:center;font-size:13.5px;border-radius:8px}
+
+/* portal */
+.pt-top{height:42px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding-inline:13px;flex:none}
+.pt-tabs{display:flex;gap:14px;background:#fff;padding:0 13px;border-bottom:1px solid var(--line);flex:none}
+.pt-tabs a{padding:11px 1px;font-size:12.5px;color:var(--subtle);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;gap:5px;align-items:center}
+.pt-tabs a.is-on{color:var(--strong);font-weight:620;border-bottom-color:var(--primary)}
+.pt-tabs .b{background:var(--c-m);color:var(--strong);font-size:10px;font-weight:700;border-radius:999px;padding:0 5px;height:15px;display:grid;place-items:center}
+.pt-foot{border-top:1px solid var(--line);background:var(--sub);padding:10px 13px;font-size:11px;color:var(--subtle);display:flex;flex-direction:column;gap:3px;flex:none}
+.quote{border:1px solid color-mix(in srgb,var(--c-m) 40%,transparent);background:color-mix(in srgb,var(--c-s) 55%,#fff);border-radius:9px;padding:13px;display:flex;flex-direction:column;gap:7px}
+.quote .amt{font-size:24px;font-weight:640;color:var(--strong);letter-spacing:-.03em;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+
+/* specimen grids */
+.spec{
+  display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:10px;overflow:hidden;
+}
+.spec > div{background:var(--surface);padding:14px 16px}
+.spec-4{grid-template-columns:repeat(4,1fr)}
+.spec-2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:760px){.spec-4{grid-template-columns:repeat(2,1fr)}}
+.sk{font-size:11px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;font-weight:640;margin-bottom:9px}
+
+.typerow{display:flex;align-items:baseline;gap:14px;padding-block:7px;border-bottom:1px solid var(--rule)}
+.typerow:last-child{border-bottom:0}
+.typerow .lbl{font-size:11px;color:var(--faint);width:104px;flex:none;font-family:ui-monospace,Menlo,monospace}
+.typerow .smp{color:var(--ink);font-family:"Assistant","Heebo",system-ui,sans-serif;direction:rtl}
+
+.swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.sw{display:flex;flex-direction:column;gap:6px}
+.sw .chips{display:flex;height:34px;border-radius:6px;overflow:hidden;border:1px solid var(--rule)}
+.sw .chips i{flex:1;display:block}
+.sw .nm{font-size:11.5px;color:var(--muted)}
+
+table.doc{width:100%;border-collapse:collapse;font-size:13.5px}
+table.doc th{
+  text-align:start;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);
+  font-weight:680;padding:0 12px 9px;border-bottom:1px solid var(--rule-2);
+}
+table.doc td{padding:9px 12px;border-bottom:1px solid var(--rule);color:var(--ink-2);vertical-align:top}
+table.doc td:first-child{color:var(--ink);font-weight:560}
+.scroller{overflow-x:auto}
+
+.kill{color:var(--problem);font-weight:600}
+.keep{color:var(--good);font-weight:600}
+
+ol.phases{counter-reset:p;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+ol.phases li{
+  display:grid;grid-template-columns:34px 1fr;gap:14px;padding:14px 4px;border-bottom:1px solid var(--rule);
+}
+ol.phases li:last-child{border-bottom:0}
+ol.phases li::before{
+  counter-increment:p;content:counter(p);
+  font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--faint);
+  border:1px solid var(--rule-2);border-radius:6px;height:24px;display:grid;place-items:center;
+}
+ol.phases h4{margin-bottom:3px}
+
+.note{
+  border-inline-start:3px solid var(--rule-2);padding:2px 0 2px 0;padding-inline-start:16px;
+  font-size:14px;color:var(--muted);
+}
+.note b{color:var(--ink)}
+
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+@media (prefers-reduced-motion:no-preference){
+  .frame{transition:box-shadow .2s ease}
+}
+</style>
+
+<div class="wrap">
+
+<!-- ============================== MASTHEAD ============================== -->
+<header class="masthead">
+  <div class="rule-accent"></div>
+  <h1>The CRM stops being<br>six tables and becomes<br>a ledger you operate.</h1>
+  <p class="lede">
+    A full audit of all 12 owner routes, 62 components, the client portal and the test suite.
+    The colour system is genuinely good and stays. Everything holding it up is missing.
+  </p>
+
+  <div class="figures">
+    <div class="fig"><b>&times;7</b><span>copies of the page header, hand-typed per page</span></div>
+    <div class="fig"><b>&times;30</b><span><code>text-right</code> overrides on table headers</span></div>
+    <div class="fig"><b>&times;9</b><span>hand-rolled empty states, plus one unused component</span></div>
+    <div class="fig"><b>0</b><span>logical spacing properties, against 57 physical ones</span></div>
+    <div class="fig"><b>119px</b><span>left for the app at 375px, after the sidebar</span></div>
+  </div>
+</header>
+
+<!-- ============================== DIAGNOSIS ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Diagnosis</span>
+    <h2>The problem is not taste. It is that half the system was never built.</h2>
+    <p class="body">
+      <code>app/globals.css</code> has a three-layer token architecture, 8 status tones &times; 5 roles,
+      13 domain enums mapped onto it, and a test that fails the build on any raw palette class.
+      That work was done carefully and it is kept. What is missing is everything that would let a
+      page <em>use</em> it consistently.
+    </p>
+  </div>
+
+  <div class="pair">
+    <div class="panel is-problem">
+      <span class="panel-label">Today</span>
+      <ul>
+        <li>A token layer and a primitive layer, with <b>nothing between them</b> &mdash; so every page re-types its own chrome.</li>
+        <li><code>tailwind.config.js</code> extends only <code>colors</code> and <code>fontFamily</code>. No type scale, no spacing scale, no elevation, no radius &mdash; <code>--radius</code> is declared and consumed by nothing.</li>
+        <li><code>--primary</code>, <code>--link</code> and <code>--tone-info-solid</code> are <b>the same blue</b>. Nothing on screen reads as a signal.</li>
+        <li>~24 responsive utilities in the whole app. The sidebar is a hard <code>w-64</code> with no breakpoint.</li>
+        <li>Six nav items, six tables, one per Prisma model. The IA is the schema.</li>
+      </ul>
+    </div>
+    <div class="panel is-good">
+      <span class="panel-label">Proposed</span>
+      <ul>
+        <li>A composition layer &mdash; <code>PageHeader</code>, <code>DataTable</code>, <code>FactRail</code>, <code>MoneyLine</code>, <code>PhaseStrip</code> &mdash; each replacing a counted duplication.</li>
+        <li>Type, space, radius, elevation, motion and z-index scales, added the same way the colours were.</li>
+        <li><code>--primary</code> becomes ink. Saturated hue then appears <b>only</b> where it means a status.</li>
+        <li>A real mobile layer: bottom bar, sheet nav, and tables that become cards instead of scrolling sideways.</li>
+        <li>An IA organised around work: what is blocked on me, what is blocked on the client, what is just a registry.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SIGNATURE ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">The signature</span>
+    <h2>The phase strip</h2>
+    <p class="body">
+      The most distinctive fact in this domain is that <b>approval and payment are separate axes</b>.
+      A phase can be approved and unpaid; un-approving it must never un-pay it. That rule is already
+      load-bearing in the schema and in the dashboard's revenue maths &mdash; but it has no visual form.
+    </p>
+    <p class="body">
+      One device gives it one. Each segment is a phase, its <b>width proportional to its price</b>,
+      its <b>fill</b> the phase-status tone, and a <b>solid rule underneath</b> where the money actually landed.
+      Progress, weight and cash position in a single 10px object.
+    </p>
+    <p class="note">
+      The underline is <b>ink, not green</b>, and that is the load-bearing detail. If "paid" were a green rule
+      under an "approved" green fill, the two axes the device exists to separate would collapse back into one hue.
+      Work state owns the colour; money owns the mark.
+    </p>
+  </div>
+
+  <div class="frame">
+    <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="frame-url">PhaseStrip</span></div>
+    <div class="frame-scroll">
+      <div class="m" style="padding:26px 28px;background:#fff">
+        <div style="display:flex;gap:44px;flex-wrap:wrap;align-items:flex-start">
+
+          <!-- anatomy, magnified -->
+          <div style="flex:0 0 300px">
+            <div style="font-size:11px;font-weight:640;letter-spacing:.06em;color:var(--faintc);margin-bottom:14px">אנטומיה</div>
+            <div class="strip big" style="width:300px">
+              <i class="seg-ok" data-paid style="flex:2"></i>
+              <i class="seg-ok" data-paid style="flex:2"></i>
+              <i class="seg-ok" style="flex:3"></i>
+              <i class="seg-prog" style="flex:4"></i>
+              <i class="seg-todo" style="flex:2"></i>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px;margin-top:16px;font-size:12px;color:var(--mutedc)">
+              <div style="display:flex;gap:9px"><span style="color:var(--faintc);width:52px;flex:none">רוחב</span><span>המחיר של השלב</span></div>
+              <div style="display:flex;gap:9px"><span style="color:var(--faintc);width:52px;flex:none">מילוי</span><span>מצב העבודה — הגוון של סטטוס השלב</span></div>
+              <div style="display:flex;gap:9px"><span style="color:var(--faintc);width:52px;flex:none">קו תחתון</span><span>הכסף נכנס. תמיד באותו צבע, מתחת לכל גוון.</span></div>
+            </div>
+          </div>
+
+          <!-- at real size, in a real row -->
+          <div style="flex:1;min-width:330px">
+            <div style="font-size:11px;font-weight:640;letter-spacing:.06em;color:var(--faintc);margin-bottom:14px">בגודל אמיתי, בתוך שורה</div>
+            <div class="tbl">
+              <table>
+                <thead><tr><th style="width:42%">פרויקט</th><th style="width:116px">שלבים</th><th class="end">סה"כ</th><th class="end">לגבייה</th></tr></thead>
+                <tbody>
+                  <tr class="hov">
+                    <td><span class="ti">אתר מסעדה</span></td>
+                    <td><span class="strip">
+                      <i class="seg-ok" data-paid style="flex:2"></i><i class="seg-ok" data-paid style="flex:2"></i>
+                      <i class="seg-ok" style="flex:3"></i><i class="seg-prog" style="flex:4"></i><i class="seg-todo" style="flex:2"></i>
+                    </span></td>
+                    <td class="end cnum">₪12,000</td>
+                    <td class="end cnum due">₪3,600</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">אפליקציית חברים</span></td>
+                    <td><span class="strip">
+                      <i class="seg-ok" data-paid style="flex:3"></i><i class="seg-wait" style="flex:5"></i>
+                      <i class="seg-todo" style="flex:3"></i><i class="seg-todo" style="flex:2"></i>
+                    </span></td>
+                    <td class="end cnum">₪31,000</td>
+                    <td class="end cnum faint">—</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">דף נחיתה</span></td>
+                    <td><span class="strip">
+                      <i class="seg-ok" data-paid style="flex:1"></i><i class="seg-ok" data-paid style="flex:1"></i><i class="seg-rev" style="flex:1"></i>
+                    </span></td>
+                    <td class="end cnum">₪4,200</td>
+                    <td class="end cnum faint">—</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">מערכת פיננסית</span></td>
+                    <td><span class="strip">
+                      <i class="seg-ok" data-paid style="flex:2"></i><i class="seg-ok" style="flex:3"></i><i class="seg-prog" style="flex:3"></i>
+                    </span></td>
+                    <td class="end cnum">₪22,000</td>
+                    <td class="end cnum due">₪7,500</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--line);padding-top:15px;margin-top:26px;display:flex;gap:9px 22px;flex-wrap:wrap;font-size:11.5px;color:var(--subtle)">
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-todo" style="flex:1"></i></span>טרם התחיל</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-prog" style="flex:1"></i></span>בעבודה</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-wait" style="flex:1"></i></span>ממתין לאישור</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-rev" style="flex:1"></i></span>בתיקונים</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-ok" style="flex:1"></i></span>אושר, טרם שולם</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="strip" style="width:18px;min-width:18px"><i class="seg-ok" data-paid style="flex:1"></i></span><b style="color:var(--strong);font-weight:640">אושר ושולם</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption"><b>Where it appears.</b> Project rows, client rows (aggregated), the project header, and the client portal &mdash; the same device at three zoom levels, instead of money rendered three times in three different shapes.</p>
+</section>
+
+<!-- ============================== SYSTEM ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">The system</span>
+    <h2>What gets added underneath</h2>
+  </div>
+
+  <div class="stack-lg">
+
+    <div>
+      <h3 style="margin-bottom:14px">Typography</h3>
+      <p class="small" style="margin-bottom:16px">
+        Heebo currently loads through a render-blocking <code>@import</code>, seven weights deep, of which
+        300/800/900 are never used &mdash; plus a <code>*&nbsp;{ font-family }</code> universal selector that silently
+        overrides <code>font-mono</code> in four places. Replaced with <code>next/font</code>, two faces, one job each.
+      </p>
+      <div class="spec spec-2">
+        <div>
+          <div class="sk">Assistant &mdash; UI</div>
+          <div class="typerow"><span class="lbl">28 / 640</span><span class="smp" style="font-size:28px;font-weight:640;letter-spacing:-.03em">רשת ביסטרו</span></div>
+          <div class="typerow"><span class="lbl">18 / 640 &middot; h1</span><span class="smp" style="font-size:18px;font-weight:640;letter-spacing:-.015em">פניות</span></div>
+          <div class="typerow"><span class="lbl">15 / 600</span><span class="smp" style="font-size:15px;font-weight:600">שלבים ותשלומים</span></div>
+          <div class="typerow"><span class="lbl">13 / 400 &middot; body</span><span class="smp" style="font-size:13px">תיקון בטופס ההזמנות באתר</span></div>
+          <div class="typerow"><span class="lbl">12 / 400</span><span class="smp" style="font-size:12px;color:var(--muted)">נפתחה לפני 3 ימים</span></div>
+          <div class="typerow"><span class="lbl">11 / 620 &middot; label</span><span class="smp" style="font-size:11px;font-weight:620;color:var(--faint)">מקור</span></div>
+        </div>
+        <div>
+          <div class="sk">IBM Plex Mono &mdash; figures only</div>
+          <p class="tiny" style="margin-bottom:12px;line-height:1.6">
+            Numbers are the one LTR thing in an RTL page. Setting money, dates, counts, phones and tokens in a
+            tabular mono makes columns actually align &mdash; and makes the ledger read as a ledger.
+          </p>
+          <div class="mono" style="font-size:15px;line-height:2;color:var(--ink)">
+            ₪&nbsp;12,000<br>
+            ₪&nbsp;&nbsp;4,200<br>
+            ₪&nbsp;31,000
+          </div>
+          <p class="tiny" style="margin-top:12px">Everything else is Assistant. The mono is scoped, not decorative.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:6px">Colour</h3>
+      <p class="small" style="margin-bottom:16px">
+        All 8 tones and all 13 maps are untouched. One structural fix: the brand colour stops being a status colour.
+      </p>
+      <div class="frame" style="margin-top:0">
+        <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="frame-url">tone &times; emphasis</span></div>
+        <div class="frame-scroll">
+          <div class="m" style="padding:22px 24px;background:#fff">
+            <div class="swatches" style="margin-bottom:22px">
+              <div class="sw"><div class="chips"><i style="background:var(--n-s)"></i><i style="background:var(--n-m)"></i><i style="background:var(--n-f)"></i></div><span class="nm">neutral</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--i-s)"></i><i style="background:var(--i-m)"></i><i style="background:var(--i-f)"></i></div><span class="nm">info</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--su-s)"></i><i style="background:var(--su-m)"></i><i style="background:var(--su-f)"></i></div><span class="nm">success</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--w-s)"></i><i style="background:var(--w-m)"></i><i style="background:var(--w-f)"></i></div><span class="nm">warning</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--c-s)"></i><i style="background:var(--c-m)"></i><i style="background:var(--c-f)"></i></div><span class="nm">caution</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--d-s)"></i><i style="background:var(--d-m)"></i><i style="background:var(--d-f)"></i></div><span class="nm">danger</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--a-s)"></i><i style="background:var(--a-m)"></i><i style="background:var(--a-f)"></i></div><span class="nm">accent</span></div>
+              <div class="sw"><div class="chips"><i style="background:var(--pr-s)"></i><i style="background:var(--pr-m)"></i><i style="background:var(--pr-f)"></i></div><span class="nm">progress</span></div>
+            </div>
+
+            <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <span style="font-size:11px;color:var(--faintc);letter-spacing:.06em;text-transform:uppercase;font-weight:620">solid &mdash; at most one per row</span>
+                <div style="display:flex;gap:7px;flex-wrap:wrap">
+                  <span class="pill solid t-d">באיחור</span>
+                  <span class="pill solid t-c">ממתין לאישורך</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <span style="font-size:11px;color:var(--faintc);letter-spacing:.06em;text-transform:uppercase;font-weight:620">soft &mdash; the column you scan</span>
+                <div style="display:flex;gap:7px;flex-wrap:wrap">
+                  <span class="pill soft t-i" ><span class="dot"></span>פתוחה</span>
+                  <span class="pill soft t-pr"><span class="dot"></span>בטיפול</span>
+                  <span class="pill soft t-su"><span class="dot"></span>הושלם</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <span style="font-size:11px;color:var(--faintc);letter-spacing:.06em;text-transform:uppercase;font-weight:620">outline / quiet</span>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                  <span class="pill outline t-w">ללא סיווג</span>
+                  <span class="pill quiet t-a"><span class="dot"></span>שיפור</span>
+                  <span class="pill quiet t-n"><span class="dot"></span>וואטסאפ</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+              <span class="btn pri">שמור</span>
+              <span class="btn">ביטול</span>
+              <a href="#" style="color:var(--link);font-size:12.5px;text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--link) 35%,transparent)">רשת ביסטרו</a>
+              <span style="font-size:11.5px;color:var(--subtle)">&larr; primary is ink, link is blue-800, and neither collides with an INFO pill</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption"><b>Verified.</b> <code>--primary</code>, <code>--link</code> and <code>--tone-info-solid</code> are all <code>221.2 83.2% 53.3%</code> today &mdash; one hue doing three unrelated jobs.</p>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:14px">Density, radius, elevation</h3>
+      <div class="spec spec-4">
+        <div>
+          <div class="sk">Row height</div>
+          <p class="body" style="font-size:14px">32px default, 26px compact, toggle persisted.</p>
+          <p class="tiny" style="margin-top:6px">Body drops 14px &rarr; 13px.</p>
+        </div>
+        <div>
+          <div class="sk">Radius</div>
+          <p class="body" style="font-size:14px">4 / <b>6</b> / 10 / full.</p>
+          <p class="tiny" style="margin-top:6px">Today: five radii, no system, and <code>--radius</code> wired to nothing.</p>
+        </div>
+        <div>
+          <div class="sk">Elevation</div>
+          <p class="body" style="font-size:14px">Hairline for everything. Shadow only for overlays.</p>
+          <p class="tiny" style="margin-top:6px">Cards get borders, not <code>shadow</code>.</p>
+        </div>
+        <div>
+          <div class="sk">Spacing</div>
+          <p class="body" style="font-size:14px">4px base, 10 steps.</p>
+          <p class="tiny" style="margin-top:6px">Replaces <code>p-6 / p-5 / p-4 / p-3</code> chosen per call site.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================== SHELL + LIST ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Shell &amp; list pages</span>
+    <h2>A pile is a segment, not a stacked block.</h2>
+    <p class="body">
+      One rule does most of the work. Every named subset of a list becomes a mutually-exclusive segment on
+      <code>?view=</code>, counted in the control itself. Nothing that is a subset of a table renders above it.
+    </p>
+    <p class="small">
+      That single rule deletes <code>RequestPipeline</code> and <code>DecisionsCard</code> as page furniture
+      (each rendered verbatim on three pages today), collapses the three filter idioms on <code>/tasks</code>,
+      and kills the <code>?status=</code> vs <code>?queue=</code> mismatch by construction &mdash; the requests page
+      reads only <code>queue</code>, so four of the pipeline's five links currently navigate to an unfiltered list.
+    </p>
+  </div>
+
+  <div class="frame bleed">
+    <div class="frame-bar">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span class="frame-url">/requests?view=triage</span>
+    </div>
+    <div class="frame-scroll">
+      <div class="m m-app">
+
+        <!-- sidebar -->
+        <aside class="m-side">
+          <div class="m-brand"><span class="m-mark">IO</span><b>ItayOst</b></div>
+          <nav class="m-nav">
+            <span class="m-item">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+              <span class="lbl">היום</span>
+            </span>
+            <span class="m-item is-on hot">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h5l2 3h4l2-3h5"/><path d="M4 6h16v12H4z"/></svg>
+              <span class="lbl">פניות</span><span class="cnt">4</span>
+            </span>
+            <span class="m-item warn">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <span class="lbl">משימות</span><span class="cnt">3</span>
+            </span>
+            <span class="m-item">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>
+              <span class="lbl">לידים</span><span class="cnt">2</span>
+            </span>
+            <hr>
+            <span class="m-item">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V6l7-3v17M11 20h9V10h-9"/></svg>
+              <span class="lbl">לקוחות</span>
+            </span>
+            <span class="m-item">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2"/></svg>
+              <span class="lbl">פרויקטים</span>
+            </span>
+            <span class="m-item">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M8 7h6.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H16"/></svg>
+              <span class="lbl">כספים</span><span class="cnt num">₪18.4k</span>
+            </span>
+          </nav>
+          <div class="m-side-foot">
+            <span class="m-av">אא</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600;color:var(--strong)">איתי אוסטרייך</div>
+              <div style="font-size:10.5px;color:var(--subtle)">עוסק פטור</div>
+            </div>
+            <svg class="ico" style="width:14px;height:14px;opacity:.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </div>
+        </aside>
+
+        <!-- main -->
+        <div class="m-main">
+          <div class="m-top">
+            <span class="m-crumb"><b>פניות</b></span>
+            <span class="m-search">
+              <svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              חיפוש לקוח, פרויקט, טלפון…
+              <span class="kbd">⌘K</span>
+            </span>
+            <span class="pill quiet t-su" style="font-size:11.5px"><span class="dot"></span>הבוט פעיל</span>
+            <span class="m-av" style="width:22px;height:22px;font-size:9.5px">אא</span>
+          </div>
+
+          <div class="m-page">
+            <div class="m-h">
+              <h1>פניות</h1>
+              <span class="of num">4 מתוך 132</span>
+              <span class="sp"></span>
+              <span class="btn pri">+ פנייה חדשה</span>
+              <span class="btn ghost">⋯</span>
+            </div>
+
+            <div class="segs">
+              <span class="seg is-on">לטריאז' <b>4</b></span>
+              <span class="seg">לתמחור <b>2</b></span>
+              <span class="seg">ללא סיווג <b>7</b></span>
+              <span class="seg">אצל הלקוח <b>3</b></span>
+              <span class="seg">פתוחות <b>19</b></span>
+              <span class="seg">הכל <b>132</b></span>
+            </div>
+
+            <div class="filters">
+              <span class="fld w">
+                <svg style="width:12px;height:12px;opacity:.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+                חיפוש בפניות
+              </span>
+              <span class="fld">לקוח ▾</span>
+              <span class="fld">סוג ▾</span>
+              <span class="fld">חיוב ▾</span>
+              <span style="font-size:11.5px;color:var(--faintc);margin-inline-start:4px">ממוין לפי הוותיקה ביותר</span>
+            </div>
+
+            <div class="tbl">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:34%">כותרת</th>
+                    <th>סטטוס</th>
+                    <th>חיוב</th>
+                    <th class="end">מחיר</th>
+                    <th>לקוח</th>
+                    <th>פרויקט</th>
+                    <th class="end">גיל</th>
+                    <th>משימה</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="hov">
+                    <td><span class="ti">הטופס לא שולח מייל אישור</span> <span class="pill quiet t-a" style="font-size:10px">AI</span></td>
+                    <td><span class="pill soft t-c"><span class="dot"></span>לטריאז'</span></td>
+                    <td><span class="pill outline t-w">ללא סיווג</span></td>
+                    <td class="end cnum faint">—</td>
+                    <td>רשת ביסטרו</td>
+                    <td>אתר מסעדה</td>
+                    <td class="end cnum due">6 ימים</td>
+                    <td class="faint">—</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">להוסיף כפתור וואטסאפ בדף הבית</span></td>
+                    <td><span class="pill soft t-c"><span class="dot"></span>לטריאז'</span></td>
+                    <td><span class="pill soft t-a">לחיוב</span></td>
+                    <td class="end cnum">₪850</td>
+                    <td>מאי אורנשטיין</td>
+                    <td>דף נחיתה</td>
+                    <td class="end cnum">3 ימים</td>
+                    <td class="faint">—</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">הדוח החודשי מציג נתונים משנה שעברה</span> <span class="pill quiet t-a" style="font-size:10px">AI</span></td>
+                    <td><span class="pill soft t-c"><span class="dot"></span>לטריאז'</span></td>
+                    <td><span class="pill soft t-su">אחריות</span></td>
+                    <td class="end cnum faint">—</td>
+                    <td>שניר</td>
+                    <td>מערכת פיננסית</td>
+                    <td class="end cnum">2 ימים</td>
+                    <td class="faint">—</td>
+                  </tr>
+                  <tr>
+                    <td><span class="ti">אפשר להוסיף עוד משתמש לצוות?</span></td>
+                    <td><span class="pill soft t-c"><span class="dot"></span>לטריאז'</span></td>
+                    <td><span class="pill soft t-i">כלול</span></td>
+                    <td class="end cnum faint">—</td>
+                    <td>גן עדן</td>
+                    <td class="faint">—</td>
+                    <td class="end cnum">4 שעות</td>
+                    <td class="faint">—</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="tbl-foot">
+                <span class="num">מציג 1–4 מתוך 4</span>
+                <span style="flex:1"></span>
+                <span class="faint">j / k לניווט · Enter לפתיחה · x לבחירה</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;background:#fff;border:1px solid var(--line);border-radius:8px">
+              <span class="pill soft t-su"><span class="dot"></span>הבוט תייק 3 מתוך 4</span>
+              <span style="font-size:12px;color:var(--subtle)">כל פנייה כאן חסומה עליך. אישור מעביר אותה לעבודה; דחייה סוגרת אותה.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  <p class="caption"><b>Note the row.</b> One <em>soft</em> pill for status, one <em>outline</em> for the billing gap that needs a decision, everything else quiet. Four signals per row without four things competing to be read first.</p>
+
+  <div class="pair" style="margin-top:34px">
+    <div class="panel is-problem">
+      <span class="panel-label">Today &mdash; /requests</span>
+      <ul>
+        <li>Five concurrent fetches on mount; only one drives the skeleton, so four sections pop in separately.</li>
+        <li>The table the page is named after sits <b>below four stacked full-width blocks</b>.</li>
+        <li>Two of those blocks <code>return null</code> when empty, so the page changes shape day to day.</li>
+        <li>Nine columns, four StatusPills per row.</li>
+      </ul>
+    </div>
+    <div class="panel is-good">
+      <span class="panel-label">Proposed</span>
+      <ul>
+        <li>Those four blocks <b>are</b> the segment control &mdash; same counts, one line, always the same shape.</li>
+        <li>Default segment is <code>לטריאז'</code> when non-empty, <code>פתוחות</code> otherwise.</li>
+        <li>Every segment maps to a predicate <code>RequestsService.getAll</code> already supports.</li>
+        <li>Chrome before the first row: ~120px, identical on all six list pages.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== COCKPIT ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">היום</span>
+    <h2>The dashboard stops being a report about your own business.</h2>
+    <p class="body">
+      Five identical KPI tiles measure five unrelated things, and three of them go neutral on a quiet day &mdash;
+      so a calm morning renders as five grey boxes. You already know how many projects you have. What you don't
+      know is which of eleven possible things is oldest and blocked on <em>you</em>.
+    </p>
+    <p class="small">
+      Blocks 1&ndash;6 render only when non-empty &mdash; the same rule <code>MorningBriefService</code> already applies
+      when it drops empty sections instead of printing eleven "אין" lines. The predicates get extracted into a shared
+      <code>today.service.ts</code> so the brief and the screen cannot disagree.
+    </p>
+  </div>
+
+  <div class="pair bleed" style="gap:24px;align-items:start;margin-top:28px">
+
+    <!-- busy -->
+    <div>
+      <div class="frame" style="margin-top:0">
+        <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="frame-url">a busy Monday</span></div>
+        <div class="frame-scroll">
+          <div class="m" style="padding:15px;width:520px">
+            <div class="blocks">
+              <div class="dayline" style="padding-inline:2px;margin-bottom:3px">
+                <b>יום שני, 17 באוגוסט</b>
+                <span>3 דברים דורשים אותך · 2 באיחור</span>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><b>פעולות להיום</b><span class="n num">2</span></div>
+                <div class="row">
+                  <span class="nm">דנה לוי</span>
+                  <span class="pill quiet t-c"><span class="dot"></span>הוצעה הצעה</span>
+                  <span class="muted" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">לחזור עם מחיר לדף נחיתה</span>
+                  <span class="pill solid t-d num">באיחור 2 ימים</span>
+                </div>
+                <div class="row">
+                  <span class="nm">יוסי מזון</span>
+                  <span class="pill quiet t-i"><span class="dot"></span>נוצר קשר</span>
+                  <span class="muted" style="flex:1">לתאם פגישה</span>
+                  <span class="num muted">היום</span>
+                </div>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><b>ממתין לך — פניות</b><span class="n num">4</span><span class="sp"></span><span class="btn sm">הכל</span></div>
+                <div class="row">
+                  <span class="nm" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">הטופס לא שולח מייל אישור</span>
+                  <span class="muted">רשת ביסטרו</span>
+                  <span class="num due">6 ימים</span>
+                  <span class="btn sm pri">אשר</span>
+                  <span class="btn sm ghost">דחה</span>
+                </div>
+                <div class="row">
+                  <span class="nm" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">כפתור וואטסאפ בדף הבית</span>
+                  <span class="muted">מאי א.</span>
+                  <span class="num muted">3 ימים</span>
+                  <span class="btn sm pri">אשר</span>
+                  <span class="btn sm ghost">דחה</span>
+                </div>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><b>חסום על החלטה שלך</b></div>
+                <div class="row"><span class="nm">ממתין לתמחור</span><span class="sp"></span><span class="pill soft t-w num">2</span></div>
+                <div class="row"><span class="nm">ללא סיווג חיוב</span><span class="sp"></span><span class="pill soft t-c num">7</span></div>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><b>לגבייה</b><span class="sp"></span><span class="n num" style="font-size:12.5px;font-weight:640;color:var(--due)">₪18,400</span></div>
+                <div class="row">
+                  <span class="muted">שניר</span><span class="faint">·</span>
+                  <span class="nm">מערכת פיננסית</span>
+                  <span class="muted">שלב 3 — דוחות</span>
+                  <span class="sp"></span>
+                  <span class="num" style="font-weight:600">₪7,500</span>
+                  <span class="btn sm">סמן כשולם</span>
+                </div>
+                <div class="row">
+                  <span class="muted">גן עדן</span><span class="faint">·</span>
+                  <span class="nm">מערכת ניהול</span>
+                  <span class="muted">מקדמה</span>
+                  <span class="sp"></span>
+                  <span class="num" style="font-weight:600">₪10,900</span>
+                  <span class="btn sm">סמן כשולם</span>
+                </div>
+              </div>
+
+              <div class="statestrip">
+                <div><span class="k">פרויקטים פעילים</span><span class="v">4</span></div>
+                <div><span class="k">פניות פתוחות</span><span class="v">19</span></div>
+                <div><span class="k">לידים בצנרת</span><span class="v">3</span></div>
+                <div><span class="k">הכנסות החודש</span><span class="v">₪24,300</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption"><b>Busy day.</b> Ordered by who is blocked: me, then my decision, then the money.</p>
+    </div>
+
+    <!-- calm -->
+    <div>
+      <div class="frame" style="margin-top:0">
+        <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="frame-url">a calm Thursday</span></div>
+        <div class="frame-scroll">
+          <div class="m" style="padding:15px;width:520px">
+            <div class="blocks">
+              <div class="dayline" style="padding-inline:2px;margin-bottom:3px">
+                <b>יום חמישי, 20 באוגוסט</b>
+                <span>היום נקי</span>
+              </div>
+
+              <div class="calm">
+                <b>אין דבר שחסום עליך</b>
+                <span>הבוט מסנן ומתייק, ואתה מאשר. כשמשהו יגיע — הוא יופיע כאן.</span>
+              </div>
+
+              <div class="statestrip">
+                <div><span class="k">פרויקטים פעילים</span><span class="v">4</span></div>
+                <div><span class="k">פניות פתוחות</span><span class="v">11</span></div>
+                <div><span class="k">לידים בצנרת</span><span class="v">3</span></div>
+                <div><span class="k">הכנסות החודש</span><span class="v">₪24,300</span></div>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><b>הפרויקטים בעבודה</b><span class="n num">4</span></div>
+                <div class="row">
+                  <span class="nm" style="width:104px">אתר מסעדה</span>
+                  <span class="muted">רשת ביסטרו</span>
+                  <span class="sp"></span>
+                  <span class="strip" style="width:104px">
+                    <i class="seg-ok" data-paid style="flex:2"></i><i class="seg-ok" data-paid style="flex:2"></i>
+                    <i class="seg-ok" style="flex:3"></i><i class="seg-prog" style="flex:4"></i><i class="seg-todo" style="flex:2"></i>
+                  </span>
+                  <span class="num muted" style="width:58px;text-align:end">₪12,000</span>
+                </div>
+                <div class="row">
+                  <span class="nm" style="width:104px">אפליקציית חברים</span>
+                  <span class="muted">גן עדן</span>
+                  <span class="sp"></span>
+                  <span class="strip" style="width:104px">
+                    <i class="seg-ok" data-paid style="flex:3"></i><i class="seg-wait" style="flex:5"></i>
+                    <i class="seg-todo" style="flex:3"></i><i class="seg-todo" style="flex:2"></i>
+                  </span>
+                  <span class="num muted" style="width:58px;text-align:end">₪31,000</span>
+                </div>
+                <div class="row">
+                  <span class="nm" style="width:104px">דף נחיתה</span>
+                  <span class="muted">מאי אורנשטיין</span>
+                  <span class="sp"></span>
+                  <span class="strip" style="width:104px">
+                    <i class="seg-ok" data-paid style="flex:1"></i><i class="seg-ok" data-paid style="flex:1"></i><i class="seg-rev" style="flex:1"></i>
+                  </span>
+                  <span class="num muted" style="width:58px;text-align:end">₪4,200</span>
+                </div>
+                <div class="row">
+                  <span class="nm" style="width:104px">מערכת פיננסית</span>
+                  <span class="muted">שניר</span>
+                  <span class="sp"></span>
+                  <span class="strip" style="width:104px">
+                    <i class="seg-ok" data-paid style="flex:2"></i><i class="seg-ok" style="flex:3"></i><i class="seg-prog" style="flex:3"></i>
+                  </span>
+                  <span class="num muted" style="width:58px;text-align:end">₪22,000</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="caption"><b>Calm day.</b> Short and dignified. The useful question shifts from "what is on fire" to "what should I push" &mdash; and that is a project, not a task.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DETAIL ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Detail pages</span>
+    <h2>One column of work, one rail of facts.</h2>
+    <p class="body">
+      <code>/clients/[id]</code> is eleven full-width stacked cards in a single column, and it renders
+      <b>money three separate times in three different shapes</b> &mdash; an aggregate band, a per-project/per-phase
+      card, and again per row in the projects card. All three compute from the same helpers.
+    </p>
+    <p class="note">
+      <b>The fix is a placement rule, not a component rule.</b> Money renders at exactly one granularity per page,
+      and the granularity is the page's own noun. Client page &rarr; client totals. Per-project money &rarr; columns
+      in a table you were already reading. Per-phase money &rarr; the project page only.
+    </p>
+  </div>
+
+  <div class="frame bleed">
+    <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="frame-url">/clients/cm4a2…/?tab=projects</span></div>
+    <div class="frame-scroll">
+      <div class="m" style="width:1000px;padding:0">
+
+        <div style="background:#fff;border-bottom:1px solid var(--line);padding:11px 18px;display:flex;align-items:center;gap:10px">
+          <span class="faint" style="font-size:15px">‹</span>
+          <span class="m-crumb">לקוחות / <b>רשת ביסטרו</b></span>
+          <span style="flex:1"></span>
+          <span class="btn pri">העתק קישור פורטל</span>
+          <span class="btn ghost">⋯</span>
+        </div>
+
+        <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+
+          <div style="display:flex;align-items:center;gap:9px">
+            <h1 style="font-size:22px;font-weight:660;color:var(--strong);letter-spacing:-.025em;margin:0">רשת ביסטרו</h1>
+            <span class="star" style="font-size:15px">★</span>
+            <span class="pill soft t-su"><span class="dot"></span>פעיל</span>
+          </div>
+
+          <div class="money">
+            <div><span class="k">מוסכם</span><span class="v">₪38,200</span></div>
+            <div><span class="k">שולם</span><span class="v">₪19,800</span></div>
+            <div><span class="k">לגבייה</span><span class="v o">₪7,500</span></div>
+            <div><span class="k">פניות פתוחות</span><span class="v">3</span></div>
+          </div>
+
+          <div class="m-detail">
+            <div style="display:flex;flex-direction:column;gap:11px;min-width:0">
+              <div class="tabs">
+                <span class="tab is-on">פרויקטים <b>2</b></span>
+                <span class="tab">פניות <b>3</b></span>
+                <span class="tab">אנשים <b>2</b></span>
+                <span class="tab">פרופיל הבוט</span>
+                <span class="tab">וואטסאפ</span>
+              </div>
+
+              <div class="tbl">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:27%">פרויקט</th>
+                      <th>שלב נוכחי</th>
+                      <th style="width:112px">התקדמות</th>
+                      <th class="end">סה"כ</th>
+                      <th class="end">שולם</th>
+                      <th class="end">לגבייה</th>
+                      <th class="end">דדליין</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="hov">
+                      <td><span class="ti">אתר מסעדה</span></td>
+                      <td><span class="pill soft t-pr"><span class="dot"></span>עיצוב מסכים</span></td>
+                      <td>
+                        <span class="strip">
+                          <i class="seg-ok" data-paid style="flex:2"></i><i class="seg-ok" data-paid style="flex:2"></i>
+                          <i class="seg-ok" style="flex:3"></i><i class="seg-prog" style="flex:4"></i><i class="seg-todo" style="flex:2"></i>
+                        </span>
+                      </td>
+                      <td class="end cnum">₪12,000</td>
+                      <td class="end cnum paidc">₪4,800</td>
+                      <td class="end cnum due">₪3,600</td>
+                      <td class="end cnum">30/09</td>
+                    </tr>
+                    <tr>
+                      <td><span class="ti">מערכת הזמנות</span></td>
+                      <td><span class="pill soft t-c"><span class="dot"></span>ממתין לאישור</span></td>
+                      <td>
+                        <span class="strip">
+                          <i class="seg-ok" data-paid style="flex:3"></i><i class="seg-ok" data-paid style="flex:3"></i>
+                          <i class="seg-wait" style="flex:4"></i><i class="seg-todo" style="flex:3"></i>
+                        </span>
+                      </td>
+                      <td class="end cnum">₪26,200</td>
+                      <td class="end cnum paidc">₪15,000</td>
+                      <td class="end cnum due">₪3,900</td>
+                      <td class="end cnum">15/11</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="tbl-foot"><span class="num">2 פרויקטים</span><span style="flex:1"></span><span class="btn sm">+ פרויקט חדש</span></div>
+              </div>
+            </div>
+
+            <dl class="rail">
+              <div class="rr"><dt>מצב</dt><dd><span class="pill quiet t-su"><span class="dot"></span>פעיל</span></dd></div>
+              <div class="rr"><dt>איש קשר</dt><dd>נועה בר-לב<br><span class="num" style="color:var(--link)" dir="ltr">054-123-4567</span></dd></div>
+              <div class="rr"><dt>ח.פ</dt><dd class="num" dir="ltr">514872910</dd></div>
+              <div class="rr"><dt>כתובת</dt><dd>הרצל 45, רמת גן</dd></div>
+              <div class="rr"><dt>לקוח מאז</dt><dd class="num">03/2025</dd></div>
+              <div class="rr"><dt>פורטל</dt><dd><span class="paidc">✓ פעיל</span><br><span class="num faint" dir="ltr" style="font-size:10.5px">/r/8f3a…c21</span></dd></div>
+              <div class="rr"><dt>הערות</dt><dd class="muted" style="font-size:11.5px">משלמים באיחור של שבועיים בערך, לא צריך ללחוץ.</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="caption"><b>Money now appears twice</b> &mdash; once aggregated under the header, once as columns of the table you were already reading. Never twice in two shapes. Six of the eleven cards stop existing.</p>
+</section>
+
+<!-- ============================== MOBILE ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Mobile</span>
+    <h2>The owner side currently does not have a mobile layout. At all.</h2>
+    <p class="body">
+      <code>sidebar.tsx</code> is a hard <code>w-64 h-screen</code> with no breakpoint, no drawer and no hamburger,
+      inside a <code>flex h-screen overflow-hidden</code> shell. At 375px it takes 256px and leaves 119px for the
+      application &mdash; and the five list tables, 5 to 10 columns wide, scroll sideways inside that.
+    </p>
+    <p class="small">
+      The fix is not a tuning pass. <code>DataTable</code> emits <b>one <code>data-slot</code>, two elements</b>:
+      a <code>&lt;tr&gt;</code> on desktop and an <code>&lt;article&gt;</code> on mobile, both carrying the same
+      <code>data-testid</code> and <code>data-col</code> hooks &mdash; which is what makes the table&rarr;card
+      conversion a zero-spec-change event, and why the instrumentation commit has to come first.
+    </p>
+  </div>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:28px">
+
+    <div>
+      <div class="m m-phone">
+        <div class="ph-top">
+          <b>פניות</b>
+          <svg style="width:17px;height:17px;opacity:.55" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <span class="pill quiet t-su" style="font-size:11px"><span class="dot"></span></span>
+        </div>
+        <div style="background:#fff;padding:9px 11px;border-bottom:1px solid var(--line);flex:none">
+          <div class="segs" style="width:100%">
+            <span class="seg is-on">לטריאז' <b>4</b></span>
+            <span class="seg">לתמחור <b>2</b></span>
+            <span class="seg">פתוחות <b>19</b></span>
+          </div>
+        </div>
+        <div class="ph-body">
+          <div class="ph-card">
+            <div class="l1"><b>הטופס לא שולח מייל אישור</b><span class="pill soft t-c"><span class="dot"></span></span></div>
+            <div class="l2">
+              <span>רשת ביסטרו</span><span class="faint">·</span>
+              <span class="pill outline t-w" style="font-size:10px">ללא סיווג</span>
+              <span style="flex:1"></span><span class="num due">6 ימים</span>
+            </div>
+          </div>
+          <div class="ph-card">
+            <div class="l1"><b>כפתור וואטסאפ בדף הבית</b><span class="pill soft t-c"><span class="dot"></span></span></div>
+            <div class="l2">
+              <span>מאי אורנשטיין</span><span class="faint">·</span>
+              <span class="num">₪850</span>
+              <span style="flex:1"></span><span class="num muted">3 ימים</span>
+            </div>
+          </div>
+          <div class="ph-card">
+            <div class="l1"><b>הדוח מציג נתונים משנה שעברה</b><span class="pill soft t-c"><span class="dot"></span></span></div>
+            <div class="l2">
+              <span>שניר</span><span class="faint">·</span>
+              <span class="pill soft t-su" style="font-size:10px">אחריות</span>
+              <span style="flex:1"></span><span class="num muted">2 ימים</span>
+            </div>
+          </div>
+          <div class="ph-card">
+            <div class="l1"><b>אפשר להוסיף עוד משתמש?</b><span class="pill soft t-c"><span class="dot"></span></span></div>
+            <div class="l2">
+              <span>גן עדן</span><span class="faint">·</span>
+              <span class="pill soft t-i" style="font-size:10px">כלול</span>
+              <span style="flex:1"></span><span class="num muted">4 שעות</span>
+            </div>
+          </div>
+        </div>
+        <div class="ph-bar">
+          <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>היום</a>
+          <a class="is-on"><span class="bdot"></span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M4 12h5l2 3h4l2-3h5"/></svg>פניות</a>
+          <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>משימות</a>
+          <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>עוד</a>
+        </div>
+      </div>
+      <p class="caption" style="max-width:340px"><b>390px, owner.</b> Two fields survive per row. Bottom bar in the thumb zone, badges as dots.</p>
+    </div>
+
+    <div>
+      <div class="m m-phone">
+        <div class="pt-top">
+          <span class="m-mark" style="width:19px;height:19px;font-size:9px;border-radius:5px">IO</span>
+          <b style="font-size:13px;font-weight:640;color:var(--strong);flex:1">ItayOst</b>
+          <span style="font-size:11px;color:var(--subtle)">שירות ותמיכה</span>
+        </div>
+        <div class="pt-tabs">
+          <a class="is-on">בית</a>
+          <a>הפניות שלי <span class="b">1</span></a>
+          <a>הפרויקטים שלי</a>
+        </div>
+        <div class="ph-body" style="gap:11px">
+          <div style="padding-inline:2px">
+            <div style="font-size:11.5px;color:var(--subtle)">עבור</div>
+            <div style="font-size:17px;font-weight:640;color:var(--strong);letter-spacing:-.02em">רשת ביסטרו</div>
+          </div>
+
+          <div class="quote">
+            <div style="font-size:12.5px;color:var(--c-f);font-weight:620">הצעת מחיר ממתינה לאישורך</div>
+            <div style="font-size:13.5px;color:var(--strong);font-weight:600">כפתור וואטסאפ בדף הבית</div>
+            <div class="amt"><bdi>₪850</bdi></div>
+            <div style="font-size:11.5px;color:var(--mutedc)">הערכה: 2 שעות עבודה</div>
+            <div style="font-size:11.5px;color:var(--mutedc)">לא מתחילים לעבוד על זה לפני שתאשרו.</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px">
+            <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px">
+              <div style="font-size:10.5px;color:var(--subtle)">הפניות שלך</div>
+              <div class="num" style="font-size:19px;font-weight:640;color:var(--strong)">3</div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px">
+              <div style="font-size:10.5px;color:var(--subtle)">בפיתוח</div>
+              <div class="num" style="font-size:19px;font-weight:640;color:var(--pr-f)">1</div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px">
+              <div style="font-size:10.5px;color:var(--subtle)">לתשלום</div>
+              <div class="num" style="font-size:19px;font-weight:640;color:var(--due)">₪3.6k</div>
+            </div>
+          </div>
+
+          <div class="ph-card">
+            <div class="l1"><b>הטופס לא שולח מייל אישור</b></div>
+            <div class="l2"><span class="pill soft t-pr"><span class="dot"></span>בפיתוח</span><span style="flex:1"></span><span class="num">12/08</span></div>
+          </div>
+          <div class="ph-card">
+            <div class="l1"><b>עדכון תמונות בגלריה</b></div>
+            <div class="l2"><span class="pill soft t-su"><span class="dot"></span>הושלם</span><span style="flex:1"></span><span class="num">04/08</span></div>
+          </div>
+        </div>
+        <div class="ph-sticky">
+          <span class="btn pri">אישור הצעת המחיר</span>
+          <span class="btn" style="flex:0 0 auto">לא כרגע</span>
+        </div>
+        <div class="pt-foot">
+          <span>יש שאלה? כתבו לנו בוואטסאפ</span>
+          <span class="faint">הקישור אישי, נא לא לשתף</span>
+        </div>
+      </div>
+      <p class="caption" style="max-width:340px"><b>390px, client portal.</b> Identity at the top, the decision pinned to the bottom so the client never scrolls past the quote to answer.</p>
+    </div>
+
+  </div>
+
+  <div class="pair" style="margin-top:34px">
+    <div class="panel is-problem">
+      <span class="panel-label">Portal today</span>
+      <ul>
+        <li>The whole chrome is one line: <code>&lt;main class="mx-auto max-w-2xl p-4"&gt;</code>. <b>No logo, no header, no footer.</b></li>
+        <li>The client's <em>own</em> business name is the <code>&lt;h1&gt;</code>, so a forwarded link looks like their own site.</li>
+        <li>The <code>wa.me</code> link exists on the request detail page only.</li>
+        <li>An invalid or rotated token is a dead end with no way to reach you.</li>
+      </ul>
+    </div>
+    <div class="panel is-good">
+      <span class="panel-label">Portal proposed &mdash; six cheap changes</span>
+      <ul>
+        <li>A 44px header with the wordmark; the client's name demotes to <code>עבור: {name}</code>.</li>
+        <li>A three-line footer, including the WhatsApp link on <em>every</em> page and "הקישור אישי" &mdash; a security control expressed as copy.</li>
+        <li>Sticky decision bar when a quote is awaiting.</li>
+        <li>Quote notices deep-link to the request, not the portal root.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="caption"><b>Deliberately not built:</b> accounts, comment threads, notifications, history. The conversation lives in WhatsApp. The portal exists for the two things WhatsApp is bad at &mdash; a list of statuses, and a button that means yes.</p>
+</section>
+
+<!-- ============================== DELETIONS ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Subtractions</span>
+    <h2>What stops existing</h2>
+  </div>
+  <div class="scroller">
+    <table class="doc">
+      <thead><tr><th style="width:30%">Removed</th><th>Because</th></tr></thead>
+      <tbody>
+        <tr><td>The 5 KPI tiles</td><td>Five identical aggregates, none implying an action. The two worth keeping move to the state strip and <code>/money</code>.</td></tr>
+        <tr><td><code>RequestPipeline</code> &times;3 call sites</td><td>A 5-bar chart of a 20-row table. Its counts <em>are</em> the segment control now.</td></tr>
+        <tr><td><code>DecisionsCard</code> &times;3 call sites</td><td>Two of its four rows are blocked on you (&rarr; היום), two are not (&rarr; segments on <code>/requests</code>).</td></tr>
+        <tr><td>The <code>/contacts</code> list</td><td>Its לקוחות tab duplicated <code>/clients</code>; its לידים tab becomes <code>/leads</code>; person lookup becomes ⌘K. <code>/contacts/[id]</code> survives untouched.</td></tr>
+        <tr><td><code>ClientSummaryBand</code> + <code>ClientMoneyCard</code></td><td>One money line, plus money columns in one table.</td></tr>
+        <tr><td>The <code>?queue=</code> / <code>?status=</code> split</td><td>One param: <code>view</code>. Four dead pipeline links stop being dead.</td></tr>
+        <tr><td>The three filter idioms on <code>/tasks</code></td><td>One segment row plus facets. ~140px of chrome becomes ~104px, with one place to look for each kind of narrowing.</td></tr>
+        <tr><td>The clock, the greeting, the disabled dark-mode button, <code>פרופיל&nbsp;&rarr;&nbsp;/</code></td><td>Decoration, a 60-second re-render, and an advertisement for a feature that was decided against.</td></tr>
+        <tr><td><code>sonner</code>, <code>next-themes</code>, <code>zustand</code></td><td>Installed, never imported.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================== PHASING ============================== -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Sequencing</span>
+    <h2>Each phase ships on its own.</h2>
+    <p class="body">
+      Ordered so that stopping after any phase leaves a working, better app. If the appetite turns out smaller
+      than the plan, cut from the back, not from the middle.
+    </p>
+  </div>
+
+  <ol class="phases">
+    <li>
+      <div>
+        <h4>Instrumentation &mdash; zero visual change</h4>
+        <p class="small"><code>data-slot</code> / <code>data-testid</code> / <code>data-col</code> on the table primitives and all five lists; <code>aria-current</code> on the sidebar; <code>data-volatile</code> on the clock. Then ~105 selector edits behind <code>e2e/fixtures.ts</code>, then CI (there is none today).</p>
+        <p class="tiny" style="margin-top:6px"><b>Gate:</b> the visual baselines must come back byte-identical. <code>data-*</code> and ARIA don't render &mdash; so this <em>proves</em> the commit is inert.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h4>Token scales &amp; typographic hygiene</h4>
+        <p class="small">Type, space, radius, elevation, motion, z-index. <code>next/font</code>. Delete the 25 redundant <code>ml-2</code> icon margins &mdash; <code>button.tsx</code> already sets <code>gap-2</code>, so converting them to <code>me-2</code> would preserve an 8+8px double gap. Add the RTL ratchet test.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h4>Primitives, piloted on <code>/clients</code></h4>
+        <p class="small">The full shape of the problem &mdash; list, search, table, detail, cards, money &mdash; at roughly a tenth of the blast radius: <code>/clients</code> is the smallest owner page and has <b>no spec file at all</b>. If the <code>DataTable</code> API is wrong, you find out on the cheapest page.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h4>Shell, navigation, mobile</h4>
+        <p class="small">After the pilot (the sidebar and header are the components that most need the primitives), before the page grind (every page renders inside the shell). All six visual baselines invalidate here; the mobile Playwright project lands here.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h4>Page by page</h4>
+        <p class="small">Contacts&rarr;leads, projects, tasks, requests, היום, then the orphans: login, the agent page (442 lines, in English, linked from nowhere), <code>/settings</code>, <code>/money</code>.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h4>Client portal, then cleanup</h4>
+        <p class="small">The portal last &mdash; it is the best-built surface and the only mobile-first one. Mine it for patterns early; rebuild it late, or rebuild it twice.</p>
+      </div>
+    </li>
+  </ol>
+
+  <p class="note" style="margin-top:32px">
+    <b>The one risk worth repeating.</b> The <code>.tone-*</code> rules sit outside <code>@layer</code> on purpose &mdash;
+    inside it, Tailwind tree-shook all eight and every badge in the product rendered grey for weeks.
+    New scales go in as <code>theme.extend</code> and <code>:root</code> properties only, never as hand-written
+    utility classes. And <code>npm run test</code> cannot catch a recurrence: only <code>npm run build</code> runs the
+    real purge.
+  </p>
+</section>
+
+</div>

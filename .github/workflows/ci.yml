@@ -1,0 +1,46 @@
+name: CI
+
+# The guardrails this rebuild leans on were all opt-in: `npm run test` catches
+# raw palette classes, `npm run build` is the only step that runs the real
+# Tailwind purge (which is how the whole tone layer was silently tree-shaken
+# once before). Over a multi-week refactor, "remember to run it" is not a
+# guardrail.
+#
+# `visual.spec.ts` is deliberately NOT run here: its baselines are `-darwin`
+# suffixed and font-rendering specific, and the spec's own docstring calls them
+# a local safety net rather than a CI gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests and design guards
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time only. Prisma needs a parseable URL to generate the
+          # client; no query ever runs against it here.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+          DIRECT_URL: postgresql://user:pass@localhost:5432/db
+          NEXTAUTH_SECRET: ci-build-only-not-a-real-secret
+          NEXTAUTH_URL: http://localhost:3000
