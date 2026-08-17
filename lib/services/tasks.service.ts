@@ -54,7 +54,23 @@ export class TasksService {
         project: {
           include: { client: true, primaryContact: true },
         },
-        request: { select: { id: true, title: true } },
+        /**
+         * The client's own words, not just a link back.
+         *
+         * A task created from a request is work someone described in their own
+         * language, and the detail page quotes it - so you never have to bounce
+         * to the request to remember what was actually asked for. `intake` is
+         * the structured version the bot extracted.
+         */
+        request: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            intake: true,
+            source: true,
+          },
+        },
       },
     })
 

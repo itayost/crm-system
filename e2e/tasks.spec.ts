@@ -123,34 +123,32 @@ test.describe('Tasks', () => {
     }
   })
 
-  test('edit: clicking a task row opens edit dialog and saves changes', async ({ page }) => {
-    // Click on "משימה עצמאית" row to open edit dialog
-    const taskRow = getTableRow(page, 'משימה עצמאית')
-    await rowCell(taskRow, 'title').click()
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
+  test('edit: a task row navigates to its own page, where it can be edited', async ({ page }) => {
+    // The row navigates now, like every other list in the app. A task has an
+    // address of its own, which is what /tasks/[id] exists to give it.
+    await getTableRow(page, 'משימה עצמאית').locator('a').first().click()
+    await expect(page).toHaveURL(/\/tasks\/\w+/)
+    await expect(page.getByRole('heading', { name: 'משימה עצמאית' })).toBeVisible()
 
-    // Verify it is in edit mode
-    await expect(page.locator('[role="dialog"]').locator('text=עריכת משימה')).toBeVisible()
+    try {
+      await page.getByRole('button', { name: 'פעולות נוספות' }).click()
+      await page.getByRole('menuitem', { name: 'עריכה' }).click()
+      await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // Change the title
-    const titleInput = page.locator('[role="dialog"] input[name="title"]')
-    await titleInput.fill('משימה עצמאית מעודכנת')
+      await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית מעודכנת')
+      await page.locator('[role="dialog"] button[type="submit"]').click()
+      await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
 
-    // Submit
-    await page.locator('[role="dialog"] button[type="submit"]').click()
-    await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
-    await page.waitForLoadState('networkidle')
-
-    // Verify updated in list
-    await expect(row(page, 'משימה עצמאית מעודכנת')).toBeVisible()
-
-    // Restore original title
-    const updatedRow = getTableRow(page, 'משימה עצמאית מעודכנת')
-    await rowCell(updatedRow, 'title').click()
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
-    await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית')
-    await page.locator('[role="dialog"] button[type="submit"]').click()
-    await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
+      await expect(page.getByRole('heading', { name: 'משימה עצמאית מעודכנת' })).toBeVisible()
+    } finally {
+      // Restore pass or fail: list-shows-data and filter-standalone both name
+      // this task, so leaving it renamed breaks them rather than this test.
+      await page.getByRole('button', { name: 'פעולות נוספות' }).click()
+      await page.getByRole('menuitem', { name: 'עריכה' }).click()
+      await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית')
+      await page.locator('[role="dialog"] button[type="submit"]').click()
+      await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
+    }
   })
 
   test('inline-completion: completing a task moves it out of the open pile', async ({ page }) => {

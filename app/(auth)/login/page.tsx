@@ -31,7 +31,13 @@ export default function LoginPage() {
         toast.error('אימייל או סיסמה שגויים')
       } else {
         toast.success('התחברת בהצלחה!')
-        router.push('/')
+        // middleware.ts sets ?from= when it bounces you here, and this page
+        // ignored it - so you always landed on the cockpit rather than back
+        // where you were going. Same-origin paths only: `from` comes off the
+        // URL, so anything absolute is an open-redirect waiting to happen.
+        const from = new URLSearchParams(window.location.search).get('from')
+        const safe = from && from.startsWith('/') && !from.startsWith('//') ? from : '/'
+        router.push(safe)
         router.refresh()
       }
     } catch {

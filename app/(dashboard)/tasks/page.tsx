@@ -464,13 +464,9 @@ export default function TasksPage() {
           rows={rows}
           columns={columns}
           getRowId={(t) => t.id}
-          // No href yet: /tasks/[id] is the last piece of this phase. Until it
-          // exists the row opens the editor, which is the one remaining
-          // inconsistency with every other list in the app.
-          onRowClick={(task) => {
-            setEditingTask(task)
-            setShowForm(true)
-          }}
+          // Navigates, like every other list. A task now has an address of its
+          // own, which means it can be linked to and sent to someone.
+          getRowHref={(t) => `/tasks/${t.id}`}
         />
       )}
 

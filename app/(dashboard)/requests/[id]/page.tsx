@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
+import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -143,15 +144,6 @@ export default function RequestDetailPage() {
     } catch {
       tab.close()
       toast.error('שגיאה בפתיחת הקובץ')
-    }
-  }
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
     }
   }
 

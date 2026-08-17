@@ -6,6 +6,7 @@ import {
   Building2,
   Briefcase,
   Coins,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -74,15 +75,10 @@ export const NAV_REGISTRY: NavItem[] = [
   { label: 'כספים', href: '/money', icon: Coins, badge: 'outstanding', badgeIsMoney: true },
 ]
 
-/**
- * Deliberately empty until /settings exists.
- *
- * A nav item pointing at a route that 404s is the same defect as the request
- * pipeline linking to `?status=` while the page only read `?queue=` - four of
- * its five links quietly went nowhere. Add הגדרות here in the same commit that
- * adds the route, not before.
- */
-export const NAV_FOOTER: NavItem[] = []
+/** Added in the same commit that added the route, not before. */
+export const NAV_FOOTER: NavItem[] = [
+  { label: 'הגדרות', href: '/settings', icon: Settings },
+]
 
 export const ALL_NAV = [...NAV_PRIMARY, ...NAV_REGISTRY, ...NAV_FOOTER]
 
