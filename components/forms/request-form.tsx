@@ -95,12 +95,22 @@ export function RequestForm({
     defaultValues: buildDefaults(),
   })
 
+  // Keyed on the record's id, not the record object.
+  //
+  // With `[open, record]` this effect re-ran whenever the parent page refetched
+  // and handed down a new object with the same contents - which silently reset
+  // the form and threw away whatever had been typed into it. It reproduced as
+  // "the edit dialog saved, the toast said so, and nothing changed", because
+  // the reset restored the old values just before submit read them.
+  //
+  // The id still gives the original guarantee: opening the dialog for a
+  // different row shows that row rather than the previous one.
   // The dialog stays mounted, so useForm's defaults are only read once.
   // Without this, opening it for a different row shows the previous one.
   useEffect(() => {
     if (open) form.reset(buildDefaults())
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, request])
+  }, [open, request?.id])
 
   const selectedClientId = form.watch('clientId')
 

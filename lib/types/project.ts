@@ -28,6 +28,13 @@ export interface PhaseSummary {
   price: number | string
   status: PhaseStatus
   paidAt: string | null
+  /**
+   * Present on the list payloads, which name the current phase. Optional
+   * because the money helpers only ever need price/status/paidAt, and several
+   * callers build a PhaseSummary from exactly those three.
+   */
+  name?: string
+  order?: number
 }
 
 export interface ProjectTask {

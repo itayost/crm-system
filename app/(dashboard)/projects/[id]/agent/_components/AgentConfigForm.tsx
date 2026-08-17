@@ -126,7 +126,7 @@ function SaveButton({ saving }: { saving: boolean }) {
       disabled={saving}
       className="rounded bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
     >
-      {saving ? 'Saving...' : 'Save'}
+      {saving ? 'שומר...' : 'שמירה'}
     </button>
   )
 }
@@ -149,7 +149,7 @@ function FormBody({
   return (
     <div className="flex flex-col gap-6">
       {/* Status */}
-      <Field label="Status">
+      <Field label="מצב">
         <div className="flex gap-4">
           {(['ACTIVE', 'PAUSED', 'DISABLED'] as const).map((s) => (
             <label key={s} className="flex items-center gap-1.5 text-sm cursor-pointer">
@@ -175,7 +175,7 @@ function FormBody({
 
       {/* Agent slug */}
       <Field
-        label="Agent slug"
+        label="מזהה הסוכן"
         hint={!isNew ? 'Immutable once saved' : 'lowercase, digits, hyphens'}
       >
         <TextInput
@@ -189,21 +189,21 @@ function FormBody({
       {/* GitHub fieldset */}
       <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
         <legend className="text-sm font-semibold text-content-muted px-1">GitHub</legend>
-        <Field label="Owner">
+        <Field label="ארגון">
           <TextInput
             value={values.githubOwner}
             placeholder="acme-corp"
             onChange={(v) => onChange({ githubOwner: v })}
           />
         </Field>
-        <Field label="Repo">
+        <Field label="ריפו">
           <TextInput
             value={values.githubRepo}
             placeholder="my-repo"
             onChange={(v) => onChange({ githubRepo: v })}
           />
         </Field>
-        <Field label="Branch">
+        <Field label="ענף">
           <TextInput
             value={values.githubBranch}
             placeholder="main"
@@ -215,14 +215,14 @@ function FormBody({
       {/* Vercel fieldset */}
       <fieldset className="border border-border rounded p-4 flex flex-col gap-4">
         <legend className="text-sm font-semibold text-content-muted px-1">Vercel</legend>
-        <Field label="Team ID">
+        <Field label="מזהה צוות">
           <TextInput
             value={values.vercelTeamId}
             placeholder="team_xxxxxxxxxxxx"
             onChange={(v) => onChange({ vercelTeamId: v })}
           />
         </Field>
-        <Field label="Project ID">
+        <Field label="מזהה פרויקט">
           <TextInput
             value={values.vercelProjectId}
             placeholder="prj_xxxxxxxxxxxx"
@@ -232,7 +232,7 @@ function FormBody({
       </fieldset>
 
       {/* Supabase */}
-      <Field label="Supabase project ref" hint="Optional">
+      <Field label="מזהה פרויקט ב-Supabase" hint="לא חובה">
         <TextInput
           value={values.supabaseProjectRef}
           placeholder="abcdefghijklmnop"
@@ -241,7 +241,7 @@ function FormBody({
       </Field>
 
       {/* Smoke URL */}
-      <Field label="Smoke URL" hint="Optional — health-check endpoint">
+      <Field label="כתובת בדיקת חיים" hint="לא חובה">
         <TextInput
           value={values.smokeUrl}
           placeholder="https://example.com/api/health"
@@ -250,7 +250,7 @@ function FormBody({
       </Field>
 
       {/* Domains */}
-      <Field label="Domains" hint="Comma-separated">
+      <Field label="דומיינים" hint="מופרדים בפסיק">
         <TextInput
           value={values.domains}
           placeholder="example.com, www.example.com"
@@ -276,7 +276,7 @@ function FormBody({
           onClick={() => setAdvancedOpen((o) => !o)}
           className="text-sm text-link hover:underline"
         >
-          {advancedOpen ? 'Hide advanced' : 'Show advanced'}
+          {advancedOpen ? 'הסתר הגדרות מתקדמות' : 'הגדרות מתקדמות'}
         </button>
 
         {advancedOpen && (

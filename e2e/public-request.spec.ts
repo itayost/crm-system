@@ -1,12 +1,35 @@
 import { test, expect } from '@playwright/test'
 import { BASE_URL } from './base-url'
+import { row } from './fixtures'
+
+/**
+ * Every client this file mints, so afterEach can take it back out.
+ *
+ * These rows used to leak: ~7 Clients and ~4 Requests per run, all named with
+ * `Date.now()`, cleaned up only by global-teardown at the very end. Because
+ * `visual.spec.ts` sorts last and runs last, they were present - with different
+ * text every run - in the `clients` and `requests` pixel baselines, which is
+ * why those two could never be stable.
+ */
+const createdClientIds: string[] = []
 
 // Authenticated context comes from the project's storageState.
 async function createClient(request: import('@playwright/test').APIRequestContext, name: string) {
   const res = await request.post('/api/clients', { data: { name } })
   expect(res.ok()).toBeTruthy()
-  return res.json()
+  const client = await res.json()
+  createdClientIds.push(client.id)
+  return client
 }
+
+// Requests cascade with their client (Request.clientId is onDelete: Cascade),
+// so one delete per client is enough. Runs even when the test body threw.
+test.afterEach(async ({ request }) => {
+  while (createdClientIds.length) {
+    const id = createdClientIds.pop()!
+    await request.delete(`/api/clients/${id}`)
+  }
+})
 
 test.describe('client form token', () => {
   test('generates and rotates a form token', async ({ request }) => {
@@ -29,15 +52,16 @@ test.describe('client form link UI', () => {
     const client = await createClient(request, `טסט קישור ${Date.now()}`)
 
     await page.goto(`/clients/${client.id}`)
-    // The link moved out of its own "טופס פניות" card and into the summary band
-    // at the top of the page, because it is something handed over mid
-    // conversation rather than a setting. The guard that matters is unchanged:
-    // the rendered URL must be a real, absolute portal link.
-    await expect(page.getByText('קישור הפניות של הלקוח')).toBeVisible()
-    await page.getByRole('button', { name: 'צור קישור' }).click()
-    await expect(page.locator('code', { hasText: '/r/' })).toBeVisible()
-    const codeText = await page.locator('code', { hasText: '/r/' }).innerText()
-    expect(codeText).toMatch(/^https?:\/\/.+\/r\/[0-9a-f-]{36}$/)
+    // The link has moved twice now: out of its own "טופס פניות" card, into the
+    // summary band, and now into the fact rail with a copy button promoted to
+    // the page's primary action - because handing this over mid-conversation is
+    // what the page is opened for. The guard that matters has never changed:
+    // the rendered URL must be a real, absolute portal link, since the client
+    // pastes it into WhatsApp.
+    await page.getByRole('button', { name: 'צור קישור פורטל' }).click()
+    const portalUrl = page.getByTestId('portal-url')
+    await expect(portalUrl).toBeVisible()
+    expect(await portalUrl.innerText()).toMatch(/^https?:\/\/.+\/r\/[0-9a-f-]{36}$/)
   })
 })
 
@@ -124,16 +148,16 @@ test.describe('requests dashboard shows form tickets', () => {
     })
     await pub.dispose()
 
-    // A pending ticket lives only in the review queue card - the main table
-    // hides PENDING_REVIEW so the same ticket is not listed twice.
-    await page.goto('/requests')
-    const item = page
-      .locator('div.rounded-lg.border.bg-white', {
-        has: page.getByRole('link', { name: title }),
-      })
-      .first()
+    // The review queue is a segment now, not a card stacked above the table
+    // this page is named after. Same predicate (`pendingReview`), one list.
+    await page.goto('/requests?view=triage')
+    await page.waitForLoadState('networkidle')
+
+    const item = row(page, title)
     await expect(item).toBeVisible()
-    await expect(item.getByText('טופס')).toBeVisible()
+    // Source is rendered as an icon with an accessible name rather than as a
+    // text badge, since the row already carries several signals.
+    await expect(item.getByRole('img', { name: /טופס/ })).toBeVisible()
   })
 })
 

@@ -31,7 +31,24 @@ export default function LoginPage() {
         toast.error('אימייל או סיסמה שגויים')
       } else {
         toast.success('התחברת בהצלחה!')
-        router.push('/')
+        // middleware.ts sets ?from= when it bounces you here, and this page
+        // ignored it - so you always landed on the cockpit rather than back
+        // where you were going. Same-origin paths only: `from` comes off the
+        // URL, so anything absolute is an open-redirect waiting to happen.
+        //
+        // Resolved against the real origin rather than pattern-matched. A
+        // string check is not enough: the URL parser folds a backslash into a
+        // slash, so `/\evil.com` starts with a single "/" and still resolves
+        // to https://evil.com - which router.push() would follow off-site.
+        const from = new URLSearchParams(window.location.search).get('from')
+        let safe = '/'
+        if (from?.startsWith('/')) {
+          const resolved = new URL(from, window.location.origin)
+          if (resolved.origin === window.location.origin) {
+            safe = `${resolved.pathname}${resolved.search}${resolved.hash}`
+          }
+        }
+        router.push(safe)
         router.refresh()
       }
     } catch {
@@ -92,7 +109,7 @@ export default function LoginPage() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   מתחבר...
                 </>
               ) : (

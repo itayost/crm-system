@@ -58,7 +58,7 @@ export function PortalAttachments({
         {Array.from({ length: count }, (_, i) => (
           <Button key={i} variant="outline" size="sm" disabled={busy === i} onClick={() => open(i)}>
             <Paperclip className="h-3.5 w-3.5" />
-            <span className="mr-1">
+            <span>
               {busy === i ? 'פותח...' : `קובץ ${i + 1}`}
             </span>
           </Button>

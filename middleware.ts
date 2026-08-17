@@ -14,7 +14,12 @@ export async function middleware(request: NextRequest) {
   })
   
   const isAuth = !!token
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
+  // /register gates itself on there being no owner yet; the middleware just has
+  // to stop bouncing it to /login, which would make first-run setup impossible
+  // through the UI.
+  const isAuthPage =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/register')
   
   // If user is authenticated and trying to access auth pages, redirect to dashboard
   if (isAuthPage) {

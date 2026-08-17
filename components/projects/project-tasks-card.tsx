@@ -24,7 +24,7 @@ export function ProjectTasksCard({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>משימות</CardTitle>
         <Button size="sm" onClick={onAdd}>
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           משימה חדשה
         </Button>
       </CardHeader>

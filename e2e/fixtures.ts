@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test'
+import { Page, Locator, expect } from '@playwright/test'
 
 // --- Toast Assertions (react-hot-toast) ---
 
@@ -12,11 +12,51 @@ export async function expectToastError(page: Page, text: string) {
   await expect(toast).toBeVisible({ timeout: 5000 })
 }
 
-// --- Table Helpers ---
+// --- Rows ---
 
-export function getTableRow(page: Page, containsText: string) {
-  return page.locator('tr').filter({ hasText: containsText })
+/**
+ * A data row, by any text it contains.
+ *
+ * Bound to `data-testid="row"`, not to `tr`. Two reasons, and the second is the
+ * one that matters: `tr` also matched the header row, and a list that renders as
+ * cards on mobile has no `tr` at all. The row primitive emits the same testid
+ * for both the desktop `<tr>` and the mobile `<article>`, so every assertion
+ * below survives the table-to-card conversion untouched.
+ */
+export function row(page: Page, containsText: string): Locator {
+  return page.locator(ROW).filter({ hasText: containsText })
 }
+
+/** A data row addressed by entity id - stable against copy changes. */
+export function rowById(page: Page, id: string): Locator {
+  return page.locator(`${ROW}[data-row-id="${id}"]`)
+}
+
+/**
+ * `:visible` is load-bearing, not defensive.
+ *
+ * DataTable renders both trees and lets CSS pick one, because choosing at
+ * runtime would need a media query the server cannot evaluate - so a row is
+ * always in the DOM twice, once as a `<tr>` and once as an `<article>`. Without
+ * this filter every row query matches both and trips strict mode. With it, a
+ * row means the row the user can actually see, at whichever viewport the test
+ * is running.
+ */
+const ROW = '[data-testid="row"]:visible'
+
+/**
+ * One field of a row, by column name.
+ *
+ * Replaces `row.locator('td').nth(1)` and `.last()`. Those encode the column
+ * layout as a magic number, so appending a column silently retargets the
+ * assertion at the wrong data.
+ */
+export function rowCell(rowLocator: Locator, col: string): Locator {
+  return rowLocator.locator(`[data-col="${col}"]`)
+}
+
+/** @deprecated Use `row`. Kept so existing call sites keep reading naturally. */
+export const getTableRow = row
 
 /**
  * A status chip, wherever it renders.
@@ -30,6 +70,39 @@ export function getTableRow(page: Page, containsText: string) {
  */
 export function getStatusPill(page: Page, text: string) {
   return page.locator('[data-slot="status-pill"]').filter({ hasText: text })
+}
+
+/** The same chip, scoped to one row. */
+export function rowStatusPill(rowLocator: Locator, text: string): Locator {
+  return rowLocator.locator('[data-slot="status-pill"]').filter({ hasText: text })
+}
+
+// --- Dashboard ---
+
+/** A named dashboard section card. */
+export function section(page: Page, key: string): Locator {
+  return page.locator(`[data-section="${key}"]`)
+}
+
+// --- Shell ---
+
+export function sidebarLink(page: Page, name: string): Locator {
+  return page.locator('nav[aria-label="ניווט ראשי"] a').filter({ hasText: name })
+}
+
+/**
+ * The active nav link, read semantically.
+ *
+ * The previous assertion was `toHaveClass(/text-link/)`, which had already
+ * broken once when design tokens replaced `text-blue-600`. `aria-current` is
+ * what the attribute means, and it survives any restyle.
+ */
+export function activeSidebarLink(page: Page): Locator {
+  return page.locator('nav a[aria-current="page"]')
+}
+
+export function userMenuTrigger(page: Page): Locator {
+  return page.getByRole('button', { name: 'תפריט משתמש' })
 }
 
 // --- Formatting ---
@@ -47,7 +120,7 @@ export async function waitForSearchResults(page: Page) {
 
 // --- Form Helpers ---
 
-async function selectOption(page: Page, triggerText: RegExp, optionText: string) {
+export async function selectOption(page: Page, triggerText: RegExp, optionText: string) {
   await page.locator('button[role="combobox"]').filter({ hasText: triggerText }).click()
   await page.locator('[role="option"]').filter({ hasText: optionText }).click()
 }

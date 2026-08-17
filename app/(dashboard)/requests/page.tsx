@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Plus, Search, Pencil } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Plus, Inbox } from 'lucide-react'
 import toast from 'react-hot-toast'
+
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { StatusPill } from '@/components/ui/status-pill'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -16,148 +14,127 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { RequestForm } from '@/components/forms/request-form'
-import { PendingReviewCard } from '@/components/requests/pending-review-card'
-import { AwaitingClientCard } from '@/components/requests/awaiting-client-card'
-import { RequestPipeline } from '@/components/requests/request-pipeline'
-import { RequestAge } from '@/components/requests/request-age'
-import { DecisionsCard } from '@/components/requests/decisions-card'
-import type { RequestMetrics } from '@/lib/services/request-metrics.service'
-
-type QueueKey = 'needsPricing' | 'unclassified' | 'awaitingClient' | 'withoutTask'
-
-/** Named here so the banner and the URL contract stay in one place. */
-const QUEUE_LABELS: Record<QueueKey, string> = {
-  needsPricing: 'ממתין לתמחור',
-  unclassified: 'ללא סיווג חיוב',
-  awaitingClient: 'ממתין לתשובת הלקוח',
-  withoutTask: 'ללא משימה',
-}
-import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { AiMark, SourceIcon } from '@/components/requests/request-badges'
+import { AttachmentLinks } from '@/components/requests/attachment-links'
+import { RequestAge } from '@/components/requests/request-age'
+import {
+  PageHeader,
+  SearchField,
+  SegmentControl,
+  DataTable,
+  EmptyState,
+  TableSkeleton,
+  type Column,
+  type Segment,
+} from '@/components/patterns'
 import {
   toneOf,
-  emphasisOf,
-  PRIORITY_TONES,
-  PRIORITY_EMPHASIS,
   REQUEST_STATUS_TONES,
   REQUEST_BILLING_TONES,
   TASK_STATUS_TONES,
 } from '@/lib/design/tones'
 import {
   label,
-  REQUEST_TYPE_LABELS,
   REQUEST_STATUS_LABELS,
-  PRIORITY_LABELS,
   REQUEST_BILLING_LABELS,
+  REQUEST_TYPE_LABELS,
   TASK_STATUS_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency } from '@/lib/utils'
+import type { RequestMetrics } from '@/lib/services/request-metrics.service'
 import type { RequestRecord } from '@/lib/types/request'
 
-interface ClientOption {
-  id: string
-  name: string
-}
+/**
+ * Each segment is a predicate RequestsService.getAll already supported.
+ *
+ * This is the structural fix for a defect the old page shipped: RequestPipeline
+ * linked to `?status=PENDING_REVIEW` and friends while the page only ever read
+ * `?queue=`, so four of its five links navigated to an unfiltered list. One
+ * param, one vocabulary - and a counter can no longer disagree with the list it
+ * links to, because they are the same predicate.
+ *
+ * It also removes four stacked full-width blocks. The table this page is named
+ * after used to sit below a pipeline chart, a decisions card, the review queue
+ * and the awaiting-client queue - two of which returned null when empty, so the
+ * page changed shape from one day to the next.
+ */
+const VIEWS = {
+  triage: { label: "לטריאז'", params: { pendingReview: 'true' } },
+  needsPricing: { label: 'לתמחור', params: { queue: 'needsPricing' } },
+  unclassified: { label: 'ללא סיווג', params: { queue: 'unclassified' } },
+  awaitingClient: { label: 'אצל הלקוח', params: { queue: 'awaitingClient' } },
+  open: { label: 'פתוחות', params: { excludePending: 'true' } },
+  all: { label: 'הכל', params: {} },
+} as const
+
+type View = keyof typeof VIEWS
 
 export default function RequestsPage() {
-  const router = useRouter()
   const [requests, setRequests] = useState<RequestRecord[]>([])
-  const [pending, setPending] = useState<RequestRecord[]>([])
-  const [awaiting, setAwaiting] = useState<RequestRecord[]>([])
-  const [clients, setClients] = useState<ClientOption[]>([])
+  const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
-  const [typeFilter, setTypeFilter] = useState('ALL')
+  const [view, setView] = useState<View>('open')
   const [clientFilter, setClientFilter] = useState('ALL')
+  const [typeFilter, setTypeFilter] = useState('ALL')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<RequestRecord | undefined>(undefined)
-  const [actingOn, setActingOn] = useState<string | null>(null)
-  const [metrics, setMetrics] = useState<RequestMetrics | null>(null)
-  // A decision queue arrives in the URL so a dashboard counter and the list it
-  // opens can never disagree - the same predicate answers both.
-  const [queue, setQueue] = useState<QueueKey | null>(null)
-
-  useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('queue')
-    if (fromUrl && QUEUE_LABELS[fromUrl as QueueKey]) setQueue(fromUrl as QueueKey)
-  }, [])
 
   const fetchMetrics = useCallback(async () => {
     try {
-      const response = await api.get('/requests/metrics')
-      setMetrics(response.data)
+      const { data } = await api.get('/requests/metrics')
+      setMetrics(data)
+      return data as RequestMetrics
     } catch {
       setMetrics(null)
-    }
-  }, [])
-
-  const fetchPending = useCallback(async () => {
-    try {
-      const response = await api.get('/requests?pendingReview=true')
-      setPending(response.data)
-    } catch {
-      setPending([])
-    }
-  }, [])
-
-  const fetchAwaiting = useCallback(async () => {
-    try {
-      const response = await api.get('/requests?awaitingClient=true')
-      setAwaiting(response.data)
-    } catch {
-      setAwaiting([])
+      return null
     }
   }, [])
 
   const fetchRequests = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (queue) params.set('queue', queue)
-      if (statusFilter !== 'ALL') {
-        params.set('status', statusFilter)
-      } else {
-        // Drafts already sit in the pending-review queue above the table;
-        // listing them twice made the page read as double the real workload.
-        params.set('excludePending', 'true')
-      }
-      if (typeFilter !== 'ALL') params.set('type', typeFilter)
-      if (clientFilter !== 'ALL') params.set('clientId', clientFilter)
+      const params = new URLSearchParams(VIEWS[view].params)
       if (search.trim()) params.set('search', search.trim())
-
-      const response = await api.get(`/requests?${params.toString()}`)
-      setRequests(response.data)
+      if (clientFilter !== 'ALL') params.set('clientId', clientFilter)
+      if (typeFilter !== 'ALL') params.set('type', typeFilter)
+      const { data } = await api.get(`/requests?${params.toString()}`)
+      setRequests(data)
     } catch {
       toast.error('שגיאה בטעינת פניות')
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, typeFilter, clientFilter, search, queue])
+  }, [view, search, clientFilter, typeFilter])
 
+  // Land on the pile that is blocked on you, when there is one.
+  const pickedInitialView = useRef(false)
   useEffect(() => {
-    fetchPending()
-    fetchAwaiting()
-    fetchMetrics()
-    const fetchClients = async () => {
-      try {
-        const response = await api.get('/clients')
-        setClients(response.data)
-      } catch {
-        setClients([])
-      }
+    const query = new URLSearchParams(window.location.search)
+
+    // ⌘K offers "פנייה חדשה" as /requests?new=true. Only /projects honoured
+    // that param, so the palette's create action navigated here and stopped.
+    if (query.get('new') === 'true') {
+      setEditing(undefined)
+      setShowForm(true)
+      window.history.replaceState(null, '', '/requests')
     }
-    fetchClients()
-  }, [fetchPending, fetchAwaiting, fetchMetrics])
+
+    const fromUrl = query.get('view')
+    if (fromUrl && fromUrl in VIEWS) {
+      pickedInitialView.current = true
+      setView(fromUrl as View)
+      fetchMetrics()
+      return
+    }
+    fetchMetrics().then((m) => {
+      if (pickedInitialView.current) return
+      pickedInitialView.current = true
+      if (m && m.pipeline.pendingReview > 0) setView('triage')
+    })
+  }, [fetchMetrics])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -166,39 +143,35 @@ export default function RequestsPage() {
     return () => clearTimeout(debounce)
   }, [fetchRequests, search])
 
-  const refetchAll = () => {
+  useEffect(() => {
+    api
+      .get('/clients')
+      .then(({ data }) => setClients(data))
+      .catch(() => setClients([]))
+  }, [])
+
+  const selectView = (next: string) => {
+    setView(next as View)
+    window.history.replaceState(null, '', `/requests?view=${next}`)
+  }
+
+  const segments: Segment[] = useMemo(() => {
+    const d = metrics?.decisions
+    const p = metrics?.pipeline
+    return [
+      { value: 'triage', label: VIEWS.triage.label, count: p?.pendingReview },
+      { value: 'needsPricing', label: VIEWS.needsPricing.label, count: d?.needsPricing },
+      { value: 'unclassified', label: VIEWS.unclassified.label, count: d?.unclassified },
+      { value: 'awaitingClient', label: VIEWS.awaitingClient.label, count: d?.awaitingClient },
+      { value: 'open', label: VIEWS.open.label, count: p ? p.open + p.inProgress : undefined },
+      { value: 'all', label: VIEWS.all.label },
+    ]
+  }, [metrics])
+
+  const refresh = useCallback(() => {
     fetchRequests()
-    fetchPending()
-    fetchAwaiting()
     fetchMetrics()
-  }
-
-  const handleAction = async (id: string, action: 'approve' | 'dismiss') => {
-    // Approving twice is not free: it is the operation that creates the task and
-    // messages the client, so a double click must not fire two requests.
-    if (actingOn) return
-    setActingOn(id)
-    try {
-      await api.post(`/requests/${id}/action`, { action })
-      toast.success(action === 'approve' ? 'הפניה אושרה' : 'הפניה נדחתה')
-      refetchAll()
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } }
-      toast.error(axiosError.response?.data?.error ?? 'שגיאה בעדכון הפניה')
-    } finally {
-      setActingOn(null)
-    }
-  }
-
-  const openCreate = () => {
-    setEditing(undefined)
-    setShowForm(true)
-  }
-
-  const openEdit = (request: RequestRecord) => {
-    setEditing(request)
-    setShowForm(true)
-  }
+  }, [fetchRequests, fetchMetrics])
 
   const openAttachment = async (id: string, path: string) => {
     const tab = window.open('', '_blank')
@@ -215,225 +188,223 @@ export default function RequestsPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-strong">פניות לקוחות</h1>
-          <p className="text-sm text-content-subtle mt-1">
-            בקשות, תקלות ושיפורים שהלקוחות ביקשו
-          </p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 ml-2" />
-          פניה חדשה
-        </Button>
-      </div>
+  const act = async (id: string, action: 'approve' | 'dismiss') => {
+    try {
+      await api.post(`/requests/${id}/action`, { action })
+      toast.success(action === 'approve' ? 'הפנייה אושרה' : 'הפנייה נדחתה')
+      refresh()
+    } catch {
+      toast.error('שגיאה בעדכון הפנייה')
+    }
+  }
 
-      {metrics && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <RequestPipeline metrics={metrics} />
-          <DecisionsCard metrics={metrics} />
-        </div>
-      )}
+  const columns: Column<RequestRecord>[] = [
+    {
+      key: 'title',
+      header: 'כותרת',
+      mobile: 'primary',
+      cell: (r) => (
+        <span className="inline-flex items-center gap-2">
+          <span>{r.title}</span>
+          <AiMark isAiGenerated={r.isAiGenerated} />
+          <SourceIcon source={r.source} />
+          <AttachmentLinks
+            attachments={r.attachments}
+            onOpen={(path) => openAttachment(r.id, path)}
+          />
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'סטטוס',
+      mobile: 'trailing',
+      cell: (r) => (
+        <StatusPill tone={toneOf(REQUEST_STATUS_TONES, r.status)} dot>
+          {label(REQUEST_STATUS_LABELS, r.status)}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'billing',
+      header: 'חיוב',
+      width: '7rem',
+      mobile: 'meta',
+      // Unclassified is the loud case: the billing gate never engaged, so the
+      // work is running unpriced.
+      cell: (r) =>
+        r.billingKind ? (
+          <StatusPill tone={toneOf(REQUEST_BILLING_TONES, r.billingKind)} emphasis="quiet" dot>
+            {label(REQUEST_BILLING_LABELS, r.billingKind)}
+          </StatusPill>
+        ) : (
+          <StatusPill tone="danger" emphasis="outline">
+            ללא סיווג
+          </StatusPill>
+        ),
+    },
+    {
+      key: 'price',
+      header: 'מחיר',
+      align: 'numeric',
+      width: '7rem',
+      cell: (r) =>
+        r.quotedPrice ? (
+          <bdi>{formatCurrency(r.quotedPrice)}</bdi>
+        ) : (
+          <span className="text-content-faint">—</span>
+        ),
+    },
+    { key: 'client', header: 'לקוח', mobile: 'meta', cell: (r) => r.client?.name ?? '—' },
+    {
+      key: 'project',
+      header: 'פרויקט',
+      // sendQuote refuses a chargeable request with no project, so a blank here
+      // is diagnostic rather than cosmetic.
+      cell: (r) => r.project?.name ?? <span className="text-content-faint">—</span>,
+    },
+    {
+      key: 'age',
+      header: 'גיל',
+      align: 'numeric',
+      width: '6rem',
+      mobile: 'meta',
+      cell: (r) => <RequestAge createdAt={r.createdAt} status={r.status} />,
+    },
+    {
+      key: 'task',
+      header: 'משימה',
+      width: '7rem',
+      cell: (r) =>
+        r.task ? (
+          <StatusPill tone={toneOf(TASK_STATUS_TONES, r.task.status)} emphasis="quiet" dot>
+            {label(TASK_STATUS_LABELS, r.task.status)}
+          </StatusPill>
+        ) : (
+          <span className="text-content-faint">—</span>
+        ),
+    },
+  ]
 
-      {queue && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-tone-info-mark/40 bg-tone-info-surface/40 px-4 py-3">
-          <span className="text-sm text-content-strong">
-            מוצגות רק פניות בקטגוריה <strong>{QUEUE_LABELS[queue]}</strong>
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => setQueue(null)}>
-            הצג הכל
+  // Triage is the one pile where the useful thing is to decide without leaving.
+  if (view === 'triage') {
+    columns.push({
+      key: 'triage-actions',
+      header: '',
+      width: '9rem',
+      mobile: 'actions',
+      cell: (r) => (
+        <span className="flex gap-1.5">
+          <Button
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              act(r.id, 'approve')
+            }}
+          >
+            אשר
           </Button>
-        </div>
-      )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              act(r.id, 'dismiss')
+            }}
+          >
+            דחה
+          </Button>
+        </span>
+      ),
+    })
+  }
 
-      <PendingReviewCard
-        pending={pending}
-        actingOn={actingOn}
-        onAction={handleAction}
-        onOpenAttachment={openAttachment}
+  return (
+    <div className="flex flex-col gap-3">
+      <PageHeader
+        title="פניות"
+        count={loading ? undefined : `${requests.length}`}
+        actions={
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditing(undefined)
+              setShowForm(true)
+            }}
+          >
+            <Plus className="size-4" />
+            פנייה חדשה
+          </Button>
+        }
       />
 
-      <AwaitingClientCard awaiting={awaiting} />
-
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
-          <Input
-            type="search"
-            placeholder="חיפוש פניה..."
-            className="pr-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="סטטוס" />
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentControl segments={segments} value={view} onChange={selectView} />
+        <SearchField value={search} onChange={setSearch} placeholder="חיפוש בפניות..." />
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="h-control w-36 text-ui-sm" aria-label="לקוח">
+            <SelectValue placeholder="לקוח" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">כל הסטטוסים</SelectItem>
-            {Object.entries(REQUEST_STATUS_LABELS).map(([value, statusLabel]) => (
-              <SelectItem key={value} value={value}>
-                {statusLabel}
+            <SelectItem value="ALL">כל הלקוחות</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="h-control w-32 text-ui-sm" aria-label="סוג">
             <SelectValue placeholder="סוג" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">כל הסוגים</SelectItem>
-            {Object.entries(REQUEST_TYPE_LABELS).map(([value, typeLabel]) => (
+            {Object.entries(REQUEST_TYPE_LABELS).map(([value, text]) => (
               <SelectItem key={value} value={value}>
-                {typeLabel}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="לקוח" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">כל הלקוחות</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
+                {text}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Main table */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
+        <TableSkeleton columns={7} />
       ) : requests.length === 0 ? (
-        <div className="text-center py-12 text-content-subtle">
-          <p className="text-lg font-medium">אין פניות</p>
-          <p className="text-sm mt-1">צור פניה חדשה כדי להתחיל</p>
-        </div>
+        view === 'triage' ? (
+          <EmptyState
+            kind="calm"
+            title="אין פניות שממתינות לך"
+            description="הבוט מסנן ומתייק, ואתה מאשר. כשמשהו יגיע - הוא יופיע כאן."
+          />
+        ) : search ? (
+          <EmptyState
+            kind="filtered"
+            title="לא נמצאו תוצאות"
+            action={
+              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                נקה חיפוש
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState kind="new" icon={Inbox} title="אין פניות בתצוגה הזו" />
+        )
       ) : (
-        <div className="bg-white rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-right">כותרת</TableHead>
-                <TableHead className="text-right">סטטוס</TableHead>
-                <TableHead className="text-right">עדיפות</TableHead>
-                <TableHead className="text-right">חיוב</TableHead>
-                <TableHead className="text-right">מחיר</TableHead>
-                <TableHead className="text-right">לקוח</TableHead>
-                <TableHead className="text-right">גיל</TableHead>
-                <TableHead className="text-right">משימה</TableHead>
-                <TableHead className="text-right w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow
-                  key={request.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/requests/${request.id}`)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{request.title}</span>
-                      <AiMark isAiGenerated={request.isAiGenerated} />
-                      <SourceIcon source={request.source} />
-                      <AttachmentLinks
-                        attachments={request.attachments}
-                        onOpen={(path) => openAttachment(request.id, path)}
-                      />
-                    </div>
-                  </TableCell>
-                  {/* The one pill in the row, and so the one the eye lands on. */}
-                  <TableCell>
-                    <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
-                      {label(REQUEST_STATUS_LABELS, request.status)}
-                    </StatusPill>
-                  </TableCell>
-                  {/* Silent unless it is not. */}
-                  <TableCell>
-                    <StatusPill
-                      tone={toneOf(PRIORITY_TONES, request.priority)}
-                      emphasis={emphasisOf(PRIORITY_EMPHASIS, request.priority)}
-                    >
-                      {label(PRIORITY_LABELS, request.priority)}
-                    </StatusPill>
-                  </TableCell>
-                  {/* Unclassified is the loud case here: it means the billing
-                      gate never engaged and the work is running unpriced. */}
-                  <TableCell>
-                    {request.billingKind ? (
-                      <StatusPill
-                        tone={toneOf(REQUEST_BILLING_TONES, request.billingKind)}
-                        emphasis="quiet"
-                        dot
-                      >
-                        {label(REQUEST_BILLING_LABELS, request.billingKind)}
-                      </StatusPill>
-                    ) : (
-                      <StatusPill tone="danger" emphasis="outline">
-                        ללא סיווג
-                      </StatusPill>
-                    )}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {request.quotedPrice ? (
-                      <bdi>{formatCurrency(request.quotedPrice)}</bdi>
-                    ) : (
-                      <span className="text-content-faint">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{request.client?.name ?? '-'}</TableCell>
-                  <TableCell className="tabular-nums">
-                    <RequestAge createdAt={request.createdAt} status={request.status} />
-                  </TableCell>
-                  <TableCell>
-                    {request.task ? (
-                      <StatusPill tone={toneOf(TASK_STATUS_TONES, request.task.status)} emphasis="quiet" dot>
-                        {label(TASK_STATUS_LABELS, request.task.status)}
-                      </StatusPill>
-                    ) : (
-                      <span className="text-xs text-content-faint">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label="עריכה מהירה"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEdit(request)
-                      }}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          rows={requests}
+          columns={columns}
+          getRowId={(r) => r.id}
+          getRowHref={(r) => `/requests/${r.id}`}
+        />
       )}
 
       <RequestForm
         request={editing}
         open={showForm}
         onOpenChange={setShowForm}
-        onSuccess={refetchAll}
+        onSuccess={refresh}
       />
     </div>
   )

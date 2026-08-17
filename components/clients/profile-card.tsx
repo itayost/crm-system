@@ -67,7 +67,15 @@ export function ClientProfileCard({
           rows={8}
           maxLength={4000}
           placeholder={'## מוצר וסביבה\n\n## מילון מונחים\n- המונח של הלקוח ← המסך שהכוונה אליו\n\n## נושאים חוזרים\n\n## העדפות'}
-          className="font-mono text-sm"
+          // Deliberately not `font-mono`. This field is Hebrew markdown, and
+          // the mono face carries no Hebrew - every Hebrew glyph would drop to
+          // an arbitrary system fallback mid-paragraph. The class was here
+          // before but never took effect: a `* { font-family }` universal
+          // selector in globals.css overrode it. Removing that selector is
+          // what made this visible, so it is a decision now rather than an
+          // accident either way. Mono stays where the content is ASCII - the
+          // agent-config JSON and the <kbd> in the help dialog.
+          className="text-sm"
           dir="rtl"
         />
       </CardContent>

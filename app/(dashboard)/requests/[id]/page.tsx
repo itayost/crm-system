@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
+import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/status-pill'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -146,15 +147,6 @@ export default function RequestDetailPage() {
     }
   }
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -225,13 +217,13 @@ export default function RequestDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowEditForm(true)}>
-            <Edit className="w-4 h-4 ml-2" />
+            <Edit className="w-4 h-4" />
             עריכה
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={acting}>
-                <Trash2 className="w-4 h-4 ml-2" />
+                <Trash2 className="w-4 h-4" />
                 מחיקה
               </Button>
             </AlertDialogTrigger>
@@ -257,7 +249,7 @@ export default function RequestDetailPage() {
         {isPending ? (
           <>
             <Button size="sm" disabled={acting} onClick={() => handleAction('approve')}>
-              <Check className="w-4 h-4 ml-1" />
+              <Check className="w-4 h-4" />
               אשר
             </Button>
             <Button
@@ -266,7 +258,7 @@ export default function RequestDetailPage() {
               disabled={acting}
               onClick={() => handleAction('dismiss')}
             >
-              <X className="w-4 h-4 ml-1" />
+              <X className="w-4 h-4" />
               דחה
             </Button>
             <span className="text-xs text-content-subtle">
@@ -375,7 +367,7 @@ export default function RequestDetailPage() {
           <CardTitle>פרטי הפניה</CardTitle>
           {!editingIntake && (
             <Button variant="outline" size="sm" onClick={() => setEditingIntake(true)}>
-              <Pencil className="w-4 h-4 ml-2" />
+              <Pencil className="w-4 h-4" />
               עריכה
             </Button>
           )}

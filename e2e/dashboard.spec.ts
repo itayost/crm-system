@@ -1,65 +1,58 @@
 import { test, expect } from '@playwright/test'
+import { section } from './fixtures'
 
-test.describe('Dashboard', () => {
+/**
+ * היום, not דשבורד.
+ *
+ * The old page was five identical KPI tiles plus three quick-action buttons.
+ * These assertions follow the question the page now answers - "what is owed,
+ * and in what order" - rather than the old furniture. Blocks 1-6 render only
+ * when they have something in them, so what is asserted here is the two that
+ * always exist: the day line and the state strip.
+ */
+test.describe('Today', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
   })
 
-  test('kpi-cards: renders 4 KPI cards with data', async ({ page }) => {
-    // The dashboard renders 4 KPI cards: revenue, active projects, leads, pending tasks
-    const kpiTitles = ['הכנסות', 'פרויקטים פעילים', 'לידים בצנרת', 'משימות ממתינות']
+  test('day-line: names the day and says whether anything is owed', async ({ page }) => {
+    const dayLine = section(page, 'day-line')
+    await expect(dayLine).toBeVisible()
+    // Either a count of what needs you, or an explicit all-clear. Never blank.
+    await expect(dayLine).toContainText(/דורשים אותך|באיחור|היום נקי/)
+  })
 
-    for (const title of kpiTitles) {
-      const card = page.locator('text=' + title).first()
-      await expect(card).toBeVisible()
+  test('state-strip: four figures, each a real link', async ({ page }) => {
+    const strip = section(page, 'state')
+    await expect(strip).toBeVisible()
+
+    for (const [name, href] of [
+      ['פרויקטים פעילים', '/projects'],
+      ['פניות פתוחות', '/requests'],
+      ['לידים בצנרת', '/leads'],
+      ['הכנסות', '/money'],
+    ]) {
+      await expect(strip.locator('a', { hasText: name })).toHaveAttribute('href', href)
     }
   })
 
-  test('revenue-format: displays amount with shekel symbol', async ({ page }) => {
-    // Revenue card should display amount in "X,XXX ₪" format
-    const revenueSection = page.locator('text=הכנסות').locator('..')
-    await expect(revenueSection).toContainText('₪')
+  test('revenue-format: the money figure carries a shekel sign', async ({ page }) => {
+    await expect(section(page, 'state').locator('a', { hasText: 'הכנסות' })).toContainText('₪')
   })
-
 
   test('active-projects: shows seeded projects', async ({ page }) => {
-    // The "active projects" section should show seeded projects
-    const activeProjectsSection = page.locator('text=הפרויקטים בעבודה').locator('..').locator('..')
+    const projects = section(page, 'active-projects')
+    await expect(projects).toBeVisible()
 
-    // "פרויקט אפליקציה" is IN_PROGRESS so it should appear in active projects
-    // Note: the card title also says "פרויקטים פעילים" so we look in the card content
-    const projectNames = ['פרויקט אתר', 'פרויקט אפליקציה']
-    let foundCount = 0
-    for (const name of projectNames) {
-      const count = await activeProjectsSection.locator(`text=${name}`).count()
-      foundCount += count
-    }
-    expect(foundCount).toBeGreaterThan(0)
+    const names = ['פרויקט אתר', 'פרויקט אפליקציה']
+    let found = 0
+    for (const name of names) found += await projects.locator(`text=${name}`).count()
+    expect(found).toBeGreaterThan(0)
   })
 
-  test('quick-actions: buttons navigate to correct pages', async ({ page }) => {
-    // Click "איש קשר חדש" button -> navigates to /contacts
-    const newContactBtn = page.locator('button').filter({ hasText: 'איש קשר חדש' })
-    await newContactBtn.click()
-    await page.waitForURL(new RegExp('/contacts'))
-
-    // Go back to dashboard
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Click "פרויקט חדש" button -> navigates to /projects
-    const newProjectBtn = page.locator('button').filter({ hasText: 'פרויקט חדש' }).first()
-    await newProjectBtn.click()
-    await page.waitForURL(new RegExp('/projects'))
-
-    // Go back to dashboard
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Click "משימה חדשה" button -> navigates to /tasks
-    const newTaskBtn = page.locator('button').filter({ hasText: 'משימה חדשה' })
-    await newTaskBtn.click()
-    await page.waitForURL(new RegExp('/tasks'))
+  test('navigation: the state strip goes where it says', async ({ page }) => {
+    await section(page, 'state').locator('a', { hasText: 'לידים בצנרת' }).click()
+    await expect(page).toHaveURL(/\/leads/)
   })
 })

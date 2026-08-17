@@ -29,7 +29,7 @@ export function RequestTimeline({ request }: { request: RequestRecord }) {
               {i < events.length - 1 && (
                 <span
                   aria-hidden
-                  className="absolute top-6 bottom-0 right-[0.7rem] w-px bg-border"
+                  className="absolute top-6 bottom-0 start-[0.7rem] w-px bg-border"
                 />
               )}
 

@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test'
 import {
   expectToastSuccess,
   getTableRow,
+  row,
+  rowCell,
+  rowStatusPill,
 } from './fixtures'
 
 test.describe('Tasks', () => {
@@ -10,39 +13,37 @@ test.describe('Tasks', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('list-shows-data: seeded tasks are visible in the table', async ({ page }) => {
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'משימה שהושלמה' })).toBeVisible()
+  test('list-shows-data: seeded tasks are visible in the list', async ({ page }) => {
+    // Default segment is פתוחות: a completed task is not open work and is one
+    // click away rather than mixed in with it.
+    await expect(row(page, 'משימה ראשונה')).toBeVisible()
+    await expect(row(page, 'משימה עצמאית')).toBeVisible()
+    await expect(row(page, 'משימה שהושלמה')).not.toBeVisible()
+
+    await page.getByRole('tab', { name: /הכל/ }).click()
+    await expect(row(page, 'משימה שהושלמה')).toBeVisible()
   })
 
-  test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
-    // Open the status filter select
-    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|לביצוע|בתהליך/ })
-    await statusTrigger.click()
+  test('filter-by-status: the הושלמו segment excludes open work', async ({ page }) => {
+    // The status Select became a segment: mutually exclusive, counted, and the
+    // pile you are working from rather than a dropdown you have to remember.
+    await page.getByRole('tab', { name: /הושלמו/ }).click()
 
-    // Select "הושלם" (COMPLETED)
-    await page.locator('[role="option"]').filter({ hasText: 'הושלם' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // "משימה שהושלמה" should be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה שהושלמה' })).toBeVisible()
-
-    // TODO tasks should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).not.toBeVisible()
+    await expect(row(page, 'משימה שהושלמה')).toBeVisible()
+    await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
   })
 
-  test('filter-standalone: toggle shows only tasks without a project', async ({ page }) => {
-    // Toggle the standalone switch
-    const standaloneSwitch = page.locator('#standalone')
-    await standaloneSwitch.click()
-    await page.waitForLoadState('networkidle')
+  test('filter-standalone: the project facet can select "no project"', async ({ page }) => {
+    // Was a Switch of its own - a third control for what is really one value
+    // of the project facet.
+    await page.getByRole('combobox', { name: 'פרויקט' }).click()
+    await page.getByRole('option', { name: 'ללא פרויקט' }).click()
 
     // "משימה עצמאית" has no project, should be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית' })).toBeVisible()
+    await expect(row(page, 'משימה עצמאית')).toBeVisible()
 
     // "משימה ראשונה" has a project, should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).not.toBeVisible()
+    await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
   })
 
   test('create-with-project: creates a task linked to a project', async ({ page }) => {
@@ -73,7 +74,7 @@ test.describe('Tasks', () => {
       // Verify appears in list with project name
       const taskRow = getTableRow(page, 'משימת בדיקה עם פרויקט')
       await expect(taskRow).toBeVisible()
-      await expect(taskRow.locator('td').filter({ hasText: 'פרויקט אתר' })).toBeVisible()
+      await expect(rowCell(taskRow, 'project')).toHaveText('פרויקט אתר')
 
       // Get task ID for cleanup via API
       const tasksResponse = await page.request.get('/api/tasks?search=משימת בדיקה עם פרויקט')
@@ -108,7 +109,7 @@ test.describe('Tasks', () => {
       await expect(taskRow).toBeVisible()
 
       // The project column should show "-"
-      const projectCell = taskRow.locator('td').last()
+      const projectCell = rowCell(taskRow, 'project')
       await expect(projectCell).toHaveText('-')
 
       // Get task ID for cleanup
@@ -122,55 +123,55 @@ test.describe('Tasks', () => {
     }
   })
 
-  test('edit: clicking a task row opens edit dialog and saves changes', async ({ page }) => {
-    // Click on "משימה עצמאית" row to open edit dialog
-    const taskRow = getTableRow(page, 'משימה עצמאית')
-    await taskRow.locator('td').nth(1).click()
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
+  test('edit: a task row navigates to its own page, where it can be edited', async ({ page }) => {
+    // The row navigates now, like every other list in the app. A task has an
+    // address of its own, which is what /tasks/[id] exists to give it.
+    await getTableRow(page, 'משימה עצמאית').locator('a').first().click()
+    await expect(page).toHaveURL(/\/tasks\/\w+/)
+    await expect(page.getByRole('heading', { name: 'משימה עצמאית' })).toBeVisible()
 
-    // Verify it is in edit mode
-    await expect(page.locator('[role="dialog"]').locator('text=עריכת משימה')).toBeVisible()
+    try {
+      await page.getByRole('button', { name: 'פעולות נוספות' }).click()
+      await page.getByRole('menuitem', { name: 'עריכה' }).click()
+      await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // Change the title
-    const titleInput = page.locator('[role="dialog"] input[name="title"]')
-    await titleInput.fill('משימה עצמאית מעודכנת')
+      await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית מעודכנת')
+      await page.locator('[role="dialog"] button[type="submit"]').click()
+      await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
 
-    // Submit
-    await page.locator('[role="dialog"] button[type="submit"]').click()
-    await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
-    await page.waitForLoadState('networkidle')
-
-    // Verify updated in list
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית מעודכנת' })).toBeVisible()
-
-    // Restore original title
-    const updatedRow = getTableRow(page, 'משימה עצמאית מעודכנת')
-    await updatedRow.locator('td').nth(1).click()
-    await expect(page.locator('[role="dialog"]')).toBeVisible()
-    await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית')
-    await page.locator('[role="dialog"] button[type="submit"]').click()
-    await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
+      await expect(page.getByRole('heading', { name: 'משימה עצמאית מעודכנת' })).toBeVisible()
+    } finally {
+      // Restore pass or fail: list-shows-data and filter-standalone both name
+      // this task, so leaving it renamed breaks them rather than this test.
+      await page.getByRole('button', { name: 'פעולות נוספות' }).click()
+      await page.getByRole('menuitem', { name: 'עריכה' }).click()
+      await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית')
+      await page.locator('[role="dialog"] button[type="submit"]').click()
+      await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
+    }
   })
 
-  test('inline-completion: clicking checkbox toggles task to completed', async ({ page }) => {
-    // Find "משימה ראשונה" row (status: TODO)
-    const taskRow = getTableRow(page, 'משימה ראשונה')
+  test('inline-completion: completing a task moves it out of the open pile', async ({ page }) => {
+    try {
+      const taskRow = getTableRow(page, 'משימה ראשונה')
+      await taskRow.getByRole('checkbox', { name: 'סמן כהושלם' }).click()
 
-    // Click the completion checkbox button (first cell)
-    const checkbox = taskRow.locator('button[aria-label="סמן כהושלם"]')
-    await checkbox.click()
+      // It does not just change colour - it leaves. The segment is the pile you
+      // are working from, and a finished task is not in it.
+      await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
 
-    // Wait for optimistic update
-    await page.waitForTimeout(300)
-
-    // Verify the status badge changed to COMPLETED
-    const statusBadge = taskRow.locator('[data-slot="status-pill"]').filter({ hasText: 'הושלם' })
-    await expect(statusBadge).toBeVisible()
-
-    // Revert: click again to set back to TODO
-    const uncheckButton = taskRow.locator('button[aria-label="סמן כלא הושלם"]')
-    await uncheckButton.click()
-    await page.waitForTimeout(300)
+      await page.getByRole('tab', { name: /הושלמו/ }).click()
+      const done = getTableRow(page, 'משימה ראשונה')
+      await expect(rowStatusPill(done, 'הושלם')).toBeVisible()
+    } finally {
+      // Restore, pass or fail: filter-by-status asserts this task is not in the
+      // הושלמו pile, so leaving it completed breaks a later test rather than
+      // this one.
+      await page.getByRole('tab', { name: /הכל/ }).click()
+      const anywhere = getTableRow(page, 'משימה ראשונה')
+      await anywhere.getByRole('checkbox', { name: 'סמן כלא הושלם' }).click()
+      await expect(rowStatusPill(anywhere, 'לביצוע')).toBeVisible()
+    }
   })
 
   test('delete: removes a task via API call and verifies it is gone', async ({ page }) => {
@@ -187,7 +188,7 @@ test.describe('Tasks', () => {
     // Reload to see the new task
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('td').filter({ hasText: 'משימה למחיקה' })).toBeVisible()
+    await expect(row(page, 'משימה למחיקה')).toBeVisible()
 
     // Delete via API
     await page.request.delete(`/api/tasks/${taskId}`)
@@ -195,7 +196,7 @@ test.describe('Tasks', () => {
     // Reload and verify gone
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('td').filter({ hasText: 'משימה למחיקה' })).not.toBeVisible()
+    await expect(row(page, 'משימה למחיקה')).not.toBeVisible()
   })
 
   test('visible-in-project-detail: task appears in project detail page', async ({ page }) => {

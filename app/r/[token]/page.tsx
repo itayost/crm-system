@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 
 import { PublicRequestForm } from '@/components/forms/public-request-form'
 import { PortalNav } from '@/components/portal/portal-nav'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
 import { listClientProjects, listClientRequests } from '@/lib/services/client-view'
 import { formatCurrency } from '@/lib/utils'
+import { whatsappLink } from '@/lib/portal/whatsapp-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,12 +35,26 @@ export default async function PortalHomePage({
   const client = await PublicRequestsService.resolveClientByToken(token)
 
   if (!client) {
+    // A client whose token was rotated is a client who needs to reach a human
+    // right now. This used to be a dead end with nothing to click.
+    const whatsapp = whatsappLink()
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold text-content-strong">הקישור אינו תקין</h1>
-          <p className="mt-2 text-content-muted">בדקו את הקישור או פנו אלינו ישירות.</p>
-        </div>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+        <h1 className="text-ui-lg font-semibold text-content-strong">הקישור אינו תקין</h1>
+        <p className="max-w-sm text-ui-sm text-content-muted">
+          ייתכן שהקישור התחלף. אפשר לבקש קישור חדש, ובינתיים פשוט לכתוב לנו.
+        </p>
+        {whatsapp && (
+          <a
+            href={whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-4 text-ui-sm font-medium text-primary-foreground"
+          >
+            <MessageCircle aria-hidden className="size-4" />
+            כתבו לנו בוואטסאפ
+          </a>
+        )}
       </div>
     )
   }
@@ -56,8 +72,11 @@ export default async function PortalHomePage({
     <>
       <PortalNav token={token} active="home" awaiting={awaiting.length} />
 
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-content-strong">{client.name}</h1>
+      {/* The client's own name is context, not the page's identity - the
+          header above says whose system this is. */}
+      <header className="mb-5">
+        <p className="text-ui-2xs text-content-subtle">עבור</p>
+        <h1 className="text-ui-xl font-semibold text-content-strong">{client.name}</h1>
       </header>
 
       {/* The answer first. Everything below it is detail. */}

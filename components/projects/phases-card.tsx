@@ -86,7 +86,7 @@ export function PhasesCard({
             setShowForm(true)
           }}
         >
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           הוסף שלב
         </Button>
       </CardHeader>

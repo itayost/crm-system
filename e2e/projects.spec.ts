@@ -4,6 +4,7 @@ import {
   expectToastError,
   getTableRow,
   getStatusPill,
+  row,
 } from './fixtures'
 
 test.describe('Projects', () => {
@@ -13,22 +14,19 @@ test.describe('Projects', () => {
   })
 
   test('list-shows-data: seeded projects are visible in the table', async ({ page }) => {
-    await expect(page.locator('td').filter({ hasText: 'פרויקט אתר' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'פרויקט אפליקציה' })).toBeVisible()
+    await expect(row(page, 'פרויקט אתר')).toBeVisible()
+    await expect(row(page, 'פרויקט אפליקציה')).toBeVisible()
   })
 
-  test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
-    // Open the status filter select (shadcn Select component)
-    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|פעיל|הושלם/ })
-    await statusTrigger.click()
+  test('filter-by-status: the הושלמו segment excludes active projects', async ({ page }) => {
+    // The status Select became a segment. A pile is a segment, not a dropdown:
+    // it is mutually exclusive, it carries its own count, and it lives in the
+    // URL rather than in component state.
+    await page.getByRole('tab', { name: /הושלמו/ }).click()
 
-    // Select "הושלם" (COMPLETED)
-    await page.locator('[role="option"]').filter({ hasText: 'הושלם' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // Both seeded projects are ACTIVE, so neither should be visible when filtering COMPLETED
-    await expect(page.locator('td').filter({ hasText: 'פרויקט אפליקציה' })).not.toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'פרויקט אתר' })).not.toBeVisible()
+    // Both seeded projects are ACTIVE, so neither belongs in this pile.
+    await expect(row(page, 'פרויקט אפליקציה')).not.toBeVisible()
+    await expect(row(page, 'פרויקט אתר')).not.toBeVisible()
   })
 
   test('create-success: creates a project with a client contact', async ({ page }) => {
@@ -59,11 +57,11 @@ test.describe('Projects', () => {
       await page.waitForLoadState('networkidle')
 
       // Verify appears in list
-      await expect(page.locator('td').filter({ hasText: 'פרויקט בדיקה' })).toBeVisible()
+      await expect(row(page, 'פרויקט בדיקה')).toBeVisible()
 
       // Get ID for cleanup
-      const row = getTableRow(page, 'פרויקט בדיקה')
-      await row.click()
+      const createdRow = row(page, 'פרויקט בדיקה')
+      await createdRow.click()
       await page.waitForLoadState('networkidle')
       createdProjectId = page.url().split('/projects/')[1]
     } finally {

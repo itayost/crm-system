@@ -1,60 +1,76 @@
 import { test, expect } from '@playwright/test'
 import { E2E_PORT } from './base-url'
+import { sidebarLink, activeSidebarLink, userMenuTrigger } from './fixtures'
 
 test.describe('Navigation', () => {
   test('sidebar-links: each sidebar link navigates to the correct page', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const sidebarLinks = [
-      { text: 'דשבורד', href: '/' },
-      { text: 'אנשי קשר', href: '/contacts' },
-      { text: 'פרויקטים', href: '/projects' },
+    // The nav is two blocks now: the day (things that can be owed to you and
+    // can reach zero) and the registries. "דשבורד" became "היום" because the
+    // page stopped being a report about your own business.
+    const links = [
+      { text: 'היום', href: '/' },
+      { text: 'פניות', href: '/requests' },
       { text: 'משימות', href: '/tasks' },
+      { text: 'לידים', href: '/leads' },
+      { text: 'לקוחות', href: '/clients' },
+      { text: 'פרויקטים', href: '/projects' },
+      { text: 'כספים', href: '/money' },
     ]
 
-    for (const link of sidebarLinks) {
-      const sidebarLink = page.locator('nav a').filter({ hasText: link.text })
-      await sidebarLink.click()
-      // App Router navigation is client-side, so there is no load event to wait
-      // for: assert on the URL settling instead.
-      await page.waitForURL(
-        link.href === '/' ? new RegExp(`localhost:${E2E_PORT}/?$`) : new RegExp(link.href)
+    for (const link of links) {
+      await sidebarLink(page, link.text).click()
+      // `toHaveURL` polls; `waitForURL` waits for a navigation event whose
+      // default `load` never fires for App Router's client-side transitions,
+      // so it can hang even though the URL did change.
+      await expect(page).toHaveURL(
+        link.href === '/' ? new RegExp(`localhost:${E2E_PORT}/?$`) : new RegExp(link.href),
       )
     }
   })
 
-  test('active-highlight: sidebar link shows active styling on current page', async ({ page }) => {
-    await page.goto('/contacts')
+  test('active-highlight: the current page is marked semantically', async ({ page }) => {
+    await page.goto('/clients')
     await page.waitForLoadState('networkidle')
 
-    // The active style is the text-link token (design tokens replaced the old
-    // hardcoded text-blue-600).
-    const contactsLink = page.locator('nav a').filter({ hasText: 'אנשי קשר' })
-    await expect(contactsLink).toHaveClass(/text-link/)
+    // Was `toHaveClass(/text-link/)`, which had already broken once when design
+    // tokens replaced text-blue-600 - it tested the styling, not the behaviour.
+    await expect(activeSidebarLink(page)).toHaveText(/לקוחות/)
   })
 
-  test('header-greeting: displays Hebrew greeting based on time of day', async ({ page }) => {
+  test('bot-status: the header says whether the bot is talking to clients', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const header = page.locator('header')
-    await expect(header).toContainText(/בוקר טוב|צהריים טובים|ערב טוב|לילה טוב/)
+    // Replaces the greeting assertion. isBotPaused() is read per request and
+    // used to be invisible in the UI entirely, so "the bot went quiet" was
+    // diagnosed by reading a deploy log.
+    await expect(page.getByTestId('bot-status')).toContainText(/הבוט פעיל|הבוט מושהה/)
   })
 
-  test('header-user-menu: dropdown contains profile and logout items', async ({ page }) => {
+  test('header-user-menu: dropdown contains shortcuts and logout', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    // Open user dropdown in header
-    const userMenuTrigger = page.locator('header button').filter({ hasText: /E2E|Test|משתמש/ })
-    await userMenuTrigger.click()
+    await userMenuTrigger(page).click()
 
-    // Verify menu items exist
-    const profileItem = page.locator('[role="menuitem"]').filter({ hasText: 'פרופיל' })
-    const logoutItem = page.locator('[role="menuitem"]').filter({ hasText: 'התנתק' })
+    // "פרופיל" is gone - it routed to `/`, which is not a profile.
+    await expect(page.locator('[role="menuitem"]').filter({ hasText: 'קיצורי מקלדת' })).toBeVisible()
+    await expect(page.locator('[role="menuitem"]').filter({ hasText: 'התנתק' })).toBeVisible()
+  })
 
-    await expect(profileItem).toBeVisible()
-    await expect(logoutItem).toBeVisible()
+  test('command-palette: opens on the search button and navigates', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+
+    await page.getByRole('button', { name: 'חיפוש ופעולות' }).click()
+    const palette = page.getByRole('dialog')
+    await expect(palette).toBeVisible()
+
+    await palette.getByRole('textbox', { name: 'חיפוש ופעולות' }).fill('כספים')
+    await palette.getByRole('button', { name: /כספים/ }).first().click()
+    await page.waitForURL(/\/money/)
   })
 })

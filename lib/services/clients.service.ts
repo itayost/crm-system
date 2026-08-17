@@ -29,7 +29,26 @@ export class ClientsService {
 
     return prisma.client.findMany({
       where,
-      include: { _count: { select: { contacts: true, projects: true } } },
+      include: {
+        _count: { select: { contacts: true, projects: true } },
+        /**
+         * Enough to total each client's money in the list.
+         *
+         * /clients previously showed a name, two integers and a star - the
+         * thinnest page in the app, and the least useful, because the question
+         * it exists to answer is "who is worth what, and who owes me". The
+         * data was already being loaded one route over: getById has had this
+         * exact shape all along.
+         */
+        projects: {
+          select: {
+            status: true,
+            advanceAmount: true,
+            advancePaidAt: true,
+            phases: { select: { price: true, status: true, paidAt: true } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     })
   }

@@ -81,13 +81,22 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
     )
   }
 
+  /**
+   * Pinned to the bottom of the viewport on a phone.
+   *
+   * This portal is almost always opened from a WhatsApp link on a phone, and
+   * the client arrives to answer exactly one question. Leaving the answer at
+   * the natural end of the document means scrolling past the quote, the
+   * description, the intake answers and the attachments to find it. The bar
+   * follows; above `sm` it settles back into the flow.
+   */
   return (
     <div className="space-y-3">
       {error && <p className="text-sm text-tone-danger-foreground">{error}</p>}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="fixed inset-x-0 bottom-0 z-sticky flex gap-2 border-t bg-card p-3 shadow-e2 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <Button
           type="button"
-          className="w-full sm:w-auto"
+          className="h-11 flex-1 sm:h-9 sm:flex-none"
           disabled={pending}
           onClick={() => submit('APPROVED')}
         >
@@ -96,7 +105,7 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
         <Button
           type="button"
           variant="outline"
-          className="w-full sm:w-auto"
+          className="h-11 flex-none sm:h-9"
           disabled={pending}
           onClick={() => setDecliningNote('')}
         >

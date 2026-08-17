@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { User, Sun, LogOut, HelpCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { Search, LogOut, Keyboard } from 'lucide-react'
+import { signOut, useSession } from 'next-auth/react'
+
 import { Button } from '@/components/ui/button'
+import { StatusPill } from '@/components/ui/status-pill'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,142 +15,153 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { signOut, useSession } from 'next-auth/react'
-import { format } from 'date-fns'
-import { he } from 'date-fns/locale'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ALL_NAV, isActiveHref } from './nav-items'
+import { useBadges } from './badges-provider'
+import { CommandPalette } from './command-palette'
 
+const SHORTCUTS: [string, string][] = [
+  ['⌘K', 'חיפוש ופעולות'],
+  ['/', 'חיפוש ברשימה'],
+  ['Esc', 'סגירת חלון'],
+]
+
+function initials(name?: string | null) {
+  if (!name) return 'מ'
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+}
+
+/**
+ * A 44px band with three jobs: where you are, how to get anywhere, and whether
+ * the bot is talking to clients.
+ *
+ * Gone: the greeting, a clock that re-rendered the header every sixty seconds,
+ * a permanently-disabled dark-mode button - an advertisement for a feature that
+ * was decided against - and a "פרופיל" menu item that routed to `/`.
+ */
 export function Header() {
-  const router = useRouter()
-  const [showHelp, setShowHelp] = useState(false)
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const pathname = usePathname()
   const { data: session } = useSession()
+  const badges = useBadges()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  const current = ALL_NAV.find((item) => isActiveHref(pathname, item.href))
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 60000)
-    return () => clearInterval(timer)
+    const onKey = (e: KeyboardEvent) => {
+      // `event.code`, never `event.key`. With a Hebrew layout active the key
+      // for this physical button is 'ק', so a `key === "k"` check dies the
+      // moment you are actually working in Hebrew - which is always.
+      if (e.code === 'KeyK' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setPaletteOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const hebrewDay = format(currentTime, 'EEEE', { locale: he })
-  const formattedDate = format(currentTime, 'dd/MM/yyyy')
-  const formattedTime = format(currentTime, 'HH:mm')
-
-  const getGreeting = () => {
-    const hour = currentTime.getHours()
-    if (hour < 12) return 'בוקר טוב'
-    if (hour < 17) return 'צהריים טובים'
-    if (hour < 21) return 'ערב טוב'
-    return 'לילה טוב'
-  }
-
-  const getUserDisplayName = () => {
-    if (!session?.user?.name) return 'משתמש'
-    return session.user.name
-  }
-
-  const getUserInitials = () => {
-    if (!session?.user?.name) return 'M'
-    const names = session.user.name.split(' ')
-    if (names.length >= 2) {
-      return names[0][0] + names[1][0]
-    }
-    return session.user.name.substring(0, 2)
-  }
-
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-40">
-      <div className="flex items-center justify-between px-6 py-4">
-        {/* Greeting and Date */}
-        <div className="flex items-center gap-6">
-          <div>
-            <h2 className="text-xl font-semibold text-content-strong">
-              {getGreeting()}, {getUserDisplayName()}!
-            </h2>
-            <p className="text-sm text-content-subtle">
-              {hebrewDay}, {formattedDate} &bull; {formattedTime}
-            </p>
-          </div>
-        </div>
+    <header className="flex h-shell-header shrink-0 items-center gap-2 border-b bg-card px-3">
+      <span className="truncate text-ui-sm font-semibold text-content-strong md:hidden">
+        {current?.label ?? 'ItayOst'}
+      </span>
+      <span className="hidden text-ui-xs text-content-subtle md:inline">{current?.label}</span>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setShowHelp(true)}>
-            <HelpCircle className="w-5 h-5" />
+      <button
+        type="button"
+        onClick={() => setPaletteOpen(true)}
+        aria-label="חיפוש ופעולות"
+        className="flex h-control max-w-md flex-1 items-center gap-2 rounded-md border bg-surface-subtle px-2.5 text-ui-xs text-content-faint transition-colors duration-fast hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Search aria-hidden className="size-3.5" />
+        <span className="hidden truncate sm:inline">חיפוש לקוח, פרויקט, פעולה...</span>
+        <kbd
+          dir="ltr"
+          className="ms-auto hidden rounded border border-border-strong border-b-2 bg-card px-1 font-mono text-ui-2xs text-content-subtle sm:inline"
+        >
+          ⌘K
+        </kbd>
+      </button>
+
+      {/*
+        The single most useful thing in this bar. isBotPaused() is read per
+        request from the environment and has never been surfaced anywhere, so
+        "the bot went quiet" was a question answered by reading a deploy log.
+      */}
+      <span className="ms-auto hidden sm:inline" data-testid="bot-status">
+        {badges.botPaused ? (
+          <StatusPill tone="caution" dot>
+            הבוט מושהה
+          </StatusPill>
+        ) : (
+          <StatusPill tone="success" emphasis="quiet" dot>
+            הבוט פעיל
+          </StatusPill>
+        )}
+      </span>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="hidden size-7 md:inline-flex"
+        aria-label="קיצורי מקלדת"
+        onClick={() => setShortcutsOpen(true)}
+      >
+        <Keyboard aria-hidden className="size-4" />
+      </Button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-7" aria-label="תפריט משתמש">
+            <span className="grid size-6 place-items-center rounded-full bg-surface-muted text-ui-2xs font-semibold text-content-muted">
+              {initials(session?.user?.name)}
+            </span>
           </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>
+            <span className="block text-ui-sm font-medium">{session?.user?.name ?? 'משתמש'}</span>
+            <span className="block text-ui-2xs text-content-subtle">{session?.user?.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
+            <Keyboard className="size-4" />
+            קיצורי מקלדת
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => signOut()} className="text-tone-danger-foreground">
+            <LogOut className="size-4" />
+            התנתק
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-          <Button variant="ghost" size="icon" disabled>
-            <Sun className="w-5 h-5" />
-          </Button>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-surface-muted rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium">{getUserInitials()}</span>
-                </div>
-                <span className="text-sm hidden md:inline">{getUserDisplayName()}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{getUserDisplayName()}</p>
-                  <p className="text-xs text-content-subtle">{session?.user?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/')}>
-                <User className="ml-2 h-4 w-4" />
-                פרופיל
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => signOut()}
-                className="text-tone-danger-foreground"
-              >
-                <LogOut className="ml-2 h-4 w-4" />
-                התנתק
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Help Dialog */}
-      <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent className="max-w-md">
+      {/* The old dialog was titled "קיצורי מקלדת" and listed four URLs. */}
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>קיצורי מקלדת</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between items-center py-1 border-b">
-              <span>סגור חלון</span>
-              <kbd className="px-2 py-1 bg-surface-muted rounded text-xs font-mono">Escape</kbd>
-            </div>
-            <div className="flex justify-between items-center py-1 border-b">
-              <span>דשבורד</span>
-              <span className="text-content-subtle">/</span>
-            </div>
-            <div className="flex justify-between items-center py-1 border-b">
-              <span>אנשי קשר</span>
-              <span className="text-content-subtle">/contacts</span>
-            </div>
-            <div className="flex justify-between items-center py-1 border-b">
-              <span>פרויקטים</span>
-              <span className="text-content-subtle">/projects</span>
-            </div>
-            <div className="flex justify-between items-center py-1">
-              <span>משימות</span>
-              <span className="text-content-subtle">/tasks</span>
-            </div>
-          </div>
+          <dl className="divide-y">
+            {SHORTCUTS.map(([key, what]) => (
+              <div key={key} className="flex items-center justify-between py-2">
+                <dt className="text-ui-sm text-content-body">{what}</dt>
+                <dd>
+                  <kbd
+                    dir="ltr"
+                    className="inline-block rounded border border-border-strong border-b-2 bg-surface-muted px-1.5 py-0.5 font-mono text-ui-2xs"
+                  >
+                    {key}
+                  </kbd>
+                </dd>
+              </div>
+            ))}
+          </dl>
         </DialogContent>
       </Dialog>
     </header>
