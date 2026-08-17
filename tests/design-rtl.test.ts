@@ -45,15 +45,18 @@ const PHYSICAL = new RegExp(
 )
 
 /**
- * Today's count. Lower it in the same commit that removes offenders; never
- * raise it. Phase 6 takes this to the `dir="ltr"` islands only.
+ * 75 -> 23 -> 4. What is left is what should be left:
  *
- * 75 -> 23 when the primitives landed: `TableHead` now defaults to `text-start`,
- * which made 32 hand-written `text-right` overrides redundant, and the shadcn
- * dialog/dropdown/select bugs were fixed at the source rather than per call
- * site.
+ *   - `login/page.tsx` x2: `text-left` inside `dir="ltr"` email and password
+ *     inputs. Inside an LTR island start *is* left, so `text-start` would
+ *     render identically while saying something untrue. Physical is honest here.
+ *   - `dialog.tsx`, `alert-dialog.tsx`: `left-[50%]` paired with
+ *     `translate-x-[-50%]`. That is symmetric centring, not a direction, and
+ *     converting it would break the pairing.
+ *
+ * Only ever lower this.
  */
-const BUDGET = 23
+const BUDGET = 4
 
 /**
  * Directories written during the rebuild. These start clean and stay clean -
