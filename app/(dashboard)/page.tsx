@@ -189,7 +189,7 @@ export default function DashboardPage() {
       description: `${data.contacts.clients} לקוחות`,
       icon: Users,
       tone: 'accent' as Tone,
-      href: '/contacts',
+      href: '/leads',
     },
     {
       key: 'pending-tasks',
@@ -223,9 +223,9 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-content-strong">דשבורד</h1>
         <div className="flex gap-2">
-          <Button size="sm" onClick={() => router.push('/contacts')}>
+          <Button size="sm" onClick={() => router.push('/leads')}>
             <Plus className="w-4 h-4" />
-            איש קשר חדש
+            ליד חדש
           </Button>
           <Button
             size="sm"

@@ -38,10 +38,10 @@ test.describe('Dashboard', () => {
   })
 
   test('quick-actions: buttons navigate to correct pages', async ({ page }) => {
-    // Click "איש קשר חדש" button -> navigates to /contacts
-    const newContactBtn = page.locator('button').filter({ hasText: 'איש קשר חדש' })
-    await newContactBtn.click()
-    await page.waitForURL(new RegExp('/contacts'))
+    // Click "ליד חדש" -> navigates to /leads
+    const newLeadBtn = page.locator('button').filter({ hasText: 'ליד חדש' })
+    await newLeadBtn.click()
+    await expect(page).toHaveURL(/\/leads/)
 
     // Go back to dashboard
     await page.goto('/')
@@ -50,7 +50,7 @@ test.describe('Dashboard', () => {
     // Click "פרויקט חדש" button -> navigates to /projects
     const newProjectBtn = page.locator('button').filter({ hasText: 'פרויקט חדש' }).first()
     await newProjectBtn.click()
-    await page.waitForURL(new RegExp('/projects'))
+    await expect(page).toHaveURL(/\/projects/)
 
     // Go back to dashboard
     await page.goto('/')
@@ -59,6 +59,6 @@ test.describe('Dashboard', () => {
     // Click "משימה חדשה" button -> navigates to /tasks
     const newTaskBtn = page.locator('button').filter({ hasText: 'משימה חדשה' })
     await newTaskBtn.click()
-    await page.waitForURL(new RegExp('/tasks'))
+    await expect(page).toHaveURL(/\/tasks/)
   })
 })

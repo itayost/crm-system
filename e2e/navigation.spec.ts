@@ -14,7 +14,7 @@ test.describe('Navigation', () => {
       { text: 'היום', href: '/' },
       { text: 'פניות', href: '/requests' },
       { text: 'משימות', href: '/tasks' },
-      { text: 'לידים', href: '/contacts' },
+      { text: 'לידים', href: '/leads' },
       { text: 'לקוחות', href: '/clients' },
       { text: 'פרויקטים', href: '/projects' },
       { text: 'כספים', href: '/money' },

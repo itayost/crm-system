@@ -49,6 +49,15 @@ const nextConfig: NextConfig = {
    */
   devIndicators: false,
 
+  async redirects() {
+    return [
+      // The list moved to /leads. /contacts/[id] is untouched - it is still the
+      // person record, and the target of Project.primaryContactId,
+      // Request.contactId and WhatsApp identity resolution.
+      { source: "/contacts", destination: "/leads", permanent: false },
+    ];
+  },
+
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

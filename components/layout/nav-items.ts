@@ -61,7 +61,7 @@ export const NAV_PRIMARY: NavItem[] = [
   },
   {
     label: 'לידים',
-    href: '/contacts',
+    href: '/leads',
     icon: UserPlus,
     badge: 'dueLeads',
     badgeTone: 'caution',
