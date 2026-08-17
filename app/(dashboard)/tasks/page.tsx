@@ -1,18 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { format } from 'date-fns'
-import { Plus, Search, Check, Send, Inbox } from 'lucide-react'
+import { Plus, Check, Send, Inbox, ListTodo, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { StatusPill } from '@/components/ui/status-pill'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -20,15 +17,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { TaskForm } from '@/components/forms/task-form'
+import {
+  PageHeader,
+  SearchField,
+  SegmentControl,
+  DataTable,
+  EmptyState,
+  TableSkeleton,
+  type Column,
+  type Segment,
+} from '@/components/patterns'
 import {
   toneOf,
   emphasisOf,
@@ -43,19 +42,12 @@ import {
   TASK_CATEGORY_LABELS,
   TASK_STATUS_LABELS,
 } from '@/lib/design/labels'
+import { formatDate } from '@/lib/utils'
 
-/** Derived, so a renamed status cannot go stale in the filter but not the table. */
-const ALL_OPTION = { value: 'ALL', label: 'הכל' }
-
-const STATUS_FILTER_OPTIONS = [
-  ALL_OPTION,
-  ...Object.entries(TASK_STATUS_LABELS).map(([value, text]) => ({ value, label: text })),
-]
-
-const CATEGORY_FILTER_TABS = [
-  ALL_OPTION,
-  ...Object.entries(TASK_CATEGORY_LABELS).map(([value, text]) => ({ value, label: text })),
-]
+const CATEGORY_OPTIONS = Object.entries(TASK_CATEGORY_LABELS).map(([value, text]) => ({
+  value,
+  label: text,
+}))
 
 interface Task {
   id: string
@@ -66,27 +58,49 @@ interface Task {
   category?: string
   dueDate?: string | null
   projectId?: string | null
-  project?: {
-    id: string
-    name: string
-  } | null
-  request?: {
-    id: string
-    title: string
-  } | null
+  project?: { id: string; name: string } | null
+  request?: { id: string; title: string } | null
 }
 
+type View = 'today' | 'open' | 'done' | 'all'
+
+const OPEN_STATUSES = ['TODO', 'IN_PROGRESS']
+
+function isDueByToday(iso?: string | null) {
+  if (!iso) return false
+  const end = new Date()
+  end.setHours(23, 59, 59, 999)
+  return new Date(iso) <= end
+}
+
+function isOverdue(iso: string | null | undefined, status: string) {
+  if (!iso || status === 'COMPLETED' || status === 'CANCELLED') return false
+  return new Date(iso) < new Date()
+}
+
+/**
+ * "מה על השולחן שלי היום."
+ *
+ * This page carried three different filter idioms stacked on top of each other
+ * - a hand-rolled underline tab strip for category, a Select for status and a
+ * Switch for standalone - about 140px of chrome in three visual languages,
+ * doing one job. Now: one segment row (which pile am I working from) plus
+ * facets (narrowing inside it). "ללא פרויקט" is a value of the project facet
+ * rather than a third control of its own.
+ */
 export default function TasksPage() {
   const router = useRouter()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [view, setView] = useState<View>('open')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
-  const [standaloneOnly, setStandaloneOnly] = useState(false)
+  const [projectFilter, setProjectFilter] = useState('ALL')
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const [capturing, setCapturing] = useState(false)
   const [quickTitle, setQuickTitle] = useState('')
   const [quickCategory, setQuickCategory] = useState('CLIENT_WORK')
   const [quickSubmitting, setQuickSubmitting] = useState(false)
@@ -95,11 +109,7 @@ export default function TasksPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (categoryFilter !== 'ALL') params.set('category', categoryFilter)
-      if (standaloneOnly) params.set('standalone', 'true')
       if (search.trim()) params.set('search', search.trim())
-
       const response = await api.get(`/tasks?${params.toString()}`)
       setTasks(response.data)
     } catch {
@@ -107,7 +117,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, categoryFilter, standaloneOnly, search])
+  }, [search])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -116,10 +126,7 @@ export default function TasksPage() {
     return () => clearTimeout(debounce)
   }, [fetchTasks, search])
 
-  // A request's detail page links here as /tasks?openTask=<id> - open that
-  // task's dialog once the list is in, then drop the param from the URL.
-  // window.location instead of useSearchParams keeps the page out of the
-  // Suspense boundary that hook requires.
+  // A request's detail page links here as /tasks?openTask=<id>.
   const openedFromQuery = useRef(false)
   useEffect(() => {
     if (loading || openedFromQuery.current) return
@@ -139,12 +146,7 @@ export default function TasksPage() {
     try {
       const newStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED'
       await api.put(`/tasks/${task.id}`, { status: newStatus })
-      // Optimistically update
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id ? { ...t, status: newStatus } : t
-        )
-      )
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t)))
     } catch {
       toast.error('שגיאה בעדכון משימה')
     } finally {
@@ -152,44 +154,19 @@ export default function TasksPage() {
     }
   }
 
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-'
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy')
-    } catch {
-      return '-'
-    }
-  }
-
-  const isOverdue = (dateStr: string | null | undefined, status: string) => {
-    if (!dateStr || status === 'COMPLETED' || status === 'CANCELLED')
-      return false
-    try {
-      return new Date(dateStr) < new Date()
-    } catch {
-      return false
-    }
-  }
-
   const handleQuickCapture = async () => {
-    const trimmedInput = quickTitle.trim()
-    if (!trimmedInput) return
-
-    const lines = trimmedInput.split('\n')
+    const trimmed = quickTitle.trim()
+    if (!trimmed) return
+    const lines = trimmed.split('\n')
     const title = lines[0].trim()
     const description = lines.slice(1).join('\n').trim() || undefined
-
     if (!title) return
 
     setQuickSubmitting(true)
     try {
-      await api.post('/tasks', {
-        title,
-        description,
-        category: quickCategory,
-        priority: 'MEDIUM',
-      })
+      await api.post('/tasks', { title, description, category: quickCategory, priority: 'MEDIUM' })
       setQuickTitle('')
+      setCapturing(false)
       toast.success('משימה נוצרה בהצלחה')
       fetchTasks()
     } catch {
@@ -199,29 +176,186 @@ export default function TasksPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-strong">משימות</h1>
-          <p className="text-sm text-content-subtle mt-1">ניהול ומעקב משימות</p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingTask(undefined)
-            setShowForm(true)
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          משימה חדשה
-        </Button>
-      </div>
+  const buckets = useMemo(() => {
+    const open = tasks.filter((t) => OPEN_STATUSES.includes(t.status))
+    return {
+      today: open.filter((t) => isDueByToday(t.dueDate)),
+      open,
+      done: tasks.filter((t) => t.status === 'COMPLETED'),
+      all: tasks,
+    }
+  }, [tasks])
 
-      {/* Quick Capture */}
-      <div className="bg-white rounded-lg border p-3">
-        <div className="flex items-start gap-3">
-          <textarea
+  const segments: Segment[] = [
+    { value: 'today', label: 'היום', count: buckets.today.length },
+    { value: 'open', label: 'פתוחות', count: buckets.open.length },
+    { value: 'done', label: 'הושלמו', count: buckets.done.length },
+    { value: 'all', label: 'הכל', count: buckets.all.length },
+  ]
+
+  const projects = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const t of tasks) if (t.project) seen.set(t.project.id, t.project.name)
+    return [...seen.entries()]
+  }, [tasks])
+
+  const rows = useMemo(() => {
+    let list = buckets[view]
+    if (categoryFilter !== 'ALL') list = list.filter((t) => t.category === categoryFilter)
+    if (projectFilter === 'NONE') list = list.filter((t) => !t.projectId)
+    else if (projectFilter !== 'ALL') list = list.filter((t) => t.projectId === projectFilter)
+
+    const order = ['URGENT', 'HIGH', 'MEDIUM', 'LOW']
+    return [...list].sort((a, b) => {
+      const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity
+      const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity
+      if (ad !== bd) return ad - bd
+      return order.indexOf(a.priority) - order.indexOf(b.priority)
+    })
+  }, [buckets, view, categoryFilter, projectFilter])
+
+  const columns: Column<Task>[] = [
+    {
+      key: 'done',
+      header: '',
+      width: '2.5rem',
+      cell: (task) => (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={task.status === 'COMPLETED'}
+          disabled={togglingId === task.id}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleToggleComplete(task)
+          }}
+          aria-label={task.status === 'COMPLETED' ? 'סמן כלא הושלם' : 'סמן כהושלם'}
+          className={`grid size-4 place-items-center rounded-sm border transition-colors duration-fast ${
+            task.status === 'COMPLETED'
+              ? 'border-tone-success-solid bg-tone-success-solid text-white'
+              : 'border-border-strong hover:border-tone-success-mark'
+          }`}
+        >
+          {task.status === 'COMPLETED' && <Check className="size-2.5" />}
+        </button>
+      ),
+    },
+    {
+      key: 'title',
+      header: 'כותרת',
+      mobile: 'primary',
+      cell: (task) => (
+        <span className="flex flex-col gap-0.5">
+          <span className={task.status === 'COMPLETED' ? 'text-content-faint line-through' : ''}>
+            {task.title}
+          </span>
+          {task.request && (
+            <Link
+              href={`/requests/${task.request.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex w-max items-center gap-1 text-ui-2xs text-link hover:underline"
+            >
+              <Inbox className="size-3" />
+              נוצרה מפניה: {task.request.title}
+            </Link>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'סטטוס',
+      mobile: 'trailing',
+      cell: (task) => (
+        <StatusPill tone={toneOf(TASK_STATUS_TONES, task.status)} dot>
+          {label(TASK_STATUS_LABELS, task.status)}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'priority',
+      header: 'עדיפות',
+      width: '6rem',
+      cell: (task) => (
+        <StatusPill
+          tone={toneOf(PRIORITY_TONES, task.priority)}
+          emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
+        >
+          {label(PRIORITY_LABELS, task.priority)}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'due',
+      header: 'תאריך יעד',
+      align: 'numeric',
+      width: '7rem',
+      mobile: 'meta',
+      cell: (task) => (
+        <bdi
+          className={
+            isOverdue(task.dueDate, task.status)
+              ? 'font-semibold text-tone-danger-foreground'
+              : undefined
+          }
+        >
+          {formatDate(task.dueDate)}
+        </bdi>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'קטגוריה',
+      width: '7rem',
+      cell: (task) =>
+        task.category ? (
+          <StatusPill tone={toneOf(TASK_CATEGORY_TONES, task.category)} emphasis="quiet" dot>
+            {label(TASK_CATEGORY_LABELS, task.category)}
+          </StatusPill>
+        ) : (
+          <span className="text-content-faint">—</span>
+        ),
+    },
+    {
+      key: 'project',
+      header: 'פרויקט',
+      mobile: 'meta',
+      cell: (task) => task.project?.name ?? '-',
+    },
+  ]
+
+  return (
+    <div className="flex flex-col gap-3">
+      <PageHeader
+        title="משימות"
+        count={loading ? undefined : `${rows.length} מתוך ${tasks.length}`}
+        actions={
+          <>
+            <Button size="sm" variant="outline" onClick={() => setCapturing((c) => !c)}>
+              <Send className="size-4" />
+              לכידה מהירה
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingTask(undefined)
+                setShowForm(true)
+              }}
+            >
+              <Plus className="size-4" />
+              משימה חדשה
+            </Button>
+          </>
+        }
+      />
+
+      {/* Summoned, not permanent. It used to occupy ~70px above the filters
+          whether or not anyone was capturing anything. */}
+      {capturing && (
+        <div className="flex items-start gap-2 rounded-lg border bg-card p-2">
+          <Textarea
+            autoFocus
+            rows={2}
             placeholder="שורה ראשונה = כותרת, שאר השורות = תיאור..."
             value={quickTitle}
             onChange={(e) => setQuickTitle(e.target.value)}
@@ -230,19 +364,19 @@ export default function TasksPage() {
                 e.preventDefault()
                 handleQuickCapture()
               }
+              if (e.key === 'Escape') setCapturing(false)
             }}
             disabled={quickSubmitting}
-            rows={2}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            className="flex-1 resize-none text-ui-sm"
           />
           <Select value={quickCategory} onValueChange={setQuickCategory}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="h-control w-36 text-ui-sm" aria-label="קטגוריה ללכידה">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_FILTER_TABS.filter((t) => t.value !== 'ALL').map((tab) => (
-                <SelectItem key={tab.value} value={tab.value}>
-                  {tab.label}
+              {CATEGORY_OPTIONS.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  {c.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -251,206 +385,99 @@ export default function TasksPage() {
             size="sm"
             onClick={handleQuickCapture}
             disabled={quickSubmitting || !quickTitle.trim()}
+            aria-label="צור משימה"
           >
-            <Send className="w-4 h-4" />
+            <Send className="size-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setCapturing(false)} aria-label="סגירה">
+            <X className="size-4" />
           </Button>
         </div>
-      </div>
+      )}
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-1 border-b">
-        {CATEGORY_FILTER_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setCategoryFilter(tab.value)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              categoryFilter === tab.value
-                ? 'border-link text-link'
-                : 'border-transparent text-content-subtle hover:text-content-body hover:border-border-strong'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
-          <Input
-            type="search"
-            placeholder="חיפוש משימה..."
-            className="pr-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="סטטוס" />
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentControl segments={segments} value={view} onChange={(v) => setView(v as View)} />
+        <SearchField value={search} onChange={setSearch} placeholder="חיפוש משימה..." />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="h-control w-32 text-ui-sm" aria-label="קטגוריה">
+            <SelectValue placeholder="קטגוריה" />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            <SelectItem value="ALL">כל הקטגוריות</SelectItem>
+            {CATEGORY_OPTIONS.map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                {c.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="standalone"
-            checked={standaloneOnly}
-            onCheckedChange={setStandaloneOnly}
-          />
-          <Label htmlFor="standalone" className="text-sm text-content-muted">
-            ללא פרויקט
-          </Label>
-        </div>
+        <Select value={projectFilter} onValueChange={setProjectFilter}>
+          <SelectTrigger className="h-control w-36 text-ui-sm" aria-label="פרויקט">
+            <SelectValue placeholder="פרויקט" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">כל הפרויקטים</SelectItem>
+            <SelectItem value="NONE">ללא פרויקט</SelectItem>
+            {projects.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Table */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : tasks.length === 0 ? (
-        <div className="text-center py-12 text-content-subtle">
-          <p className="text-lg font-medium">אין משימות</p>
-          <p className="text-sm mt-1">
-            {search || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || standaloneOnly
-              ? 'לא נמצאו תוצאות'
-              : 'צור משימה חדשה כדי להתחיל'}
-          </p>
-        </div>
+        <TableSkeleton columns={6} />
+      ) : rows.length === 0 ? (
+        view === 'today' ? (
+          <EmptyState
+            kind="calm"
+            title="אין משימות להיום"
+            description="שום דבר לא בוער. אפשר לדחוף פרויקט קדימה."
+          />
+        ) : search ? (
+          <EmptyState
+            kind="filtered"
+            title="לא נמצאו תוצאות"
+            action={
+              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                נקה חיפוש
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            kind="new"
+            icon={ListTodo}
+            title="אין משימות בתצוגה הזו"
+            action={
+              <Button size="sm" onClick={() => setCapturing(true)}>
+                <Send className="size-4" />
+                לכידה מהירה
+              </Button>
+            }
+          />
+        )
       ) : (
-        <div className="bg-white rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>כותרת</TableHead>
-                <TableHead>סטטוס</TableHead>
-                <TableHead>עדיפות</TableHead>
-                <TableHead>תאריך יעד</TableHead>
-                <TableHead>קטגוריה</TableHead>
-                <TableHead>פרויקט</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow
-                  key={task.id}
-                  data-testid="row"
-                  data-row-id={task.id}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setEditingTask(task)
-                    setShowForm(true)
-                  }}
-                >
-                  <TableCell data-col="done" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
-                        task.status === 'COMPLETED'
-                          ? 'bg-tone-success-solid border-tone-success-solid text-white'
-                          : 'border-border-strong hover:border-tone-success-mark'
-                      }`}
-                      disabled={togglingId === task.id}
-                      onClick={() => handleToggleComplete(task)}
-                      aria-label={
-                        task.status === 'COMPLETED'
-                          ? 'סמן כלא הושלם'
-                          : 'סמן כהושלם'
-                      }
-                    >
-                      {task.status === 'COMPLETED' && (
-                        <Check className="w-3 h-3" />
-                      )}
-                    </button>
-                  </TableCell>
-                  <TableCell data-col="title">
-                    <div
-                      className={`font-medium ${
-                        task.status === 'COMPLETED'
-                          ? 'line-through text-content-faint'
-                          : ''
-                      }`}
-                    >
-                      {task.title}
-                    </div>
-                    {task.description && (
-                      <p className="text-xs text-content-faint mt-0.5 truncate max-w-xs">
-                        {task.description.length > 60
-                          ? `${task.description.slice(0, 60)}...`
-                          : task.description}
-                      </p>
-                    )}
-                    {task.request && (
-                      <Link
-                        href={`/requests/${task.request.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs text-link hover:underline mt-0.5"
-                      >
-                        <Inbox className="w-3 h-3" />
-                        נוצרה מפניה: {task.request.title}
-                      </Link>
-                    )}
-                  </TableCell>
-                  <TableCell data-col="status">
-                    <StatusPill tone={toneOf(TASK_STATUS_TONES, task.status)} dot>
-                      {label(TASK_STATUS_LABELS, task.status)}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell data-col="priority">
-                    <StatusPill
-                      tone={toneOf(PRIORITY_TONES, task.priority)}
-                      emphasis={emphasisOf(PRIORITY_EMPHASIS, task.priority)}
-                    >
-                      {label(PRIORITY_LABELS, task.priority)}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell data-col="due">
-                    <span
-                      className={
-                        isOverdue(task.dueDate, task.status)
-                          ? 'text-tone-danger-mark font-medium'
-                          : ''
-                      }
-                    >
-                      {formatDate(task.dueDate)}
-                    </span>
-                  </TableCell>
-                  <TableCell data-col="category">
-                    {task.category && (
-                      <StatusPill tone={toneOf(TASK_CATEGORY_TONES, task.category)} emphasis="quiet" dot>
-                        {label(TASK_CATEGORY_LABELS, task.category)}
-                      </StatusPill>
-                    )}
-                  </TableCell>
-                  <TableCell data-col="project" className="text-content-subtle">
-                    {task.project?.name ?? '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          rows={rows}
+          columns={columns}
+          getRowId={(t) => t.id}
+          // No href yet: /tasks/[id] is the last piece of this phase. Until it
+          // exists the row opens the editor, which is the one remaining
+          // inconsistency with every other list in the app.
+          onRowClick={(task) => {
+            setEditingTask(task)
+            setShowForm(true)
+          }}
+        />
       )}
 
-      {/* Form Dialog */}
       <TaskForm
         task={editingTask}
         open={showForm}
-        onOpenChange={(open) => {
-          setShowForm(open)
-          if (!open) {
-            setEditingTask(undefined)
-          }
-        }}
+        onOpenChange={setShowForm}
         onSuccess={fetchTasks}
       />
     </div>

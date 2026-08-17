@@ -33,7 +33,12 @@ export class ProjectsService {
         client: { select: { id: true, name: true } },
         primaryContact: { select: { id: true, name: true } },
         // Enough to total the money without dragging every phase name across.
-        phases: { select: { price: true, status: true, paidAt: true } },
+        phases: {
+          // name/order so the list can say which stage a project is actually
+          // on - the most useful cell on that page, and one it never had.
+          select: { name: true, order: true, price: true, status: true, paidAt: true },
+          orderBy: { order: 'asc' },
+        },
         _count: { select: { tasks: true } },
       },
       orderBy: { createdAt: 'desc' },

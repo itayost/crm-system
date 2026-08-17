@@ -35,6 +35,9 @@ export function NavBadge({ item, compact = false }: { item: NavItem; compact?: b
   return (
     <span
       data-nav-badge={item.badge}
+      // A money badge is an LTR run inside an RTL page; without this the shekel
+      // sign lands on the wrong side of the number.
+      dir={item.badgeIsMoney ? 'ltr' : undefined}
       className={cn(
         'inline-grid h-4 min-w-4 place-items-center rounded-full px-1.5 font-mono text-ui-2xs font-semibold tabular-nums',
         item.badgeTone === 'danger' && 'bg-tone-danger-solid text-white',

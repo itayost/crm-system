@@ -1,52 +1,60 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Briefcase } from 'lucide-react'
 import toast from 'react-hot-toast'
+
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { StatusPill } from '@/components/ui/status-pill'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { ProjectForm } from '@/components/forms/project-form'
+import {
+  PageHeader,
+  SearchField,
+  SegmentControl,
+  DataTable,
+  EmptyState,
+  TableSkeleton,
+  PhaseStrip,
+  type Column,
+  type Segment,
+} from '@/components/patterns'
 import {
   toneOf,
   emphasisOf,
   PRIORITY_TONES,
   PRIORITY_EMPHASIS,
   PROJECT_STATUS_TONES,
+  PHASE_STATUS_TONES,
 } from '@/lib/design/tones'
 import {
   label,
   PROJECT_STATUS_LABELS,
   PROJECT_TYPE_LABELS,
   PRIORITY_LABELS,
+  PHASE_STATUS_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { projectTotal } from '@/lib/utils/project-money'
+import { projectTotal, projectOutstanding } from '@/lib/utils/project-money'
 import type { ProjectListItem } from '@/lib/types/project'
 
-const STATUS_FILTER_OPTIONS = [
-  { value: 'ALL', label: 'הכל' },
-  { value: 'ACTIVE', label: 'פעיל' },
-  { value: 'COMPLETED', label: 'הושלם' },
-]
+type View = 'active' | 'completed' | 'all'
+
+/** The first stage that is not signed off yet. Where the project actually is. */
+function currentPhase(project: ProjectListItem) {
+  return [...project.phases]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .find((p) => p.status !== 'APPROVED')
+}
+
+function isLate(project: ProjectListItem) {
+  return (
+    project.status === 'ACTIVE' &&
+    Boolean(project.deadline) &&
+    new Date(project.deadline as string) < new Date()
+  )
+}
 
 function ProjectsPageContent() {
   const router = useRouter()
@@ -54,21 +62,15 @@ function ProjectsPageContent() {
   const [projects, setProjects] = useState<ProjectListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [view, setView] = useState<View>('active')
   const [showForm, setShowForm] = useState(false)
-  const [defaultClientId, setDefaultClientId] = useState<string | undefined>(
-    undefined
-  )
+  const [defaultClientId, setDefaultClientId] = useState<string | undefined>(undefined)
 
-  // Check if opened with ?new=true
   useEffect(() => {
     if (searchParams.get('new') === 'true') {
       const clientId = searchParams.get('clientId')
-      if (clientId) {
-        setDefaultClientId(clientId)
-      }
+      if (clientId) setDefaultClientId(clientId)
       setShowForm(true)
-      // Clean URL
       router.replace('/projects', { scroll: false })
     }
   }, [searchParams, router])
@@ -77,9 +79,7 @@ function ProjectsPageContent() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (statusFilter !== 'ALL') params.set('status', statusFilter)
       if (search.trim()) params.set('search', search.trim())
-
       const response = await api.get(`/projects?${params.toString()}`)
       setProjects(response.data)
     } catch {
@@ -87,7 +87,7 @@ function ProjectsPageContent() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, search])
+  }, [search])
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -96,125 +96,205 @@ function ProjectsPageContent() {
     return () => clearTimeout(debounce)
   }, [fetchProjects, search])
 
+  const buckets = useMemo(
+    () => ({
+      active: projects.filter((p) => p.status === 'ACTIVE'),
+      completed: projects.filter((p) => p.status === 'COMPLETED'),
+      all: projects,
+    }),
+    [projects],
+  )
+
+  const segments: Segment[] = [
+    { value: 'active', label: 'פעילים', count: buckets.active.length },
+    { value: 'completed', label: 'הושלמו', count: buckets.completed.length },
+    { value: 'all', label: 'הכל', count: buckets.all.length },
+  ]
+
+  const rows = useMemo(() => {
+    // Deadline first, nothing-scheduled last, then the loudest priority.
+    const order = ['URGENT', 'HIGH', 'MEDIUM', 'LOW']
+    return [...buckets[view]].sort((a, b) => {
+      const ad = a.deadline ? new Date(a.deadline).getTime() : Infinity
+      const bd = b.deadline ? new Date(b.deadline).getTime() : Infinity
+      if (ad !== bd) return ad - bd
+      return order.indexOf(a.priority) - order.indexOf(b.priority)
+    })
+  }, [buckets, view])
+
+  const columns: Column<ProjectListItem>[] = [
+    {
+      key: 'name',
+      header: 'שם',
+      mobile: 'primary',
+      cell: (p) => (
+        <span className="inline-flex items-baseline gap-1.5">
+          {p.name}
+          <span className="text-ui-2xs text-content-subtle">
+            {label(PROJECT_TYPE_LABELS, p.type)}
+          </span>
+        </span>
+      ),
+    },
+    { key: 'client', header: 'לקוח', mobile: 'meta', cell: (p) => p.client?.name ?? '—' },
+    {
+      key: 'current-phase',
+      header: 'שלב נוכחי',
+      mobile: 'trailing',
+      // The most useful cell on this page, and one it never had: a status of
+      // "פעיל" tells you nothing you did not already know from the segment.
+      cell: (p) => {
+        const phase = currentPhase(p)
+        if (!phase) {
+          return p.phases.length > 0 ? (
+            <StatusPill tone="success" dot>הכל אושר</StatusPill>
+          ) : (
+            <span className="text-content-faint">אין שלבים</span>
+          )
+        }
+        return (
+          <StatusPill tone={toneOf(PHASE_STATUS_TONES, phase.status)} dot>
+            {phase.name ?? label(PHASE_STATUS_LABELS, phase.status)}
+          </StatusPill>
+        )
+      },
+    },
+    {
+      key: 'phases',
+      header: 'התקדמות',
+      width: '9rem',
+      cell: (p) =>
+        p.phases.length > 0 ? (
+          <PhaseStrip phases={p.phases} />
+        ) : (
+          <span className="text-content-faint">—</span>
+        ),
+    },
+    {
+      key: 'priority',
+      header: 'עדיפות',
+      width: '6rem',
+      cell: (p) => (
+        <StatusPill
+          tone={toneOf(PRIORITY_TONES, p.priority)}
+          emphasis={emphasisOf(PRIORITY_EMPHASIS, p.priority)}
+        >
+          {label(PRIORITY_LABELS, p.priority)}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'deadline',
+      header: 'דדליין',
+      align: 'numeric',
+      width: '7rem',
+      mobile: 'meta',
+      cell: (p) => (
+        <bdi className={isLate(p) ? 'font-semibold text-tone-danger-foreground' : undefined}>
+          {formatDate(p.deadline)}
+        </bdi>
+      ),
+    },
+    {
+      key: 'total',
+      header: 'סה"כ',
+      align: 'numeric',
+      width: '7rem',
+      mobile: 'meta',
+      cell: (p) => <bdi>{formatCurrency(projectTotal(p.advanceAmount, p.phases))}</bdi>,
+    },
+    {
+      key: 'outstanding',
+      header: 'לגבייה',
+      align: 'numeric',
+      width: '7rem',
+      cell: (p) => {
+        const v = projectOutstanding(p.phases)
+        return v > 0 ? (
+          <bdi className="font-semibold text-figure-due">{formatCurrency(v)}</bdi>
+        ) : (
+          <span className="text-content-faint">—</span>
+        )
+      },
+    },
+  ]
+
+  // A column that just repeats the segment is noise, so status only appears
+  // where the segment is not already answering it.
+  if (view === 'all') {
+    columns.splice(2, 0, {
+      key: 'status',
+      header: 'סטטוס',
+      width: '6rem',
+      cell: (p) => (
+        <StatusPill tone={toneOf(PROJECT_STATUS_TONES, p.status)} dot>
+          {label(PROJECT_STATUS_LABELS, p.status)}
+        </StatusPill>
+      ),
+    })
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-strong">פרויקטים</h1>
-          <p className="text-sm text-content-subtle mt-1">ניהול ומעקב פרויקטים</p>
-        </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4" />
-          פרויקט חדש
-        </Button>
+    <div className="flex flex-col gap-3">
+      <PageHeader
+        title="פרויקטים"
+        count={loading ? undefined : `${rows.length} מתוך ${projects.length}`}
+        actions={
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="size-4" />
+            פרויקט חדש
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentControl segments={segments} value={view} onChange={(v) => setView(v as View)} />
+        <SearchField value={search} onChange={setSearch} placeholder="חיפוש לפי שם פרויקט..." />
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-content-faint w-4 h-4" />
-          <Input
-            type="search"
-            placeholder="חיפוש פרויקט..."
-            className="pr-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="סטטוס" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Table */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : projects.length === 0 ? (
-        <div className="text-center py-12 text-content-subtle">
-          <p className="text-lg font-medium">אין פרויקטים</p>
-          <p className="text-sm mt-1">
-            {search || statusFilter !== 'ALL'
-              ? 'לא נמצאו תוצאות'
-              : 'צור פרויקט חדש כדי להתחיל'}
-          </p>
-        </div>
+        <TableSkeleton columns={7} />
+      ) : rows.length === 0 ? (
+        search ? (
+          <EmptyState
+            kind="filtered"
+            title="לא נמצאו תוצאות"
+            description={`אין פרויקט שמתאים ל"${search}".`}
+            action={
+              <Button variant="outline" size="sm" onClick={() => setSearch('')}>
+                נקה חיפוש
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            kind="new"
+            icon={Briefcase}
+            title="אין פרויקטים בתצוגה הזו"
+            description="פרויקט שייך לעסק, ומחזיק את השלבים והכסף שלו."
+            action={
+              <Button size="sm" onClick={() => setShowForm(true)}>
+                <Plus className="size-4" />
+                פרויקט חדש
+              </Button>
+            }
+          />
+        )
       ) : (
-        <div className="bg-white rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>שם</TableHead>
-                <TableHead>לקוח</TableHead>
-                <TableHead>סוג</TableHead>
-                <TableHead>סטטוס</TableHead>
-                <TableHead>עדיפות</TableHead>
-                <TableHead>דדליין</TableHead>
-                <TableHead>סה&quot;כ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project) => (
-                <TableRow
-                  key={project.id}
-                  data-testid="row"
-                  data-row-id={project.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/projects/${project.id}`)}
-                >
-                  <TableCell data-col="name" className="font-medium">
-                    {project.name}
-                  </TableCell>
-                  <TableCell data-col="client">{project.client?.name ?? '-'}</TableCell>
-                  <TableCell data-col="type">
-                    {label(PROJECT_TYPE_LABELS, project.type)}
-                  </TableCell>
-                  <TableCell data-col="status">
-                    <StatusPill tone={toneOf(PROJECT_STATUS_TONES, project.status)} dot>
-                      {label(PROJECT_STATUS_LABELS, project.status)}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell data-col="priority">
-                    <StatusPill
-                      tone={toneOf(PRIORITY_TONES, project.priority)}
-                      emphasis={emphasisOf(PRIORITY_EMPHASIS, project.priority)}
-                    >
-                      {label(PRIORITY_LABELS, project.priority)}
-                    </StatusPill>
-                  </TableCell>
-                  <TableCell data-col="deadline">{formatDate(project.deadline)}</TableCell>
-                  <TableCell data-col="total">
-                    {formatCurrency(projectTotal(project.advanceAmount, project.phases))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          rows={rows}
+          columns={columns}
+          getRowId={(p) => p.id}
+          getRowHref={(p) => `/projects/${p.id}`}
+        />
       )}
 
-      {/* Create Form Dialog */}
       <ProjectForm
         defaultClientId={defaultClientId}
         open={showForm}
         onOpenChange={(open) => {
           setShowForm(open)
-          if (!open) {
-            setDefaultClientId(undefined)
-          }
+          if (!open) setDefaultClientId(undefined)
         }}
         onSuccess={fetchProjects}
       />
@@ -224,7 +304,7 @@ function ProjectsPageContent() {
 
 export default function ProjectsPage() {
   return (
-    <Suspense fallback={<div className="p-6"><Skeleton className="h-96 w-full" /></div>}>
+    <Suspense fallback={<TableSkeleton columns={7} />}>
       <ProjectsPageContent />
     </Suspense>
   )

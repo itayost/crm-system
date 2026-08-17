@@ -13,34 +13,31 @@ test.describe('Tasks', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('list-shows-data: seeded tasks are visible in the table', async ({ page }) => {
+  test('list-shows-data: seeded tasks are visible in the list', async ({ page }) => {
+    // Default segment is פתוחות: a completed task is not open work and is one
+    // click away rather than mixed in with it.
     await expect(row(page, 'משימה ראשונה')).toBeVisible()
     await expect(row(page, 'משימה עצמאית')).toBeVisible()
+    await expect(row(page, 'משימה שהושלמה')).not.toBeVisible()
+
+    await page.getByRole('tab', { name: /הכל/ }).click()
     await expect(row(page, 'משימה שהושלמה')).toBeVisible()
   })
 
-  test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
-    // Open the status filter select
-    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|לביצוע|בתהליך/ })
-    await statusTrigger.click()
+  test('filter-by-status: the הושלמו segment excludes open work', async ({ page }) => {
+    // The status Select became a segment: mutually exclusive, counted, and the
+    // pile you are working from rather than a dropdown you have to remember.
+    await page.getByRole('tab', { name: /הושלמו/ }).click()
 
-    // Select "הושלם" (COMPLETED)
-    await page.locator('[role="option"]').filter({ hasText: 'הושלם' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // "משימה שהושלמה" should be visible
     await expect(row(page, 'משימה שהושלמה')).toBeVisible()
-
-    // TODO tasks should NOT be visible
     await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
   })
 
-  test('filter-standalone: toggle shows only tasks without a project', async ({ page }) => {
-    // Toggle the standalone switch
-    // Was `page.locator('#standalone')`. The switch already has a <Label
-    // htmlFor="standalone">, so it is reachable by role and name.
-    await page.getByRole('switch', { name: 'ללא פרויקט' }).click()
-    await page.waitForLoadState('networkidle')
+  test('filter-standalone: the project facet can select "no project"', async ({ page }) => {
+    // Was a Switch of its own - a third control for what is really one value
+    // of the project facet.
+    await page.getByRole('combobox', { name: 'פרויקט' }).click()
+    await page.getByRole('option', { name: 'ללא פרויקט' }).click()
 
     // "משימה עצמאית" has no project, should be visible
     await expect(row(page, 'משימה עצמאית')).toBeVisible()
@@ -156,25 +153,27 @@ test.describe('Tasks', () => {
     await expectToastSuccess(page, 'משימה עודכנה בהצלחה')
   })
 
-  test('inline-completion: clicking checkbox toggles task to completed', async ({ page }) => {
-    // Find "משימה ראשונה" row (status: TODO)
-    const taskRow = getTableRow(page, 'משימה ראשונה')
+  test('inline-completion: completing a task moves it out of the open pile', async ({ page }) => {
+    try {
+      const taskRow = getTableRow(page, 'משימה ראשונה')
+      await taskRow.getByRole('checkbox', { name: 'סמן כהושלם' }).click()
 
-    // Click the completion checkbox button (first cell)
-    const checkbox = taskRow.locator('button[aria-label="סמן כהושלם"]')
-    await checkbox.click()
+      // It does not just change colour - it leaves. The segment is the pile you
+      // are working from, and a finished task is not in it.
+      await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
 
-    // Wait for optimistic update
-    await page.waitForTimeout(300)
-
-    // Verify the status badge changed to COMPLETED
-    const statusBadge = rowStatusPill(taskRow, 'הושלם')
-    await expect(statusBadge).toBeVisible()
-
-    // Revert: click again to set back to TODO
-    const uncheckButton = taskRow.locator('button[aria-label="סמן כלא הושלם"]')
-    await uncheckButton.click()
-    await page.waitForTimeout(300)
+      await page.getByRole('tab', { name: /הושלמו/ }).click()
+      const done = getTableRow(page, 'משימה ראשונה')
+      await expect(rowStatusPill(done, 'הושלם')).toBeVisible()
+    } finally {
+      // Restore, pass or fail: filter-by-status asserts this task is not in the
+      // הושלמו pile, so leaving it completed breaks a later test rather than
+      // this one.
+      await page.getByRole('tab', { name: /הכל/ }).click()
+      const anywhere = getTableRow(page, 'משימה ראשונה')
+      await anywhere.getByRole('checkbox', { name: 'סמן כלא הושלם' }).click()
+      await expect(rowStatusPill(anywhere, 'לביצוע')).toBeVisible()
+    }
   })
 
   test('delete: removes a task via API call and verifies it is gone', async ({ page }) => {

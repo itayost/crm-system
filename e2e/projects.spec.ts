@@ -18,16 +18,13 @@ test.describe('Projects', () => {
     await expect(row(page, 'פרויקט אפליקציה')).toBeVisible()
   })
 
-  test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
-    // Open the status filter select (shadcn Select component)
-    const statusTrigger = page.locator('button[role="combobox"]').filter({ hasText: /הכל|פעיל|הושלם/ })
-    await statusTrigger.click()
+  test('filter-by-status: the הושלמו segment excludes active projects', async ({ page }) => {
+    // The status Select became a segment. A pile is a segment, not a dropdown:
+    // it is mutually exclusive, it carries its own count, and it lives in the
+    // URL rather than in component state.
+    await page.getByRole('tab', { name: /הושלמו/ }).click()
 
-    // Select "הושלם" (COMPLETED)
-    await page.locator('[role="option"]').filter({ hasText: 'הושלם' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // Both seeded projects are ACTIVE, so neither should be visible when filtering COMPLETED
+    // Both seeded projects are ACTIVE, so neither belongs in this pile.
     await expect(row(page, 'פרויקט אפליקציה')).not.toBeVisible()
     await expect(row(page, 'פרויקט אתר')).not.toBeVisible()
   })

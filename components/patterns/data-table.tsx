@@ -59,18 +59,31 @@ export function DataTable<T>({
   columns,
   getRowId,
   getRowHref,
+  onRowClick,
   density = 'default',
   className,
 }: {
   rows: T[]
   columns: Column<T>[]
   getRowId: (row: T) => string
-  getRowHref: (row: T) => string
+  /**
+   * Where the row goes. Omit only when the row genuinely has no destination -
+   * and then supply `onRowClick`. Never point it at '#': a dead link is worse
+   * than no link, because it looks navigable and is not.
+   */
+  getRowHref?: (row: T) => string
+  onRowClick?: (row: T) => void
   density?: 'default' | 'compact'
   className?: string
 }) {
   const router = useRouter()
   const rowHeight = density === 'compact' ? 'h-row-compact' : 'h-row'
+
+  const activate = (row: T) => {
+    const href = getRowHref?.(row)
+    if (href) router.push(href)
+    else onRowClick?.(row)
+  }
 
   const primary = columns.find((c) => c.mobile === 'primary') ?? columns[0]
   const trailing = columns.filter((c) => c.mobile === 'trailing')
@@ -106,7 +119,7 @@ export function DataTable<T>({
                 data-slot="table-row"
                 data-testid="row"
                 data-row-id={getRowId(row)}
-                onClick={() => router.push(getRowHref(row))}
+                onClick={() => activate(row)}
                 className={cn(
                   rowHeight,
                   'cursor-pointer border-b transition-colors duration-fast last:border-b-0 hover:bg-surface-subtle',
@@ -122,13 +135,17 @@ export function DataTable<T>({
                     )}
                   >
                     {col.key === primary.key ? (
-                      <Link
-                        href={getRowHref(row)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-sm font-medium text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {col.cell(row)}
-                      </Link>
+                      getRowHref ? (
+                        <Link
+                          href={getRowHref(row)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-sm font-medium text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {col.cell(row)}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-content-strong">{col.cell(row)}</span>
+                      )
                     ) : (
                       col.cell(row)
                     )}
@@ -148,16 +165,28 @@ export function DataTable<T>({
             data-slot="table-row"
             data-testid="row"
             data-row-id={getRowId(row)}
+            onClick={() => !getRowHref && activate(row)}
             className="flex flex-col gap-1.5 px-3 py-2.5"
           >
             <div className="flex items-center gap-2">
-              <Link
-                href={getRowHref(row)}
-                data-col={primary.key}
-                className="min-w-0 flex-1 truncate rounded-sm text-ui-sm font-semibold text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {primary.cell(row)}
-              </Link>
+              {getRowHref ? (
+                <Link
+                  href={getRowHref(row)}
+                  data-col={primary.key}
+                  className="min-w-0 flex-1 truncate rounded-sm text-ui-sm font-semibold text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {primary.cell(row)}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  data-col={primary.key}
+                  onClick={() => activate(row)}
+                  className="min-w-0 flex-1 truncate rounded-sm text-start text-ui-sm font-semibold text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {primary.cell(row)}
+                </button>
+              )}
               {trailing.map((col) => (
                 <span key={col.key} data-col={col.key} className="shrink-0">
                   {col.cell(row)}
