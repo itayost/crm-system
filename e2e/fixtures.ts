@@ -79,11 +79,6 @@ export function rowStatusPill(rowLocator: Locator, text: string): Locator {
 
 // --- Dashboard ---
 
-/** A KPI tile, by its stable key rather than by hopping up from its label. */
-export function kpi(page: Page, key: string): Locator {
-  return page.locator(`[data-kpi="${key}"]`)
-}
-
 /** A named dashboard section card. */
 export function section(page: Page, key: string): Locator {
   return page.locator(`[data-section="${key}"]`)

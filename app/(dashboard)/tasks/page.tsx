@@ -62,7 +62,8 @@ interface Task {
   request?: { id: string; title: string } | null
 }
 
-type View = 'today' | 'open' | 'done' | 'all'
+const VIEWS = ['today', 'open', 'done', 'all'] as const
+type View = (typeof VIEWS)[number]
 
 const OPEN_STATUSES = ['TODO', 'IN_PROGRESS']
 
@@ -125,6 +126,31 @@ export default function TasksPage() {
     }, search ? 300 : 0)
     return () => clearTimeout(debounce)
   }, [fetchTasks, search])
+
+  // The היום cockpit links here as /tasks?view=today and ⌘K as /tasks?new=true.
+  // Both were being dropped on the floor: the page only ever read `openTask`,
+  // so a "הכל" button next to "משימות — באיחור ולהיום" landed on פתוחות and
+  // the palette's "משימה חדשה" opened nothing.
+  const readQuery = useRef(false)
+  useEffect(() => {
+    if (readQuery.current) return
+    readQuery.current = true
+    const query = new URLSearchParams(window.location.search)
+
+    const fromUrl = query.get('view')
+    if (fromUrl && (VIEWS as readonly string[]).includes(fromUrl)) setView(fromUrl as View)
+
+    if (query.get('new') === 'true') {
+      setEditingTask(undefined)
+      setShowForm(true)
+      router.replace('/tasks', { scroll: false })
+    }
+  }, [router])
+
+  const selectView = (next: string) => {
+    setView(next as View)
+    window.history.replaceState(null, '', `/tasks?view=${next}`)
+  }
 
   // A request's detail page links here as /tasks?openTask=<id>.
   const openedFromQuery = useRef(false)
@@ -219,6 +245,7 @@ export default function TasksPage() {
       key: 'done',
       header: '',
       width: '2.5rem',
+      mobile: 'actions',
       cell: (task) => (
         <button
           type="button"
@@ -396,7 +423,7 @@ export default function TasksPage() {
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentControl segments={segments} value={view} onChange={(v) => setView(v as View)} />
+        <SegmentControl segments={segments} value={view} onChange={selectView} />
         <SearchField value={search} onChange={setSearch} placeholder="חיפוש משימה..." />
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="h-control w-32 text-ui-sm" aria-label="קטגוריה">

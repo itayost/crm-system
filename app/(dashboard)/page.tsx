@@ -196,7 +196,9 @@ export default function TodayPage() {
     board.atClient.quietLeads
   const collectTotal = board.collect.reduce((s, r) => s + r.price, 0)
 
-  const needsYou = board.dueLeads.length + board.triage.length + blockedOnYou
+  // True totals, not the capped list lengths - otherwise this disagrees
+  // with the nav badges, which count the same things uncapped.
+  const needsYou = board.counts.dueLeads + board.counts.triage + blockedOnYou
   const overdueLeads = board.dueLeads.filter((l) => l.overdue).length
   const overdueTasks = data.tasks.overdue
 
@@ -236,7 +238,7 @@ export default function TodayPage() {
       {/* 1 · What you promised yourself about a named lead. */}
       {board.dueLeads.length > 0 && (
         <Block
-          id="due-leads" title="פעולות להיום" count={board.dueLeads.length}>
+          id="due-leads" title="פעולות להיום" count={board.counts.dueLeads}>
           {board.dueLeads.map((lead) => (
             <Row key={lead.id}>
               <Link
@@ -270,7 +272,7 @@ export default function TodayPage() {
         <Block
           id="triage"
           title="ממתין לך — פניות"
-          count={board.triage.length}
+          count={board.counts.triage}
           action={
             <Button asChild size="sm" variant="ghost">
               <Link href="/requests?view=triage">הכל</Link>

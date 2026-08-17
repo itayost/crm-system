@@ -112,7 +112,17 @@ export default function RequestsPage() {
   // Land on the pile that is blocked on you, when there is one.
   const pickedInitialView = useRef(false)
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('view')
+    const query = new URLSearchParams(window.location.search)
+
+    // ⌘K offers "פנייה חדשה" as /requests?new=true. Only /projects honoured
+    // that param, so the palette's create action navigated here and stopped.
+    if (query.get('new') === 'true') {
+      setEditing(undefined)
+      setShowForm(true)
+      window.history.replaceState(null, '', '/requests')
+    }
+
+    const fromUrl = query.get('view')
     if (fromUrl && fromUrl in VIEWS) {
       pickedInitialView.current = true
       setView(fromUrl as View)
@@ -282,6 +292,7 @@ export default function RequestsPage() {
       key: 'triage-actions',
       header: '',
       width: '9rem',
+      mobile: 'actions',
       cell: (r) => (
         <span className="flex gap-1.5">
           <Button

@@ -163,7 +163,11 @@
      * review. Doing both at once is not.
      * ------------------------------------------------------------------ */
     --radius-sm: 0.125rem;
-    --radius: 0.375rem;
+    /* Tailwind's bare `rounded` is 0.25rem, not 0.375rem. This was set to the
+     * `md` value, so every bare `rounded` got rounder in a commit whose whole
+     * claim was that it changed no pixels. Thirteen call sites, and the claim
+     * is the thing worth keeping true. */
+    --radius: 0.25rem;
     --radius-md: 0.375rem;
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;

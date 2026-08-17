@@ -28,8 +28,11 @@ export function RegisterForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: form.get('name'), email, password }),
       })
+      // The route answers with `{ message }`, not `{ error }` - reading only
+      // the latter turned every server-side reason ("משתמש עם אימייל זה כבר
+      // קיים", "לא מורשה") into the same generic fallback.
       const body = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(body.error ?? 'שגיאה בהרשמה')
+      if (!res.ok) throw new Error(body.message ?? body.error ?? 'שגיאה בהרשמה')
 
       // Straight in, rather than bouncing to a login form to retype what was
       // just typed.

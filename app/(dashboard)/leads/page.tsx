@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -53,7 +53,8 @@ function isDueNow(iso: string | null): boolean {
   return new Date(iso) <= end
 }
 
-type View = 'todo' | 'pipeline' | 'lost' | 'all'
+const VIEWS = ['todo', 'pipeline', 'lost', 'all'] as const
+type View = (typeof VIEWS)[number]
 
 /**
  * "איזה ליד חייב תשובה, ומתי הבטחתי."
@@ -74,6 +75,24 @@ export default function LeadsPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('todo')
   const [showForm, setShowForm] = useState(false)
+
+  // `?view=` is the one vocabulary a segment is addressed by, and the היום
+  // cockpit links here with it ("לידים ששקטו" -> /leads?view=pipeline).
+  // Without this read the link silently landed on the default pile.
+  // Read from window rather than useSearchParams so the page stays outside a
+  // Suspense boundary - the same approach /requests and the client page take.
+  const readView = useRef(false)
+  useEffect(() => {
+    if (readView.current) return
+    readView.current = true
+    const fromUrl = new URLSearchParams(window.location.search).get('view')
+    if (fromUrl && (VIEWS as readonly string[]).includes(fromUrl)) setView(fromUrl as View)
+  }, [])
+
+  const selectView = (next: string) => {
+    setView(next as View)
+    window.history.replaceState(null, '', `/leads?view=${next}`)
+  }
 
   const fetchContacts = useCallback(async () => {
     setLoading(true)
@@ -234,7 +253,7 @@ export default function LeadsPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentControl segments={segments} value={view} onChange={(v) => setView(v as View)} />
+        <SegmentControl segments={segments} value={view} onChange={selectView} />
         <SearchField
           value={search}
           onChange={setSearch}

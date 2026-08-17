@@ -28,9 +28,16 @@ export interface Column<T> {
    *   `primary`  the title line
    *   `trailing` the end of the title line (one status, usually)
    *   `meta`     the second line
+   *   `actions`  a row of controls at the foot of the card
    *   omitted    desktop only - a phone cannot show ten columns and should not try
+   *
+   * A column that renders a control MUST declare a slot. Omitted columns are
+   * re-emitted inside a `display:none` wrapper so their `data-col` handles keep
+   * resolving at both viewports, and a button in there is unreachable - which
+   * silently cost the phone "mark as paid", "complete task" and triage
+   * approve/dismiss.
    */
-  mobile?: 'primary' | 'trailing' | 'meta'
+  mobile?: 'primary' | 'trailing' | 'meta' | 'actions'
 }
 
 const ALIGN: Record<NonNullable<Column<unknown>['align']>, string> = {
@@ -88,6 +95,7 @@ export function DataTable<T>({
   const primary = columns.find((c) => c.mobile === 'primary') ?? columns[0]
   const trailing = columns.filter((c) => c.mobile === 'trailing')
   const meta = columns.filter((c) => c.mobile === 'meta')
+  const actions = columns.filter((c) => c.mobile === 'actions')
 
   return (
     <div className={cn('overflow-hidden rounded-lg border bg-card', className)}>
@@ -210,9 +218,20 @@ export function DataTable<T>({
               </div>
             )}
 
+            {actions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {actions.map((col) => (
+                  <span key={col.key} data-col={col.key}>
+                    {col.cell(row)}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Desktop-only columns still emit their handle, so a spec written
-                against one viewport keeps resolving at the other. */}
-            <span className="hidden">
+                against one viewport keeps resolving at the other. Display-only
+                by construction: anything interactive declares a slot. */}
+            <span className="hidden" aria-hidden>
               {columns
                 .filter((c) => !c.mobile && c.key !== primary.key)
                 .map((col) => (

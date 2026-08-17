@@ -60,6 +60,15 @@ export interface TodayBoard {
     quotesUnanswered: number
     quietLeads: number
   }
+  /**
+   * True totals, not the length of the truncated lists above.
+   *
+   * The lists are capped for display; the day line counts what is actually
+   * owed. Reading `dueLeads.length` made the header say "6 דברים דורשים אותך"
+   * while the nav badge - which uses the uncapped count - said 12. Two numbers
+   * for one question is exactly what this service exists to prevent.
+   */
+  counts: { dueLeads: number; triage: number }
   /** Approved and unpaid, plus unpaid advances. */
   collect: {
     id: string
@@ -86,8 +95,17 @@ export class TodayService {
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
 
-    const [dueLeads, triage, phasesAwaiting, quotesUnanswered, quietLeads, phases, advances] =
-      await Promise.all([
+    const [
+      dueLeads,
+      dueLeadsTotal,
+      triage,
+      triageTotal,
+      phasesAwaiting,
+      quotesUnanswered,
+      quietLeads,
+      phases,
+      advances,
+    ] = await Promise.all([
         prisma.contact.findMany({
           where: {
             userId,
@@ -104,6 +122,13 @@ export class TodayService {
           orderBy: { nextActionAt: 'asc' },
           take: 6,
         }),
+        prisma.contact.count({
+          where: {
+            userId,
+            status: { in: [...LEAD_STATUSES] },
+            nextActionAt: { lt: todayEnd },
+          },
+        }),
         prisma.request.findMany({
           where: { userId, status: 'PENDING_REVIEW' },
           select: {
@@ -116,6 +141,7 @@ export class TodayService {
           orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
           take: 5,
         }),
+        prisma.request.count({ where: { userId, status: 'PENDING_REVIEW' } }),
         prisma.projectPhase.count({
           where: { status: 'PENDING_APPROVAL', project: { userId, status: 'ACTIVE' } },
         }),
@@ -199,6 +225,7 @@ export class TodayService {
         createdAt: r.createdAt.toISOString(),
       })),
       atClient: { phasesAwaitingApproval: phasesAwaiting, quotesUnanswered, quietLeads },
+      counts: { dueLeads: dueLeadsTotal, triage: triageTotal },
       collect,
     }
   }

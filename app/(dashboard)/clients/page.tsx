@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Star, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -62,11 +63,24 @@ function summarise(client: Client) {
 type View = 'active' | 'dormant' | 'all'
 
 export default function ClientsPage() {
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('active')
   const [showForm, setShowForm] = useState(false)
+
+  // ⌘K offers "לקוח חדש" as /clients?new=true, which only /projects knew how to
+  // honour - so the palette's create action navigated here and then did nothing.
+  const readQuery = useRef(false)
+  useEffect(() => {
+    if (readQuery.current) return
+    readQuery.current = true
+    if (new URLSearchParams(window.location.search).get('new') === 'true') {
+      setShowForm(true)
+      router.replace('/clients', { scroll: false })
+    }
+  }, [router])
 
   const fetchClients = useCallback(async () => {
     setLoading(true)

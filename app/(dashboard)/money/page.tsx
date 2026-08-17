@@ -130,6 +130,7 @@ export default function MoneyPage() {
       key: 'action',
       header: '',
       width: '8rem',
+      mobile: 'actions',
       cell: (r) =>
         !r.paidAt && r.status === 'APPROVED' && r.kind === 'phase' ? (
           <Button

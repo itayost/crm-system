@@ -35,8 +35,19 @@ export default function LoginPage() {
         // ignored it - so you always landed on the cockpit rather than back
         // where you were going. Same-origin paths only: `from` comes off the
         // URL, so anything absolute is an open-redirect waiting to happen.
+        //
+        // Resolved against the real origin rather than pattern-matched. A
+        // string check is not enough: the URL parser folds a backslash into a
+        // slash, so `/\evil.com` starts with a single "/" and still resolves
+        // to https://evil.com - which router.push() would follow off-site.
         const from = new URLSearchParams(window.location.search).get('from')
-        const safe = from && from.startsWith('/') && !from.startsWith('//') ? from : '/'
+        let safe = '/'
+        if (from?.startsWith('/')) {
+          const resolved = new URL(from, window.location.origin)
+          if (resolved.origin === window.location.origin) {
+            safe = `${resolved.pathname}${resolved.search}${resolved.hash}`
+          }
+        }
         router.push(safe)
         router.refresh()
       }

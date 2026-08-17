@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
+import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { getServerSession } from 'next-auth'
@@ -12,16 +13,73 @@ const registerSchema = z.object({
   role: z.enum(['USER', 'ADMIN']).optional().default('USER'),
 })
 
+/**
+ * Create the very first user, and only the very first.
+ *
+ * `role` is forced to OWNER and the request body's own `role` is ignored: this
+ * is the one path that runs unauthenticated, so it must not be able to mint
+ * anything the caller chooses. Everything after the first user goes back
+ * through the session-gated branch above.
+ */
+async function bootstrapFirstOwner(body: unknown) {
+  const data = registerSchema.parse(body)
+
+  try {
+    const user = await prisma.$transaction(
+      async (tx) => {
+        if ((await tx.user.count()) > 0) return null
+
+        const hashedPassword = await bcrypt.hash(data.password, 10)
+        return tx.user.create({
+          data: {
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            role: 'OWNER',
+          },
+          select: { id: true, email: true, name: true, role: true },
+        })
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    )
+
+    if (!user) {
+      return NextResponse.json({ message: 'לא מורשה - נדרשת התחברות' }, { status: 401 })
+    }
+
+    return NextResponse.json({ message: 'משתמש נוצר בהצלחה', user })
+  } catch (error) {
+    // A serialization failure means another request won the race, which is the
+    // same outcome as arriving second: the system already has an owner.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === 'P2034' || error.code === 'P2002')
+    ) {
+      return NextResponse.json({ message: 'לא מורשה - נדרשת התחברות' }, { status: 401 })
+    }
+    throw error
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated and is admin
     const session = await getServerSession(authOptions)
 
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { message: 'לא מורשה - נדרשת התחברות' },
-        { status: 401 }
-      )
+    /**
+     * First run: no owner exists yet, so nobody can be signed in to create one.
+     *
+     * Without this branch the whole flow is a dead end - the route demands a
+     * session, and a session is impossible until a user exists, so the only way
+     * to stand the system up was to reach past the API and insert a row by hand.
+     *
+     * The gate closes itself permanently the moment it is used once. It has to
+     * be evaluated atomically, though: two concurrent posts would otherwise
+     * both read zero and both mint an OWNER. Serializable makes Postgres abort
+     * the loser rather than leaving the product with two owners.
+     */
+    if (!session?.user) {
+      const bootstrapped = await bootstrapFirstOwner(await req.json())
+      return bootstrapped
     }
 
     // Only OWNER and ADMIN can create new users

@@ -90,6 +90,9 @@ export const ALL_NAV = [...NAV_PRIMARY, ...NAV_REGISTRY, ...NAV_FOOTER]
  * second convention.
  */
 export function shortMoney(value: number): string {
+  // A million has its own tier, or a good year renders as "1234.6k ₪" - which
+  // is longer than the number it was compacting.
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M ₪`
   if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k ₪`
   return `${value} ₪`
 }

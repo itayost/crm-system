@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { startOfIsraelDay } from '@/lib/services/morning-brief.service'
 
 /**
  * The ledger, at phase granularity.
@@ -36,6 +37,31 @@ export interface Ledger {
 function num(value: unknown): number {
   const n = Number(value ?? 0)
   return Number.isNaN(n) ? 0 : n
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Midnight on the 1st, in Israel - not on the server.
+ *
+ * "שולם החודש" is a claim about the owner's calendar, and production runs in
+ * UTC. A payment stamped at 01:00 on the 1st Israel time is 22:00 on the last
+ * of the previous month in UTC, so a server-local boundary quietly files it in
+ * the wrong month at exactly the moment the number is being read - the end of
+ * one and the start of the next.
+ *
+ * Walks back to the 1st and re-derives the boundary rather than arithmetic on
+ * a fixed day length, so a DST change inside the month cannot shift it.
+ */
+function startOfIsraelMonth(now: Date): Date {
+  const dayOfMonth = Number(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', day: 'numeric' }).format(now),
+  )
+  const todayStart = startOfIsraelDay(now)
+  // Midday on the 1st: far enough from either boundary that a DST shift on the
+  // way back cannot land on the wrong date.
+  const noonOnTheFirst = new Date(todayStart.getTime() - (dayOfMonth - 1) * DAY_MS + DAY_MS / 2)
+  return startOfIsraelDay(noonOnTheFirst)
 }
 
 export class MoneyService {
@@ -103,9 +129,7 @@ export class MoneyService {
       }
     }
 
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    const startOfMonth = startOfIsraelMonth(new Date())
 
     const totals = {
       due: rows
