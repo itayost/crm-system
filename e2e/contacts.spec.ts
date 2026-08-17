@@ -7,6 +7,7 @@ import {
   getTableRow,
   waitForSearchResults,
   getStatusPill,
+  row,
 } from './fixtures'
 
 test.describe('Contacts', () => {
@@ -26,10 +27,10 @@ test.describe('Contacts', () => {
     await page.waitForLoadState('networkidle')
 
     // Leads should be visible
-    await expect(page.locator('td').filter({ hasText: 'ליד ראשון' })).toBeVisible()
+    await expect(row(page, 'ליד ראשון')).toBeVisible()
 
     // Clients should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'לקוח פעיל' })).not.toBeVisible()
+    await expect(row(page, 'לקוח פעיל')).not.toBeVisible()
   })
 
   test('filter-clients-tab: clicking clients tab shows only clients', async ({ page }) => {
@@ -38,10 +39,10 @@ test.describe('Contacts', () => {
     await page.waitForLoadState('networkidle')
 
     // Clients should be visible
-    await expect(page.locator('td').filter({ hasText: 'לקוח פעיל' })).toBeVisible()
+    await expect(row(page, 'לקוח פעיל')).toBeVisible()
 
     // Leads should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'ליד ראשון' })).not.toBeVisible()
+    await expect(row(page, 'ליד ראשון')).not.toBeVisible()
   })
 
   test('search: typing a name filters the list', async ({ page }) => {
@@ -49,8 +50,8 @@ test.describe('Contacts', () => {
     await searchInput.fill('ליד ראשון')
     await waitForSearchResults(page)
 
-    await expect(page.locator('td').filter({ hasText: 'ליד ראשון' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'לקוח פעיל' })).not.toBeVisible()
+    await expect(row(page, 'ליד ראשון')).toBeVisible()
+    await expect(row(page, 'לקוח פעיל')).not.toBeVisible()
   })
 
   test('create-success: creates a new contact and it appears in the list', async ({ page }) => {
@@ -77,11 +78,11 @@ test.describe('Contacts', () => {
       await page.waitForLoadState('networkidle')
 
       // Verify appears in list
-      await expect(page.locator('td').filter({ hasText: 'איש קשר בדיקה' })).toBeVisible()
+      await expect(row(page, 'איש קשר בדיקה')).toBeVisible()
 
       // Get the ID for cleanup: find the row and click to get ID from URL
-      const row = getTableRow(page, 'איש קשר בדיקה')
-      await row.click()
+      const createdRow = row(page, 'איש קשר בדיקה')
+      await createdRow.click()
       await page.waitForLoadState('networkidle')
       const url = page.url()
       createdContactId = url.split('/contacts/')[1]
@@ -185,20 +186,26 @@ test.describe('Contacts', () => {
     // Verify it is currently a lead
     await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).toBeVisible()
 
-    // Click convert button
-    await page.locator('button').filter({ hasText: 'המר ללקוח' }).click()
-    await expectToastSuccess(page, 'הליד הומר ללקוח בהצלחה')
-    await page.waitForLoadState('networkidle')
-
-    const id = page.url().split('/contacts/')[1]
-
+    // The try opens BEFORE the mutation, not after it.
+    //
+    // The click below is what creates the Client. Previously `try` started
+    // three lines lower, so a failure in the toast assertion landed the
+    // mutation and then skipped the cleanup - reproducing the exact leak the
+    // note in `finally` describes. That fix moved the cleanup into `finally`
+    // but left the boundary above the mutation, so it was only half done.
     try {
+      // Click convert button
+      await page.locator('button').filter({ hasText: 'המר ללקוח' }).click()
+      await expectToastSuccess(page, 'הליד הומר ללקוח בהצלחה')
+      await page.waitForLoadState('networkidle')
+
       // Verify status badge changed to "לקוח"
       await expect(getStatusPill(page, 'לקוח')).toBeVisible()
 
       // Convert button should no longer be visible
       await expect(page.locator('button').filter({ hasText: 'המר ללקוח' })).not.toBeVisible()
     } finally {
+      const id = page.url().split('/contacts/')[1]
       // Revert fully, pass or fail. Converting also creates a Client (business)
       // named after the lead; leaving it behind puts a lead's name in the client
       // dropdown that projects.spec asserts against later in the same run.
@@ -274,7 +281,7 @@ test.describe('Contacts', () => {
     // Server-side sort puts the overdue lead above leads with nothing
     // scheduled. Asserted through expect() rather than a bare allTextContents
     // read, which raced the skeleton while the rows were still arriving.
-    await expect(page.locator('tbody tr').first()).toContainText('ליד שלישי')
+    await expect(page.locator('[data-testid="row"]').first()).toContainText('ליד שלישי')
   })
 
   test('lost-visibility: a lost lead leaves the pipeline but stays findable', async ({ page }) => {
@@ -282,13 +289,13 @@ test.describe('Contacts', () => {
     await leadsTab.click()
     await page.waitForLoadState('networkidle')
 
-    await expect(page.locator('td').filter({ hasText: 'ליד אבוד' })).not.toBeVisible()
+    await expect(row(page, 'ליד אבוד')).not.toBeVisible()
 
     const allTab = page.locator('[role="tab"]').filter({ hasText: 'הכל' })
     await allTab.click()
     await page.waitForLoadState('networkidle')
 
-    await expect(page.locator('td').filter({ hasText: 'ליד אבוד' })).toBeVisible()
+    await expect(row(page, 'ליד אבוד')).toBeVisible()
   })
 
   test('lost-lead-detail: a lost lead keeps the status select but loses the convert button', async ({ page }) => {

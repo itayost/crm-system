@@ -1,12 +1,35 @@
 import { test, expect } from '@playwright/test'
 import { BASE_URL } from './base-url'
+import { pendingReviewItem } from './fixtures'
+
+/**
+ * Every client this file mints, so afterEach can take it back out.
+ *
+ * These rows used to leak: ~7 Clients and ~4 Requests per run, all named with
+ * `Date.now()`, cleaned up only by global-teardown at the very end. Because
+ * `visual.spec.ts` sorts last and runs last, they were present - with different
+ * text every run - in the `clients` and `requests` pixel baselines, which is
+ * why those two could never be stable.
+ */
+const createdClientIds: string[] = []
 
 // Authenticated context comes from the project's storageState.
 async function createClient(request: import('@playwright/test').APIRequestContext, name: string) {
   const res = await request.post('/api/clients', { data: { name } })
   expect(res.ok()).toBeTruthy()
-  return res.json()
+  const client = await res.json()
+  createdClientIds.push(client.id)
+  return client
 }
+
+// Requests cascade with their client (Request.clientId is onDelete: Cascade),
+// so one delete per client is enough. Runs even when the test body threw.
+test.afterEach(async ({ request }) => {
+  while (createdClientIds.length) {
+    const id = createdClientIds.pop()!
+    await request.delete(`/api/clients/${id}`)
+  }
+})
 
 test.describe('client form token', () => {
   test('generates and rotates a form token', async ({ request }) => {
@@ -127,11 +150,9 @@ test.describe('requests dashboard shows form tickets', () => {
     // A pending ticket lives only in the review queue card - the main table
     // hides PENDING_REVIEW so the same ticket is not listed twice.
     await page.goto('/requests')
-    const item = page
-      .locator('div.rounded-lg.border.bg-white', {
-        has: page.getByRole('link', { name: title }),
-      })
-      .first()
+    // Previously matched on `div.rounded-lg.border.bg-white` - a conjunction of
+    // three Tailwind classes that every list-page table wrapper also carries.
+    const item = pendingReviewItem(page, title)
     await expect(item).toBeVisible()
     await expect(item.getByText('טופס')).toBeVisible()
   })

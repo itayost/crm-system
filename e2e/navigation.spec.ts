@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { E2E_PORT } from './base-url'
+import { sidebarLink, activeSidebarLink, userMenuTrigger } from './fixtures'
 
 test.describe('Navigation', () => {
   test('sidebar-links: each sidebar link navigates to the correct page', async ({ page }) => {
@@ -14,8 +15,7 @@ test.describe('Navigation', () => {
     ]
 
     for (const link of sidebarLinks) {
-      const sidebarLink = page.locator('nav a').filter({ hasText: link.text })
-      await sidebarLink.click()
+      await sidebarLink(page, link.text).click()
       // App Router navigation is client-side, so there is no load event to wait
       // for: assert on the URL settling instead.
       await page.waitForURL(
@@ -28,18 +28,22 @@ test.describe('Navigation', () => {
     await page.goto('/contacts')
     await page.waitForLoadState('networkidle')
 
-    // The active style is the text-link token (design tokens replaced the old
-    // hardcoded text-blue-600).
-    const contactsLink = page.locator('nav a').filter({ hasText: 'אנשי קשר' })
-    await expect(contactsLink).toHaveClass(/text-link/)
+    // Read the active state semantically. This assertion used to be
+    // `toHaveClass(/text-link/)`, which had already broken once when design
+    // tokens replaced `text-blue-600` - it was testing the styling, not the
+    // behaviour. `aria-current` survives any restyle.
+    await expect(activeSidebarLink(page)).toHaveText(/אנשי קשר/)
   })
 
   test('header-greeting: displays Hebrew greeting based on time of day', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const header = page.locator('header')
-    await expect(header).toContainText(/בוקר טוב|צהריים טובים|ערב טוב|לילה טוב/)
+    // Scoped to the volatile block rather than the <header> landmark, so the
+    // shell rewrite does not silently widen what this asserts.
+    await expect(page.locator('[data-volatile]')).toContainText(
+      /בוקר טוב|צהריים טובים|ערב טוב|לילה טוב/
+    )
   })
 
   test('header-user-menu: dropdown contains profile and logout items', async ({ page }) => {
@@ -47,8 +51,7 @@ test.describe('Navigation', () => {
     await page.waitForLoadState('networkidle')
 
     // Open user dropdown in header
-    const userMenuTrigger = page.locator('header button').filter({ hasText: /E2E|Test|משתמש/ })
-    await userMenuTrigger.click()
+    await userMenuTrigger(page).click()
 
     // Verify menu items exist
     const profileItem = page.locator('[role="menuitem"]').filter({ hasText: 'פרופיל' })

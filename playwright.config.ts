@@ -18,6 +18,22 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     storageState: './e2e/.auth/storageState.json',
+    // Pinned explicitly. The visual baselines are fullPage screenshots, so
+    // leaning on Playwright's implicit 1280x720 default means a Playwright
+    // upgrade can invalidate all six of them without anything in this repo
+    // changing.
+    viewport: { width: 1280, height: 720 },
+  },
+  expect: {
+    // Defaults for every toHaveScreenshot call, so a new baseline cannot be
+    // added with different comparison rules than the existing ones.
+    // `animations: 'disabled'` matters more once motion tokens land.
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.01,
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+    },
   },
   projects: [
     {

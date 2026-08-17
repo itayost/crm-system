@@ -9,6 +9,9 @@ import { test, expect } from '@playwright/test'
  *
  * Baselines are machine-specific (font rendering), so they are a local safety
  * net for a refactor, not a CI gate.
+ *
+ * Comparison options live in playwright.config.ts under `expect`, so every
+ * baseline in this file is recorded and compared the same way.
  */
 
 const PAGES = [
@@ -29,8 +32,11 @@ for (const page of PAGES) {
 
     await expect(browserPage).toHaveScreenshot(`${page.name}.png`, {
       fullPage: true,
-      maxDiffPixelRatio: 0.01,
-      mask: [browserPage.locator('header')],
+      // Mask the element, not the <header> landmark. When the shell rewrite
+      // replaces <header>, a tag-based mask silently matches nothing and every
+      // baseline starts failing once a minute as the clock ticks - which reads
+      // as flakiness and trains everyone to accept new snapshots blind.
+      mask: [browserPage.locator('[data-volatile]')],
     })
   })
 }

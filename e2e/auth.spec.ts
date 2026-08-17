@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { expectToastError } from './fixtures'
+import { expectToastError, userMenuTrigger } from './fixtures'
 import { BASE_URL } from './base-url'
 
 const TEST_USER = {
@@ -44,8 +44,7 @@ test.describe('Authentication', () => {
     await page.waitForURL('/', { timeout: 15000 })
 
     // Open user menu dropdown in header
-    const userMenuTrigger = page.locator('header button').filter({ hasText: /E2E|Test|משתמש/ })
-    await userMenuTrigger.click()
+    await userMenuTrigger(page).click()
 
     // Click logout
     const logoutItem = page.locator('[role="menuitem"]').filter({ hasText: 'התנתק' })

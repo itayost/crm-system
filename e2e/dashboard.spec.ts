@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { kpi, section } from './fixtures'
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,33 +7,31 @@ test.describe('Dashboard', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('kpi-cards: renders 4 KPI cards with data', async ({ page }) => {
-    // The dashboard renders 4 KPI cards: revenue, active projects, leads, pending tasks
-    const kpiTitles = ['הכנסות', 'פרויקטים פעילים', 'לידים בצנרת', 'משימות ממתינות']
-
-    for (const title of kpiTitles) {
-      const card = page.locator('text=' + title).first()
-      await expect(card).toBeVisible()
+  test('kpi-cards: renders the KPI tiles with data', async ({ page }) => {
+    // Addressed by key rather than by Hebrew copy, so renaming a tile's label
+    // is a copy change and not a test failure.
+    for (const key of ['revenue', 'active-projects', 'leads', 'pending-tasks']) {
+      await expect(kpi(page, key)).toBeVisible()
     }
   })
 
   test('revenue-format: displays amount with shekel symbol', async ({ page }) => {
-    // Revenue card should display amount in "X,XXX ₪" format
-    const revenueSection = page.locator('text=הכנסות').locator('..')
-    await expect(revenueSection).toContainText('₪')
+    // Previously `locator('text=הכנסות').locator('..')` - "whatever element
+    // happens to wrap the word revenue". One extra wrapper div moved the
+    // assertion off the value it meant to check.
+    await expect(kpi(page, 'revenue')).toContainText('₪')
   })
 
 
   test('active-projects: shows seeded projects', async ({ page }) => {
-    // The "active projects" section should show seeded projects
-    const activeProjectsSection = page.locator('text=הפרויקטים בעבודה').locator('..').locator('..')
+    // Previously a double parent-hop from the heading text.
+    const activeProjects = section(page, 'active-projects')
 
     // "פרויקט אפליקציה" is IN_PROGRESS so it should appear in active projects
-    // Note: the card title also says "פרויקטים פעילים" so we look in the card content
     const projectNames = ['פרויקט אתר', 'פרויקט אפליקציה']
     let foundCount = 0
     for (const name of projectNames) {
-      const count = await activeProjectsSection.locator(`text=${name}`).count()
+      const count = await activeProjects.locator(`text=${name}`).count()
       foundCount += count
     }
     expect(foundCount).toBeGreaterThan(0)

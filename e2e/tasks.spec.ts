@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test'
 import {
   expectToastSuccess,
   getTableRow,
+  row,
+  rowCell,
+  rowStatusPill,
 } from './fixtures'
 
 test.describe('Tasks', () => {
@@ -11,9 +14,9 @@ test.describe('Tasks', () => {
   })
 
   test('list-shows-data: seeded tasks are visible in the table', async ({ page }) => {
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית' })).toBeVisible()
-    await expect(page.locator('td').filter({ hasText: 'משימה שהושלמה' })).toBeVisible()
+    await expect(row(page, 'משימה ראשונה')).toBeVisible()
+    await expect(row(page, 'משימה עצמאית')).toBeVisible()
+    await expect(row(page, 'משימה שהושלמה')).toBeVisible()
   })
 
   test('filter-by-status: selecting a status filter updates the list', async ({ page }) => {
@@ -26,23 +29,24 @@ test.describe('Tasks', () => {
     await page.waitForLoadState('networkidle')
 
     // "משימה שהושלמה" should be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה שהושלמה' })).toBeVisible()
+    await expect(row(page, 'משימה שהושלמה')).toBeVisible()
 
     // TODO tasks should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).not.toBeVisible()
+    await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
   })
 
   test('filter-standalone: toggle shows only tasks without a project', async ({ page }) => {
     // Toggle the standalone switch
-    const standaloneSwitch = page.locator('#standalone')
-    await standaloneSwitch.click()
+    // Was `page.locator('#standalone')`. The switch already has a <Label
+    // htmlFor="standalone">, so it is reachable by role and name.
+    await page.getByRole('switch', { name: 'ללא פרויקט' }).click()
     await page.waitForLoadState('networkidle')
 
     // "משימה עצמאית" has no project, should be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית' })).toBeVisible()
+    await expect(row(page, 'משימה עצמאית')).toBeVisible()
 
     // "משימה ראשונה" has a project, should NOT be visible
-    await expect(page.locator('td').filter({ hasText: 'משימה ראשונה' })).not.toBeVisible()
+    await expect(row(page, 'משימה ראשונה')).not.toBeVisible()
   })
 
   test('create-with-project: creates a task linked to a project', async ({ page }) => {
@@ -73,7 +77,7 @@ test.describe('Tasks', () => {
       // Verify appears in list with project name
       const taskRow = getTableRow(page, 'משימת בדיקה עם פרויקט')
       await expect(taskRow).toBeVisible()
-      await expect(taskRow.locator('td').filter({ hasText: 'פרויקט אתר' })).toBeVisible()
+      await expect(rowCell(taskRow, 'project')).toHaveText('פרויקט אתר')
 
       // Get task ID for cleanup via API
       const tasksResponse = await page.request.get('/api/tasks?search=משימת בדיקה עם פרויקט')
@@ -108,7 +112,7 @@ test.describe('Tasks', () => {
       await expect(taskRow).toBeVisible()
 
       // The project column should show "-"
-      const projectCell = taskRow.locator('td').last()
+      const projectCell = rowCell(taskRow, 'project')
       await expect(projectCell).toHaveText('-')
 
       // Get task ID for cleanup
@@ -125,7 +129,7 @@ test.describe('Tasks', () => {
   test('edit: clicking a task row opens edit dialog and saves changes', async ({ page }) => {
     // Click on "משימה עצמאית" row to open edit dialog
     const taskRow = getTableRow(page, 'משימה עצמאית')
-    await taskRow.locator('td').nth(1).click()
+    await rowCell(taskRow, 'title').click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
     // Verify it is in edit mode
@@ -141,11 +145,11 @@ test.describe('Tasks', () => {
     await page.waitForLoadState('networkidle')
 
     // Verify updated in list
-    await expect(page.locator('td').filter({ hasText: 'משימה עצמאית מעודכנת' })).toBeVisible()
+    await expect(row(page, 'משימה עצמאית מעודכנת')).toBeVisible()
 
     // Restore original title
     const updatedRow = getTableRow(page, 'משימה עצמאית מעודכנת')
-    await updatedRow.locator('td').nth(1).click()
+    await rowCell(updatedRow, 'title').click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
     await page.locator('[role="dialog"] input[name="title"]').fill('משימה עצמאית')
     await page.locator('[role="dialog"] button[type="submit"]').click()
@@ -164,7 +168,7 @@ test.describe('Tasks', () => {
     await page.waitForTimeout(300)
 
     // Verify the status badge changed to COMPLETED
-    const statusBadge = taskRow.locator('[data-slot="status-pill"]').filter({ hasText: 'הושלם' })
+    const statusBadge = rowStatusPill(taskRow, 'הושלם')
     await expect(statusBadge).toBeVisible()
 
     // Revert: click again to set back to TODO
@@ -187,7 +191,7 @@ test.describe('Tasks', () => {
     // Reload to see the new task
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('td').filter({ hasText: 'משימה למחיקה' })).toBeVisible()
+    await expect(row(page, 'משימה למחיקה')).toBeVisible()
 
     // Delete via API
     await page.request.delete(`/api/tasks/${taskId}`)
@@ -195,7 +199,7 @@ test.describe('Tasks', () => {
     // Reload and verify gone
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await expect(page.locator('td').filter({ hasText: 'משימה למחיקה' })).not.toBeVisible()
+    await expect(row(page, 'משימה למחיקה')).not.toBeVisible()
   })
 
   test('visible-in-project-detail: task appears in project detail page', async ({ page }) => {

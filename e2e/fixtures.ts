@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test'
+import { Page, Locator, expect } from '@playwright/test'
 
 // --- Toast Assertions (react-hot-toast) ---
 
@@ -12,11 +12,39 @@ export async function expectToastError(page: Page, text: string) {
   await expect(toast).toBeVisible({ timeout: 5000 })
 }
 
-// --- Table Helpers ---
+// --- Rows ---
 
-export function getTableRow(page: Page, containsText: string) {
-  return page.locator('tr').filter({ hasText: containsText })
+/**
+ * A data row, by any text it contains.
+ *
+ * Bound to `data-testid="row"`, not to `tr`. Two reasons, and the second is the
+ * one that matters: `tr` also matched the header row, and a list that renders as
+ * cards on mobile has no `tr` at all. The row primitive emits the same testid
+ * for both the desktop `<tr>` and the mobile `<article>`, so every assertion
+ * below survives the table-to-card conversion untouched.
+ */
+export function row(page: Page, containsText: string): Locator {
+  return page.locator('[data-testid="row"]').filter({ hasText: containsText })
 }
+
+/** A data row addressed by entity id - stable against copy changes. */
+export function rowById(page: Page, id: string): Locator {
+  return page.locator(`[data-testid="row"][data-row-id="${id}"]`)
+}
+
+/**
+ * One field of a row, by column name.
+ *
+ * Replaces `row.locator('td').nth(1)` and `.last()`. Those encode the column
+ * layout as a magic number, so appending a column silently retargets the
+ * assertion at the wrong data.
+ */
+export function rowCell(rowLocator: Locator, col: string): Locator {
+  return rowLocator.locator(`[data-col="${col}"]`)
+}
+
+/** @deprecated Use `row`. Kept so existing call sites keep reading naturally. */
+export const getTableRow = row
 
 /**
  * A status chip, wherever it renders.
@@ -30,6 +58,56 @@ export function getTableRow(page: Page, containsText: string) {
  */
 export function getStatusPill(page: Page, text: string) {
   return page.locator('[data-slot="status-pill"]').filter({ hasText: text })
+}
+
+/** The same chip, scoped to one row. */
+export function rowStatusPill(rowLocator: Locator, text: string): Locator {
+  return rowLocator.locator('[data-slot="status-pill"]').filter({ hasText: text })
+}
+
+// --- Dashboard ---
+
+/** A KPI tile, by its stable key rather than by hopping up from its label. */
+export function kpi(page: Page, key: string): Locator {
+  return page.locator(`[data-kpi="${key}"]`)
+}
+
+/** A named dashboard section card. */
+export function section(page: Page, key: string): Locator {
+  return page.locator(`[data-section="${key}"]`)
+}
+
+// --- Shell ---
+
+export function sidebarLink(page: Page, name: string): Locator {
+  return page.locator('nav[aria-label="ניווט ראשי"] a').filter({ hasText: name })
+}
+
+/**
+ * The active nav link, read semantically.
+ *
+ * The previous assertion was `toHaveClass(/text-link/)`, which had already
+ * broken once when design tokens replaced `text-blue-600`. `aria-current` is
+ * what the attribute means, and it survives any restyle.
+ */
+export function activeSidebarLink(page: Page): Locator {
+  return page.locator('nav a[aria-current="page"]')
+}
+
+export function userMenuTrigger(page: Page): Locator {
+  return page.getByRole('button', { name: 'תפריט משתמש' })
+}
+
+// --- Requests ---
+
+/**
+ * A row in the AI review queue.
+ *
+ * Previously `div.rounded-lg.border.bg-white` - a conjunction of three Tailwind
+ * classes that every list-page table wrapper also carries.
+ */
+export function pendingReviewItem(page: Page, title: string): Locator {
+  return page.locator('[data-testid="pending-review-item"]').filter({ hasText: title })
 }
 
 // --- Formatting ---
@@ -47,7 +125,7 @@ export async function waitForSearchResults(page: Page) {
 
 // --- Form Helpers ---
 
-async function selectOption(page: Page, triggerText: RegExp, optionText: string) {
+export async function selectOption(page: Page, triggerText: RegExp, optionText: string) {
   await page.locator('button[role="combobox"]').filter({ hasText: triggerText }).click()
   await page.locator('[role="option"]').filter({ hasText: optionText }).click()
 }
