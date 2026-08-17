@@ -24,13 +24,25 @@ export async function expectToastError(page: Page, text: string) {
  * below survives the table-to-card conversion untouched.
  */
 export function row(page: Page, containsText: string): Locator {
-  return page.locator('[data-testid="row"]').filter({ hasText: containsText })
+  return page.locator(ROW).filter({ hasText: containsText })
 }
 
 /** A data row addressed by entity id - stable against copy changes. */
 export function rowById(page: Page, id: string): Locator {
-  return page.locator(`[data-testid="row"][data-row-id="${id}"]`)
+  return page.locator(`${ROW}[data-row-id="${id}"]`)
 }
+
+/**
+ * `:visible` is load-bearing, not defensive.
+ *
+ * DataTable renders both trees and lets CSS pick one, because choosing at
+ * runtime would need a media query the server cannot evaluate - so a row is
+ * always in the DOM twice, once as a `<tr>` and once as an `<article>`. Without
+ * this filter every row query matches both and trips strict mode. With it, a
+ * row means the row the user can actually see, at whichever viewport the test
+ * is running.
+ */
+const ROW = '[data-testid="row"]:visible'
 
 /**
  * One field of a row, by column name.

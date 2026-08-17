@@ -1,140 +1,97 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Briefcase,
-  Plus,
-  CheckSquare,
-  Inbox,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
-const navigation = [
-  {
-    name: 'דשבורד',
-    href: '/',
-    icon: LayoutDashboard,
-  },
-  {
-    name: 'אנשי קשר',
-    href: '/contacts',
-    icon: Users,
-  },
-  {
-    name: 'לקוחות',
-    href: '/clients',
-    icon: Building2,
-  },
-  {
-    name: 'פרויקטים',
-    href: '/projects',
-    icon: Briefcase,
-  },
-  {
-    name: 'פניות',
-    href: '/requests',
-    icon: Inbox,
-  },
-  {
-    name: 'משימות',
-    href: '/tasks',
-    icon: CheckSquare,
-  },
-]
+import { cn } from '@/lib/utils'
+import { NAV_PRIMARY, NAV_REGISTRY, NAV_FOOTER, isActiveHref, type NavItem } from './nav-items'
+import { NavBadge } from './nav-badge'
 
+function initials(name?: string | null) {
+  if (!name) return 'מ'
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-ui-sm transition-colors duration-fast',
+        'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active
+          ? 'bg-surface-muted font-semibold text-content-strong'
+          : 'text-content-body hover:bg-surface-subtle hover:text-content-strong',
+      )}
+    >
+      <Icon aria-hidden className={cn('size-4 shrink-0', active ? 'opacity-100' : 'opacity-60')} />
+      <span className="flex-1 truncate">{item.label}</span>
+      <NavBadge item={item} />
+    </Link>
+  )
+}
+
+/**
+ * The desktop navigation.
+ *
+ * Hidden below `md` entirely - there is no drawer here, because a phone gets
+ * the bottom bar instead. This was previously a hard `w-64 h-screen` with no
+ * breakpoint at all, inside a `flex h-screen overflow-hidden` shell: at 375px
+ * it took 256px and left 119px for the application.
+ *
+ * The active item is marked with `aria-current`, not only with a colour. The
+ * old one signalled active state solely through a `text-link` class, which a
+ * test then asserted on - so renaming a design token broke a navigation test.
+ */
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { data: session } = useSession()
 
   return (
-    <div className="w-64 bg-white shadow-lg h-screen sticky top-0 flex flex-col">
-      {/* Logo Section */}
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">CRM</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-content-strong">מערכת ניהול</h1>
-            <p className="text-xs text-content-subtle">גרסה 2.0</p>
-          </div>
-        </div>
+    <aside className="hidden w-shell-sidebar shrink-0 flex-col border-e bg-card md:flex">
+      <div className="flex h-shell-header items-center gap-2 border-b px-3">
+        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary text-ui-2xs font-bold text-primary-foreground">
+          IO
+        </span>
+        <span className="text-ui-sm font-semibold text-content-strong">ItayOst</span>
       </div>
 
-      {/* Quick Actions */}
-      <div className="p-4 border-b">
-        <Button className="w-full" size="lg" onClick={() => router.push('/projects?new=true')}>
-          <Plus className="w-4 h-4" />
-          פרויקט חדש
-        </Button>
-      </div>
+      <nav aria-label="ניווט ראשי" className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
+        {NAV_PRIMARY.map((item) => (
+          <NavLink key={item.href} item={item} active={isActiveHref(pathname, item.href)} />
+        ))}
 
-      {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4" aria-label="ניווט ראשי">
-        <div className="px-3 mb-2">
-          <p className="text-xs font-semibold text-content-faint uppercase tracking-wider">
-            ראשי
-          </p>
-        </div>
-        {navigation.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href ||
-            (item.href !== '/' && pathname.startsWith(item.href))
+        <hr className="my-2 border-border" />
 
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              // The active link is expressed semantically, not only as a colour
-              // class. A test that asserts on `text-link` breaks the moment the
-              // active treatment changes; aria-current survives any restyle.
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-150',
-                'hover:bg-surface-subtle',
-                isActive ?
-                  'bg-tone-info-surface text-link border-r-4 border-primary' :
-                  'text-content-body hover:text-content-strong'
-              )}
-            >
-              <Icon className={cn(
-                "w-5 h-5 transition-colors",
-                isActive ? "text-link" : "text-content-faint"
-              )} />
-              <span className="flex-1">{item.name}</span>
-            </Link>
-          )
-        })}
+        {NAV_REGISTRY.map((item) => (
+          <NavLink key={item.href} item={item} active={isActiveHref(pathname, item.href)} />
+        ))}
+
+        {NAV_FOOTER.length > 0 && (
+          <>
+            <hr className="my-2 border-border" />
+            {NAV_FOOTER.map((item) => (
+              <NavLink key={item.href} item={item} active={isActiveHref(pathname, item.href)} />
+            ))}
+          </>
+        )}
       </nav>
 
-      {/* User Section */}
-      <div className="p-4 border-t bg-surface-subtle">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-surface-muted rounded-full flex items-center justify-center">
-            <span className="text-content-muted font-medium">
-              {session?.user?.name ?
-                session.user.name.split(' ').length >= 2 ?
-                  session.user.name.split(' ')[0][0] + session.user.name.split(' ')[1][0] :
-                  session.user.name.substring(0, 2)
-                : 'M'
-              }
-            </span>
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-content-strong">
-              {session?.user?.name || 'משתמש'}
-            </p>
-            <p className="text-xs text-content-subtle">עוסק פטור</p>
-          </div>
-        </div>
+      <div className="flex items-center gap-2 border-t p-2.5">
+        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-muted text-ui-2xs font-semibold text-content-muted">
+          {initials(session?.user?.name)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-ui-xs font-medium text-content-strong">
+            {session?.user?.name ?? 'משתמש'}
+          </span>
+          <span className="block text-ui-2xs text-content-subtle">עוסק פטור</span>
+        </span>
       </div>
-    </div>
+    </aside>
   )
 }

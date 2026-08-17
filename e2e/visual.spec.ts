@@ -21,6 +21,7 @@ const PAGES = [
   { name: 'projects', path: '/projects' },
   { name: 'tasks', path: '/tasks' },
   { name: 'requests', path: '/requests' },
+  { name: 'money', path: '/money' },
 ]
 
 /**

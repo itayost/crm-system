@@ -40,6 +40,15 @@ const portalHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * The dev indicator sits in the bottom corner, which is now where the mobile
+   * navigation bar lives - so in development it permanently covers a real
+   * control and swallows its taps. Production never renders it, so the only
+   * thing it was doing here was making the phone layout untestable and
+   * unusable to develop against.
+   */
+  devIndicators: false,
+
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
