@@ -71,7 +71,7 @@ export function Sidebar() {
       {/* Quick Actions */}
       <div className="p-4 border-b">
         <Button className="w-full" size="lg" onClick={() => router.push('/projects?new=true')}>
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           פרויקט חדש
         </Button>
       </div>

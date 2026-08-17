@@ -224,7 +224,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-content-strong">דשבורד</h1>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => router.push('/contacts')}>
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             איש קשר חדש
           </Button>
           <Button
@@ -232,7 +232,7 @@ export default function DashboardPage() {
             variant="outline"
             onClick={() => router.push('/projects?new=true')}
           >
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             פרויקט חדש
           </Button>
           <Button
@@ -240,7 +240,7 @@ export default function DashboardPage() {
             variant="outline"
             onClick={() => router.push('/tasks')}
           >
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             משימה חדשה
           </Button>
         </div>
@@ -318,7 +318,7 @@ export default function DashboardPage() {
               onClick={() => router.push('/tasks')}
             >
               הצג הכל
-              <ArrowLeft className="w-4 h-4 mr-1" />
+              <ArrowLeft className="w-4 h-4" />
             </Button>
           </CardHeader>
           <CardContent>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
               onClick={() => router.push('/projects')}
             >
               הצג הכל
-              <ArrowLeft className="w-4 h-4 mr-1" />
+              <ArrowLeft className="w-4 h-4" />
             </Button>
           </CardHeader>
           <CardContent>

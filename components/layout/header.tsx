@@ -114,7 +114,7 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/')}>
-                <User className="ml-2 h-4 w-4" />
+                <User className="h-4 w-4" />
                 פרופיל
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -122,7 +122,7 @@ export function Header() {
                 onClick={() => signOut()}
                 className="text-tone-danger-foreground"
               >
-                <LogOut className="ml-2 h-4 w-4" />
+                <LogOut className="h-4 w-4" />
                 התנתק
               </DropdownMenuItem>
             </DropdownMenuContent>

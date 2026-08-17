@@ -105,7 +105,7 @@ function ProjectsPageContent() {
           <p className="text-sm text-content-subtle mt-1">ניהול ומעקב פרויקטים</p>
         </div>
         <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           פרויקט חדש
         </Button>
       </div>

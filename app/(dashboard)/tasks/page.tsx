@@ -213,7 +213,7 @@ export default function TasksPage() {
             setShowForm(true)
           }}
         >
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           משימה חדשה
         </Button>
       </div>

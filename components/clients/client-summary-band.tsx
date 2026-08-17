@@ -70,11 +70,11 @@ export function ClientSummaryBand({
             </code>
             <Button variant="outline" size="sm" onClick={copy}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              <span className="mr-1">{copied ? 'הועתק' : 'העתק'}</span>
+              <span>{copied ? 'הועתק' : 'העתק'}</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={onRegenerate} disabled={regenerating}>
               <RefreshCw className="h-3.5 w-3.5" />
-              <span className="mr-1">אפס</span>
+              <span>אפס</span>
             </Button>
           </>
         ) : (

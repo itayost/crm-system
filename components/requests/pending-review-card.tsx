@@ -84,7 +84,7 @@ export function PendingReviewCard({
                   disabled={actingOn === request.id}
                   onClick={() => onAction(request.id, 'approve')}
                 >
-                  <Check className="w-4 h-4 ml-1" />
+                  <Check className="w-4 h-4" />
                   אשר
                 </Button>
                 <Button
@@ -93,7 +93,7 @@ export function PendingReviewCard({
                   disabled={actingOn === request.id}
                   onClick={() => onAction(request.id, 'dismiss')}
                 >
-                  <X className="w-4 h-4 ml-1" />
+                  <X className="w-4 h-4" />
                   דחה
                 </Button>
               </div>

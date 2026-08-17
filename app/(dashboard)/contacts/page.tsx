@@ -80,7 +80,7 @@ export default function ContactsPage() {
           </p>
         </div>
         <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           איש קשר חדש
         </Button>
       </div>

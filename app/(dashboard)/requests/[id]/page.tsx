@@ -225,13 +225,13 @@ export default function RequestDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowEditForm(true)}>
-            <Edit className="w-4 h-4 ml-2" />
+            <Edit className="w-4 h-4" />
             עריכה
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={acting}>
-                <Trash2 className="w-4 h-4 ml-2" />
+                <Trash2 className="w-4 h-4" />
                 מחיקה
               </Button>
             </AlertDialogTrigger>
@@ -257,7 +257,7 @@ export default function RequestDetailPage() {
         {isPending ? (
           <>
             <Button size="sm" disabled={acting} onClick={() => handleAction('approve')}>
-              <Check className="w-4 h-4 ml-1" />
+              <Check className="w-4 h-4" />
               אשר
             </Button>
             <Button
@@ -266,7 +266,7 @@ export default function RequestDetailPage() {
               disabled={acting}
               onClick={() => handleAction('dismiss')}
             >
-              <X className="w-4 h-4 ml-1" />
+              <X className="w-4 h-4" />
               דחה
             </Button>
             <span className="text-xs text-content-subtle">
@@ -375,7 +375,7 @@ export default function RequestDetailPage() {
           <CardTitle>פרטי הפניה</CardTitle>
           {!editingIntake && (
             <Button variant="outline" size="sm" onClick={() => setEditingIntake(true)}>
-              <Pencil className="w-4 h-4 ml-2" />
+              <Pencil className="w-4 h-4" />
               עריכה
             </Button>
           )}

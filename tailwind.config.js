@@ -104,7 +104,72 @@ const config = {
         },
       },
       fontFamily: {
-        sans: ['Heebo', 'system-ui', 'sans-serif'],
+        // Injected by next/font in app/layout.tsx, so the family carries
+        // size-adjust fallback metrics and cannot shift layout on first paint.
+        sans: ['var(--font-ui)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+      },
+
+      /**
+       * The console type scale, added alongside Tailwind's defaults rather
+       * than over them. Overwriting `text-sm` would restyle every one of the
+       * ~400 call sites in this repo in a commit whose stated purpose is
+       * "add scales", and there would be no way to tell a deliberate change
+       * from an accidental one in the baseline diff. Components opt in.
+       *
+       * Body is `ui-sm` (13px). Page titles are `ui-lg` (18px) - today a page
+       * h1 and a KPI value are both 24px bold, so the two most different
+       * things on the dashboard are typographically identical.
+       */
+      fontSize: {
+        'ui-2xs': ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.01em' }],
+        'ui-xs': ['0.75rem', { lineHeight: '1.05rem' }],
+        'ui-sm': ['0.8125rem', { lineHeight: '1.15rem' }],
+        'ui-md': ['0.9375rem', { lineHeight: '1.35rem' }],
+        'ui-lg': ['1.125rem', { lineHeight: '1.4rem', letterSpacing: '-0.015em' }],
+        'ui-xl': ['1.375rem', { lineHeight: '1.6rem', letterSpacing: '-0.02em' }],
+        'ui-2xl': ['1.75rem', { lineHeight: '2rem', letterSpacing: '-0.025em' }],
+      },
+
+      borderRadius: {
+        sm: 'var(--radius-sm)',
+        DEFAULT: 'var(--radius)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
+      },
+
+      boxShadow: {
+        e0: 'var(--elevation-0)',
+        e1: 'var(--elevation-1)',
+        e2: 'var(--elevation-2)',
+      },
+
+      spacing: {
+        row: 'var(--row-height)',
+        'row-compact': 'var(--row-height-compact)',
+        control: 'var(--control-height)',
+        gutter: 'var(--page-gutter)',
+        'shell-header': 'var(--shell-header-height)',
+        'shell-sidebar': 'var(--shell-sidebar-width)',
+        'shell-rail': 'var(--shell-rail-width)',
+      },
+
+      transitionDuration: {
+        fast: 'var(--duration-fast)',
+        base: 'var(--duration-base)',
+      },
+
+      transitionTimingFunction: {
+        'out-expo': 'var(--ease-out)',
+      },
+
+      zIndex: {
+        nav: '10',
+        sticky: '20',
+        overlay: '40',
+        modal: '50',
+        toast: '60',
       },
     },
   },

@@ -235,13 +235,13 @@ export default function ClientDetailPage() {
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowEditForm(true)}>
-            <Edit className="w-4 h-4 ml-2" />
+            <Edit className="w-4 h-4" />
             עריכה
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={deleting}>
-                <Trash2 className="w-4 h-4 ml-2" />
+                <Trash2 className="w-4 h-4" />
                 מחיקה
               </Button>
             </AlertDialogTrigger>
@@ -329,7 +329,7 @@ export default function ClientDetailPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>אנשי קשר</CardTitle>
           <Button size="sm" onClick={() => setShowContactForm(true)}>
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             הוסף איש קשר
           </Button>
         </CardHeader>
@@ -383,7 +383,7 @@ export default function ClientDetailPage() {
             size="sm"
             onClick={() => router.push(`/projects?new=true&clientId=${client.id}`)}
           >
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             פרויקט חדש
           </Button>
         </CardHeader>
@@ -431,7 +431,7 @@ export default function ClientDetailPage() {
         requests={requests}
         action={
           <Button size="sm" onClick={() => setShowRequestForm(true)}>
-            <Plus className="w-4 h-4 ml-2" />
+            <Plus className="w-4 h-4" />
             פניה חדשה ללקוח זה
           </Button>
         }

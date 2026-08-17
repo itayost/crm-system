@@ -33,7 +33,7 @@ export function ContactProjectsCard({
           size="sm"
           onClick={() => router.push(`/projects?new=true&clientId=${clientId}`)}
         >
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           פרויקט חדש
         </Button>
       </CardHeader>

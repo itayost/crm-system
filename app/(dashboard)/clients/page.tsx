@@ -64,7 +64,7 @@ export default function ClientsPage() {
           </p>
         </div>
         <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 ml-2" />
+          <Plus className="w-4 h-4" />
           לקוח חדש
         </Button>
       </div>

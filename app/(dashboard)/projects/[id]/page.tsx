@@ -166,7 +166,7 @@ export default function ProjectDetailPage() {
               disabled={updatingStatus}
               onClick={() => handleStatusChange('COMPLETED')}
             >
-              <CheckSquare className="w-4 h-4 ml-2" />
+              <CheckSquare className="w-4 h-4" />
               סמן כהושלם
             </Button>
           ) : (
@@ -180,13 +180,13 @@ export default function ProjectDetailPage() {
             </Button>
           )}
           <Button variant="outline" onClick={() => setShowEditForm(true)}>
-            <Edit className="w-4 h-4 ml-2" />
+            <Edit className="w-4 h-4" />
             עריכה
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={deleting}>
-                <Trash2 className="w-4 h-4 ml-2" />
+                <Trash2 className="w-4 h-4" />
                 מחיקה
               </Button>
             </AlertDialogTrigger>
