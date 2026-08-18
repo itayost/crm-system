@@ -8,12 +8,11 @@ import { portalButton } from '@/components/portal/portal-button'
 import { PortalAnswer, PortalCard, PortalSection } from '@/components/portal/portal-page'
 import { CLIENT_PHASE_STATUS_LABELS } from '@/lib/design/labels'
 import {
-  listClientProjects,
-  listClientRequests,
   type ClientPhaseView,
   type ClientProjectView,
   type ClientRequestView,
 } from '@/lib/services/client-view'
+import { listClientProjects, listClientRequests } from '@/lib/services/client-view.queries'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
 import { formatCurrency, formatDate } from '@/lib/utils'
 

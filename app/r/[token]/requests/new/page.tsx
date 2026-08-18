@@ -1,7 +1,7 @@
 import { InvalidToken } from '@/components/portal/invalid-token'
 import { NewRequestForm } from '@/components/portal/new-request-form'
 import { PortalBack, PortalTitle } from '@/components/portal/portal-page'
-import { listClientProjects } from '@/lib/services/client-view'
+import { listClientProjects } from '@/lib/services/client-view.queries'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
 
 export const dynamic = 'force-dynamic'
