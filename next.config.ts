@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withEve } from "eve/next";
 
 /**
  * Baseline security headers.
@@ -71,4 +72,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * withEve mounts the agent in `agent/` into this app, so the two ship as one
+ * Vercel deployment rather than a second project. The agent answers under
+ * /eve/v1/*, and its auth is decided in agent/channels/eve.ts, not here.
+ */
+export default withEve(nextConfig);
