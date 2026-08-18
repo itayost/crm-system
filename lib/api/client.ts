@@ -23,8 +23,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Redirect to login on unauthorized
-      window.location.href = '/login'
+      // Redirect to login on unauthorized. Resolved against the current
+      // origin: a bare relative string here is ambiguous enough that Next
+      // lints against it.
+      window.location.href = new URL('/login', window.location.origin).toString()
     }
     return Promise.reject(error)
   }

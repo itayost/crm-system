@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Edit, Trash2, Plus, Link2, RotateCcw, Check, Copy, Star } from 'lucide-react'
+import { Edit, Trash2, Plus, Link2, RotateCcw, Check, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import api from '@/lib/api/client'

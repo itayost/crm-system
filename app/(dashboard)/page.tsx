@@ -96,7 +96,7 @@ function Block({
 
 function Row({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 border-b px-3 last:border-b-0 [&:not(:last-child)]:border-b">
+    <div className="flex items-center gap-2 border-b px-3 last:border-b-0 not-last:border-b">
       <div className="flex h-row w-full items-center gap-2 text-ui-sm">{children}</div>
     </div>
   )
@@ -465,7 +465,7 @@ export default function TodayPage() {
           <Link
             key={figure.k}
             href={figure.href}
-            className="flex min-w-[9rem] flex-1 flex-col gap-0.5 border-e px-4 py-2.5 transition-colors duration-fast last:border-e-0 hover:bg-surface-subtle"
+            className="flex min-w-36 flex-1 flex-col gap-0.5 border-e px-4 py-2.5 transition-colors duration-fast last:border-e-0 hover:bg-surface-subtle"
           >
             <span className="text-ui-2xs text-content-subtle">{figure.k}</span>
             <bdi className="font-mono text-ui-md font-semibold tabular-nums text-content-strong">

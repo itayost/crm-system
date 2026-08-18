@@ -93,7 +93,7 @@ export function CommandPalette({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="לאן ללכת, או מה ליצור..."
           aria-label="חיפוש ופעולות"
-          className="h-11 w-full border-b bg-transparent px-4 text-ui-md outline-none placeholder:text-content-faint"
+          className="h-11 w-full border-b bg-transparent px-4 text-ui-md outline-hidden placeholder:text-content-faint"
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault()

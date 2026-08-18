@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: { request: { groupBy: vi.fn(), count: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() } } }))
 
-const { median, daysSince } = await import('@/lib/services/request-metrics.service')
+const { median, daysSince } = await import('@/lib/services/request-metrics.helpers')
 const { buildTimeline } = await import('@/lib/services/request-timeline')
 
 describe('median close time', () => {

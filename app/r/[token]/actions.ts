@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { PhasesService } from '@/lib/services/phases.service'
 import { RequestsService } from '@/lib/services/requests.service'
-import { resolveClientAttachment } from '@/lib/services/client-view'
+import { resolveClientAttachment } from '@/lib/services/client-view.queries'
 import { StorageService } from '@/lib/services/storage.service'
 import { phaseReviewSchema } from '@/lib/validations/phase'
 import { clientDecisionSchema } from '@/lib/validations/request'

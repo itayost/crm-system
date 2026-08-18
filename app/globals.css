@@ -1,6 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/*
+ * Tailwind 4 reads its theme from CSS, but this project's theme is generated:
+ * tailwind.config.js builds the eight-tone scale programmatically, so the
+ * colour utilities are 32 entries no one should hand-maintain in @theme.
+ * @config keeps that file as the source of truth.
+ */
+@config '../tailwind.config.js';
 
 @layer base {
   :root {

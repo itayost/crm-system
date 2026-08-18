@@ -41,6 +41,5 @@ jobs:
           # Build-time only. Prisma needs a parseable URL to generate the
           # client; no query ever runs against it here.
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
-          DIRECT_URL: postgresql://user:pass@localhost:5432/db
           NEXTAUTH_SECRET: ci-build-only-not-a-real-secret
           NEXTAUTH_URL: http://localhost:3000

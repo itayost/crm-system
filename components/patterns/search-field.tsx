@@ -29,10 +29,10 @@ export function SearchField({
   className?: string
 } & Omit<React.ComponentPropsWithoutRef<typeof Input>, 'value' | 'onChange'>) {
   return (
-    <div className={cn('relative min-w-[12rem] max-w-md flex-1', className)}>
+    <div className={cn('relative min-w-48 max-w-md flex-1', className)}>
       <Search
         aria-hidden
-        className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-content-faint"
+        className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-content-faint"
       />
       <Input
         type="search"

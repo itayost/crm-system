@@ -5,7 +5,7 @@ import { PortalNav } from '@/components/portal/portal-nav'
 import { PortalTitle } from '@/components/portal/portal-page'
 import { PortalProjectCard } from '@/components/portal/project-card'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
-import { listClientProjects, listClientRequests } from '@/lib/services/client-view'
+import { listClientProjects, listClientRequests } from '@/lib/services/client-view.queries'
 
 export const dynamic = 'force-dynamic'
 

@@ -313,7 +313,7 @@ export function NewRequestForm({
  */
 const FIELD_BASE =
   'w-full rounded-md border border-border-strong bg-card px-3.5 text-portal-base text-content-body ' +
-  'placeholder:text-content-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
+  'placeholder:text-content-faint focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ' +
   'focus-visible:ring-offset-2 focus-visible:ring-offset-surface-app'
 
 const FIELD = `h-control ${FIELD_BASE}`

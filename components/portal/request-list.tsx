@@ -94,7 +94,7 @@ function RequestCard({ token, request }: { token: string; request: ClientRequest
       href={`/r/${token}/${request.id}`}
       className={cn(
         'flex flex-col gap-1.5 rounded-lg border p-4 transition-colors duration-fast',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
         // Exactly one group is tinted, and it is the one holding something the
         // client has to do. Tinting more would make the tint mean nothing.
         awaiting

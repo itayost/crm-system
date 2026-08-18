@@ -56,7 +56,7 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
           value={decliningNote}
           onChange={(e) => setDecliningNote(e.target.value)}
           placeholder="המחיר גבוה מדי, אפשר בלי החלק השני, נדבר על זה בחודש הבא..."
-          className="w-full rounded-md border border-border-strong bg-card p-3.5 text-portal-sm text-content-body placeholder:text-content-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-md border border-border-strong bg-card p-3.5 text-portal-sm text-content-body placeholder:text-content-faint focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         />
         <DecisionError error={error} />
         <div className="flex flex-wrap gap-2.5">
@@ -92,11 +92,11 @@ export function DecisionPanel({ token, requestId }: { token: string; requestId: 
   return (
     <div className="flex flex-col gap-3">
       <DecisionError error={error} />
-      <div className="fixed inset-x-0 bottom-0 z-sticky flex flex-col gap-2 border-t bg-surface-app/95 px-gutter pb-4 pt-3 shadow-e2 backdrop-blur-sm sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
+      <div className="fixed inset-x-0 bottom-0 z-sticky flex flex-col gap-2 border-t bg-surface-app/95 px-gutter pb-4 pt-3 shadow-e2 backdrop-blur-xs sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
         <div className="mx-auto flex w-full max-w-2xl gap-2.5">
           <PortalButton
             type="button"
-            className="flex-[2]"
+            className="flex-2"
             disabled={pending}
             onClick={() => submit('APPROVED')}
           >

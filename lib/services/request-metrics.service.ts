@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { daysBetween, daysSince, median } from './request-metrics.helpers'
 
 /**
  * The numbers that answer "what needs me, and what is rotting".
@@ -114,25 +115,3 @@ export class RequestMetricsService {
   }
 }
 
-/** Whole days elapsed, floored - "opened 15 days ago" not "15.4". */
-export function daysSince(from: Date | string, now: Date = new Date()): number {
-  const ms = now.getTime() - new Date(from).getTime()
-  return Math.max(0, Math.floor(ms / 86_400_000))
-}
-
-function daysBetween(from: Date, to: Date): number {
-  return Math.max(0, Math.round((to.getTime() - from.getTime()) / 86_400_000))
-}
-
-/**
- * Median rather than mean: one job that sat for three months would drag an
- * average past every real number and make the figure useless.
- */
-export function median(values: number[]): number | null {
-  if (values.length === 0) return null
-
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
-}

@@ -110,7 +110,7 @@ function TextInput({
       readOnly={readOnly}
       placeholder={placeholder}
       onChange={readOnly ? undefined : (e) => onChange?.(e.target.value)}
-      className={`rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+      className={`rounded border px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-ring ${
         readOnly
           ? 'bg-surface-muted text-content-subtle cursor-not-allowed'
           : 'bg-white border-border-strong'
@@ -286,7 +286,7 @@ function FormBody({
                 value={values.safetyConfig}
                 onChange={(e) => onChange({ safetyConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="Ingestion config (JSON)" hint="Leave blank to clear">
@@ -294,7 +294,7 @@ function FormBody({
                 value={values.ingestionConfig}
                 onChange={(e) => onChange({ ingestionConfig: e.target.value })}
                 rows={6}
-                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                className="rounded border border-border-strong px-3 py-2 text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-ring"
               />
             </Field>
           </div>

@@ -6,7 +6,7 @@ import { portalButton } from '@/components/portal/portal-button'
 import { PortalTitle } from '@/components/portal/portal-page'
 import { PortalRequestList } from '@/components/portal/request-list'
 import { PublicRequestsService } from '@/lib/services/public-requests.service'
-import { listClientRequests } from '@/lib/services/client-view'
+import { listClientRequests } from '@/lib/services/client-view.queries'
 
 export const dynamic = 'force-dynamic'
 

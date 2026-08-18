@@ -65,7 +65,7 @@ export function AttachmentGrid({
           type="button"
           disabled={busy === file.index}
           onClick={() => open(file.index)}
-          className="flex items-center gap-3 rounded-md border bg-card p-2.5 text-start transition-colors duration-fast hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+          className="flex items-center gap-3 rounded-md border bg-card p-2.5 text-start transition-colors duration-fast hover:bg-surface-subtle focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-sm bg-surface-subtle font-mono text-[0.625rem] font-bold text-content-muted">
             {file.kind ?? '···'}

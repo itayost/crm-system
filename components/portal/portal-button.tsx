@@ -16,7 +16,7 @@ export type PortalButtonTone = 'ink' | 'ghost' | 'quiet'
 
 const BASE =
   'inline-flex h-control items-center justify-center gap-2 rounded-md px-5 text-portal-base font-semibold ' +
-  'transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
+  'transition-colors duration-fast focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ' +
   'focus-visible:ring-offset-2 focus-visible:ring-offset-surface-app disabled:pointer-events-none disabled:opacity-50'
 
 const TONE: Record<PortalButtonTone, string> = {

@@ -39,7 +39,7 @@ export function FactRail({
     >
       {visible.map((fact, i) => (
         <div key={i} className="flex gap-3 px-3 py-2 text-ui-xs">
-          <dt className="w-[4.5rem] shrink-0 text-content-subtle">{fact.term}</dt>
+          <dt className="w-18 shrink-0 text-content-subtle">{fact.term}</dt>
           <dd className="min-w-0 flex-1 text-content-body">{fact.value}</dd>
         </div>
       ))}
