@@ -1,5 +1,5 @@
 import { StatusPill } from '@/components/ui/status-pill'
-import { daysSince } from '@/lib/services/request-metrics.service'
+import { daysSince } from '@/lib/services/request-metrics.helpers'
 
 /** Past this, an open request is worth a second look rather than a scroll past. */
 const STALE_DAYS = 7
