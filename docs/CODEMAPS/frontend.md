@@ -26,8 +26,9 @@ composition   components/patterns/*        THE console layer. PageHeader, Search
                                            TonePanel, ConfirmDelete.
               components/portal/*          THE client layer. PortalShell/Nav/Page/Button,
                                            JourneyRail, QuoteDecision, DecisionPanel,
-                                           IntakePlayback, AttachmentGrid, NewRequestForm,
-                                           RequestList, ProjectCard, InvalidToken.
+                                           PhaseReview, IntakePlayback, AttachmentGrid,
+                                           NewRequestForm, RequestList, ProjectCard,
+                                           InvalidToken.
                                            Both held to zero physical direction utilities by
                                            tests/design-rtl.test.ts.
 
@@ -108,8 +109,11 @@ history.
 - **On the portal, the answer comes before the evidence.** A client arrives with
   one question and should not have to assemble the answer out of counters.
 - **The journey rail is the portal's signature.** done = filled ink + a date,
-  now = the only tone-coloured marker, ahead = hollow ring, no date. Paid is an
-  ink underline, never green - work state owns the colour, money owns the mark.
+  now = tone-coloured, ahead = hollow ring, no date. Paid is an ink underline,
+  never green - work state owns the colour, money owns the mark.
+- **A client write that moves money states the consequence above the button.**
+  Approving a quote and signing off a phase both do; both say so first, and both
+  give the alternative equal visual weight.
 - Rows navigate through a real `<Link>`, so cmd-click and copy-link work.
 - Numbers are wrapped in `<bdi>`; without it `₪1,200` renders with the shekel on
   the wrong side.
@@ -134,7 +138,7 @@ history.
   with `project-money.ts`.
 - `tests/money-agreement.test.ts` - the `כספים` badge and `/money` must count
   the same thing.
-- `e2e/` - 80 tests across `main`, `auth` and `mobile` projects. Portal teardown
+- `e2e/` - 82 tests across `main`, `auth` and `mobile` projects. Portal teardown
   runs inwards-out (tasks, requests, projects, then the client): neither
   `ClientsService.delete` nor `ProjectsService.delete` cascades, both on purpose,
   and this suite shares a database with production. Every selector
