@@ -53,7 +53,9 @@
     "react-hook-form": "^7.62.0",
     "react-hot-toast": "^2.6.0",
     "tailwind-merge": "^3.3.1",
-    "zod": "^4.1.8"
+    "zod": "^4.1.8",
+    "@vercel/connect": "0.4.3",
+    "eve": "^0.39.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -72,5 +74,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }
