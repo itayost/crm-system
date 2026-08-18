@@ -4,6 +4,17 @@ const BUCKET = 'request-attachments'
 export const ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
 export const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 
+/**
+ * How many files one submission may carry.
+ *
+ * Lives here rather than in the route because a Next.js route segment may only
+ * export its handlers and the framework's own config fields - exporting a
+ * constant from `route.ts` fails the build. It belongs beside the other two
+ * attachment rules anyway, and the form needs the same number to cap its own
+ * picker.
+ */
+export const MAX_ATTACHMENTS = 5
+
 export function validateAttachment(file: { size: number; type: string }) {
   if (!ALLOWED_MIME.includes(file.type)) {
     return { ok: false as const, error: 'סוג קובץ לא נתמך' }

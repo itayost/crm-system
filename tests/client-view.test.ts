@@ -19,6 +19,7 @@ const {
   CLIENT_VISIBLE_STATUSES,
   clientPhaseStatusOf,
   toClientProject,
+  buildClientTimeline,
 } = await import('@/lib/services/client-view')
 
 const NO_QUOTE = { quotedAt: null, clientDecision: null, clientDecisionAt: null }
@@ -183,7 +184,12 @@ describe('what a client is told about a billing phase', () => {
 
   it('puts the ball back in their court when it is there', () => {
     expect(phase('PENDING_APPROVAL')).toBe('AWAITING_YOU')
-    expect(phase('REVISIONS')).toBe('AWAITING_YOU')
+    // REVISIONS used to be asserted here too. It was wrong and it was harmless
+    // in the same breath: with no phase action anywhere in the portal, both
+    // rendered as an unactionable chip, so nothing forced the question of whose
+    // turn it actually was. A client asked for changes and Itay is making them
+    // - that is his turn, and see the 'whose turn it is on a phase' block.
+    expect(phase('REVISIONS')).toBe('IN_PROGRESS')
   })
 
   it('calls signed-off work done', () => {
@@ -243,5 +249,352 @@ describe('the project whitelist', () => {
 
     expect(view.phases.map((p) => p.status)).toEqual(['DONE', 'SCHEDULED'])
     expect(JSON.stringify(view)).not.toContain('NOT_STARTED')
+  })
+})
+
+/* -------------------------------------------------------------------------
+ * Everything below was already stored and shown to the client nowhere.
+ * ---------------------------------------------------------------------- */
+
+const BASE_ROW = {
+  id: 'req-1',
+  title: 'לוגו שגוי',
+  description: 'תיאור',
+  type: 'BUG',
+  status: 'OPEN' as string,
+  createdAt: new Date('2026-08-01'),
+  resolvedAt: null as Date | null,
+  attachments: [] as string[],
+  billingKind: 'BILLABLE',
+  estimateHours: 3,
+  quotedPrice: 1200,
+  quotedAt: null as Date | null,
+  clientDecision: null as string | null,
+  clientDecisionAt: null as Date | null,
+  clientDecisionNote: null as string | null,
+  intake: null as unknown,
+  project: { id: 'proj-1', name: 'האתר' },
+}
+
+describe('attachments a client can tell apart', () => {
+  it('names the file and its kind, and still never publishes the path', () => {
+    const view = toClientRequest({
+      ...BASE_ROW,
+      attachments: ['cl_abc123/9f8e-uuid/screenshot.png', 'cl_abc123/1a2b-uuid/quote.PDF'],
+    })!
+
+    expect(view.attachments).toEqual([
+      { index: 0, name: 'screenshot.png', kind: 'PNG' },
+      { index: 1, name: 'quote.PDF', kind: 'PDF' },
+    ])
+
+    // The client id is the thing the path leaks, and the bucket is shared with
+    // WhatsApp support media, so it must not survive the DTO boundary.
+    const json = JSON.stringify(view)
+    expect(json).not.toContain('cl_abc123')
+    expect(json).not.toContain('9f8e-uuid')
+  })
+
+  it('reports no name when sanitising left nothing readable', () => {
+    // sanitizeName() strips everything outside [A-Za-z0-9._-], so a Hebrew
+    // filename arrives as underscores. "____.png" is a worse label than none.
+    const view = toClientRequest({
+      ...BASE_ROW,
+      attachments: ['cl_abc123/uuid/____.png'],
+    })!
+
+    expect(view.attachments).toEqual([{ index: 0, name: null, kind: 'PNG' }])
+  })
+
+  it('keeps the count in step with the list', () => {
+    const view = toClientRequest({ ...BASE_ROW, attachments: ['a/b/one.png', 'a/b/two.pdf'] })!
+
+    expect(view.attachmentCount).toBe(view.attachments.length)
+  })
+})
+
+describe('the intake, played back to whoever answered it', () => {
+  const INTAKE = {
+    where: 'בתפריט העליון',
+    whatHappened: 'נסגר מיד',
+    expected: 'שיישאר פתוח',
+    frequency: 'ALWAYS',
+    workedBefore: false,
+    blocking: true,
+    goal: null,
+    today: null,
+    suggestedType: 'BUG',
+  }
+
+  it('never emits the agent’s guess at the ticket type', () => {
+    // suggestedType is documented in the schema as a hint for Itay only. The
+    // client was never asked, so showing it back as if it were their answer
+    // would misrepresent the conversation they just had.
+    const view = toClientRequest({ ...BASE_ROW, intake: INTAKE })!
+
+    expect(view.intake.map((a) => a.field)).not.toContain('suggestedType')
+    expect(JSON.stringify(view.intake)).not.toContain('BUG')
+  })
+
+  it('renders enums and booleans as Hebrew, not as raw values', () => {
+    const view = toClientRequest({ ...BASE_ROW, intake: INTAKE })!
+    const byField = Object.fromEntries(view.intake.map((a) => [a.field, a.value]))
+
+    expect(byField.frequency).toBe('תמיד')
+    expect(byField.workedBefore).toBe('לא')
+    expect(byField.blocking).toBe('כן')
+    expect(byField.where).toBe('בתפריט העליון')
+  })
+
+  it('skips what was never answered, rather than showing empty rows', () => {
+    const view = toClientRequest({ ...BASE_ROW, intake: INTAKE })!
+
+    expect(view.intake.map((a) => a.field)).not.toContain('goal')
+    expect(view.intake.map((a) => a.field)).not.toContain('today')
+  })
+
+  it('survives a stored shape that no longer parses', () => {
+    const view = toClientRequest({ ...BASE_ROW, intake: { where: 42, nonsense: true } })!
+
+    expect(view.intake).toEqual([])
+  })
+
+  it('is empty, not absent, when the bot never ran', () => {
+    expect(toClientRequest(BASE_ROW)!.intake).toEqual([])
+  })
+})
+
+describe('the client’s own decline note', () => {
+  const DECLINED = {
+    ...BASE_ROW,
+    quotedAt: new Date('2026-08-05'),
+    clientDecision: 'DECLINED',
+    clientDecisionAt: new Date('2026-08-06'),
+    clientDecisionNote: 'המחיר גבוה מדי לרבעון הזה',
+  }
+
+  it('reads back to the person who wrote it', () => {
+    expect(toClientRequest(DECLINED)!.declineNote).toBe('המחיר גבוה מדי לרבעון הזה')
+  })
+
+  it('does not surface on an approval', () => {
+    // sendQuote() resets the note on a re-quote, but a stale one must not ride
+    // along on a request the client went on to approve.
+    const approved = { ...DECLINED, clientDecision: 'APPROVED' }
+
+    expect(toClientRequest(approved)!.declineNote).toBeNull()
+  })
+})
+
+describe('the timeline a client is shown', () => {
+  const dated = (events: ReturnType<typeof buildClientTimeline>) =>
+    events.filter((e) => e.state === 'done').map((e) => e.label)
+
+  it('speaks in the second person, never about "the client"', () => {
+    const view = toClientRequest({
+      ...BASE_ROW,
+      quotedAt: new Date('2026-08-05'),
+      clientDecision: 'APPROVED',
+      clientDecisionAt: new Date('2026-08-06'),
+      status: 'IN_PROGRESS',
+    })!
+
+    const events = buildClientTimeline(view)
+
+    expect(dated(events)).toEqual(['הפנייה נפתחה', 'נשלחה אליך הצעת מחיר', 'אישרת את ההצעה'])
+    expect(JSON.stringify(events)).not.toContain('הלקוח')
+    expect(JSON.stringify(events)).not.toContain('משימה')
+  })
+
+  it('leaves the current step undated, because no column records when it began', () => {
+    // Request has no startedAt. Stamping "work started" with updatedAt would be
+    // a guess presented to a paying customer as a fact.
+    const view = toClientRequest({ ...BASE_ROW, status: 'IN_PROGRESS' })!
+    const now = buildClientTimeline(view).find((e) => e.state === 'now')!
+
+    expect(now.label).toBe('בפיתוח')
+    expect(now.at).toBeNull()
+  })
+
+  it('shows the shape of what is left', () => {
+    const view = toClientRequest({ ...BASE_ROW, status: 'IN_PROGRESS' })!
+    const ahead = buildClientTimeline(view).filter((e) => e.state === 'ahead')
+
+    expect(ahead.map((e) => e.label)).toEqual(['נמסר לבדיקה שלך'])
+    expect(ahead.every((e) => e.at === null)).toBe(true)
+  })
+
+  it('stops at the end rather than promising more', () => {
+    const view = toClientRequest({
+      ...BASE_ROW,
+      status: 'RESOLVED',
+      resolvedAt: new Date('2026-08-09'),
+    })!
+    const events = buildClientTimeline(view)
+
+    expect(events.some((e) => e.state === 'ahead')).toBe(false)
+    expect(events.some((e) => e.state === 'now')).toBe(false)
+    expect(events.at(-1)!.label).toBe('הושלם')
+  })
+
+  it('carries the decline note onto the event that explains it', () => {
+    const view = toClientRequest({
+      ...BASE_ROW,
+      quotedAt: new Date('2026-08-05'),
+      clientDecision: 'DECLINED',
+      clientDecisionAt: new Date('2026-08-06'),
+      clientDecisionNote: 'נדבר על זה ברבעון הבא',
+    })!
+    const decided = buildClientTimeline(view).find((e) => e.key === 'decided')!
+
+    expect(decided.label).toBe('לא אישרת את ההצעה')
+    expect(decided.note).toBe('נדבר על זה ברבעון הבא')
+  })
+})
+
+describe('the ledger reconciles', () => {
+  const project = (phases: Array<Record<string, unknown>>, advance = 0, advancePaidAt: Date | null = null) =>
+    toClientProject({
+      id: 'p1',
+      name: 'פרויקט',
+      description: null,
+      status: 'ACTIVE',
+      deadline: null,
+      completedAt: null,
+      advanceAmount: advance,
+      advancePaidAt,
+      phases: phases as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+  it('splits the total into paid, owed and not yet earned', () => {
+    const view = project(
+      [
+        { id: 'a', name: 'שלב א', status: 'APPROVED', price: 3000, approvedAt: new Date(), paidAt: new Date() },
+        { id: 'b', name: 'שלב ב', status: 'APPROVED', price: 2000, approvedAt: new Date(), paidAt: null },
+        { id: 'c', name: 'שלב ג', status: 'IN_PROGRESS', price: 1500, approvedAt: null, paidAt: null },
+      ],
+      1000,
+      new Date(),
+    )
+
+    expect(view.total).toBe(7500)
+    expect(view.paid).toBe(4000)
+    expect(view.outstanding).toBe(2000)
+    expect(view.notYetDue).toBe(1500)
+    // The whole point of the fourth figure: the three must account for the total.
+    expect(view.paid + view.outstanding + view.notYetDue).toBe(view.total)
+  })
+
+  it('never shows a negative when work was paid before it was signed off', () => {
+    // Paying an advance and a phase up front is normal, and it makes
+    // total - paid - outstanding go under zero. No client can read that.
+    const view = project([
+      { id: 'a', name: 'שלב א', status: 'NOT_STARTED', price: 500, approvedAt: null, paidAt: new Date() },
+    ])
+
+    expect(view.notYetDue).toBe(0)
+  })
+
+  it('dates the phases the rail has to prove happened', () => {
+    const paidAt = new Date('2026-07-09')
+    const view = project([
+      { id: 'a', name: 'שלב א', status: 'APPROVED', price: 500, approvedAt: new Date('2026-07-04'), paidAt },
+    ])
+
+    expect(view.phases[0].paidAt).toBe(paidAt.toISOString())
+    expect(view.phases[0].approvedAt).toBe(new Date('2026-07-04').toISOString())
+  })
+})
+
+describe('the advance is a line, not a gap', () => {
+  it('reaches the rail so the steps can add up to the total', () => {
+    // Without this the phase rail sums to 14,800 under a statement that says
+    // 18,400, and nothing on the page accounts for the difference.
+    const view = toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null,
+      advanceAmount: 3600, advancePaidAt: new Date('2026-06-02'),
+      phases: [
+        { id: 'a', name: 'שלב א', status: 'APPROVED', price: 2400, approvedAt: new Date(), paidAt: new Date() },
+      ] as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+    expect(view.advance).toEqual({ amount: 3600, paidAt: new Date('2026-06-02').toISOString() })
+    expect(view.advance!.amount + view.phases.reduce((s, p) => s + p.price, 0)).toBe(view.total)
+  })
+
+  it('is absent rather than zero when there is no advance', () => {
+    const view = toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null, advanceAmount: 0, advancePaidAt: null,
+      phases: [] as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+    expect(view.advance).toBeNull()
+  })
+})
+
+describe('whose turn it is on a phase', () => {
+  it('only calls PENDING_APPROVAL the client’s turn', () => {
+    expect(clientPhaseStatusOf({ status: 'PENDING_APPROVAL', paidAt: null })).toBe('AWAITING_YOU')
+  })
+
+  it('does not hand REVISIONS back to the client', () => {
+    // REVISIONS means Itay is mid-round *because* the client asked for changes.
+    // It shared AWAITING_YOU with PENDING_APPROVAL while the portal had no phase
+    // action at all - harmless then, and an approve button on work being redone
+    // the moment one existed.
+    expect(clientPhaseStatusOf({ status: 'REVISIONS', paidAt: null })).toBe('IN_PROGRESS')
+  })
+
+  it('still lets payment outrank a pending review', () => {
+    expect(clientPhaseStatusOf({ status: 'PENDING_APPROVAL', paidAt: new Date() })).toBe('PAID')
+  })
+})
+
+describe('the phase a client can answer', () => {
+  const project = (phases: Array<Record<string, unknown>>) =>
+    toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null, advanceAmount: 0, advancePaidAt: null,
+      phases: phases as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+  it('marks exactly the delivered one as answerable', () => {
+    const view = project([
+      { id: 'a', name: 'א', status: 'APPROVED', price: 1, approvedAt: new Date(), paidAt: null },
+      { id: 'b', name: 'ב', status: 'PENDING_APPROVAL', price: 1, approvedAt: null, paidAt: null },
+      { id: 'c', name: 'ג', status: 'REVISIONS', price: 1, approvedAt: null, paidAt: null },
+      { id: 'd', name: 'ד', status: 'IN_PROGRESS', price: 1, approvedAt: null, paidAt: null },
+      { id: 'e', name: 'ה', status: 'NOT_STARTED', price: 1, approvedAt: null, paidAt: null },
+    ])
+
+    expect(view.phases.filter((p) => p.awaitingReview).map((p) => p.id)).toEqual(['b'])
+  })
+
+  it('reads the revision note back while the work is being redone', () => {
+    const view = project([
+      {
+        id: 'c', name: 'ג', status: 'REVISIONS', price: 1, approvedAt: null, paidAt: null,
+        clientReviewedAt: new Date('2026-08-12'), clientNote: 'הכותרת עדיין קטנה מדי',
+      },
+    ])
+
+    expect(view.phases[0].clientNote).toBe('הכותרת עדיין קטנה מדי')
+    expect(view.phases[0].reviewedAt).toBe(new Date('2026-08-12').toISOString())
+    // And it reads as work in progress, not as something waiting on them.
+    expect(view.phases[0].status).toBe('IN_PROGRESS')
+    expect(view.phases[0].awaitingReview).toBe(false)
+  })
+
+  it('does not owe for work that is merely delivered', () => {
+    // The whole reason approval is a money event: outstanding counts APPROVED,
+    // and a phase sitting in review is not that yet.
+    const view = project([
+      { id: 'b', name: 'ב', status: 'PENDING_APPROVAL', price: 4000, approvedAt: null, paidAt: null },
+    ])
+
+    expect(view.outstanding).toBe(0)
+    expect(view.notYetDue).toBe(4000)
   })
 })

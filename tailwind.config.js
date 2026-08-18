@@ -108,6 +108,9 @@ const config = {
         // size-adjust fallback metrics and cannot shift layout on first paint.
         sans: ['var(--font-ui)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        // The portal's display face. Scoped by use, not by config: only
+        // components under app/r/[token] ever ask for `font-display`.
+        display: ['var(--font-display)', 'Georgia', 'serif'],
       },
 
       /**
@@ -129,6 +132,24 @@ const config = {
         'ui-lg': ['1.125rem', { lineHeight: '1.4rem', letterSpacing: '-0.015em' }],
         'ui-xl': ['1.375rem', { lineHeight: '1.6rem', letterSpacing: '-0.02em' }],
         'ui-2xl': ['1.75rem', { lineHeight: '2rem', letterSpacing: '-0.025em' }],
+
+        /**
+         * The portal scale, a separate axis from the console's.
+         *
+         * Body is 17px, not 13px. The console's reader is paid to look at it
+         * all day on a desktop; the portal's is a client holding a phone
+         * outdoors for forty seconds, and 13px is the wrong answer for them
+         * even though it is the right answer upstairs. Nothing shares a step
+         * with `ui-*` on purpose - a shared value would invite a component to
+         * drift between the two surfaces.
+         */
+        'portal-2xs': ['0.78125rem', { lineHeight: '1.05rem' }],
+        'portal-xs': ['0.875rem', { lineHeight: '1.25rem' }],
+        'portal-sm': ['0.9375rem', { lineHeight: '1.4rem' }],
+        'portal-base': ['1.0625rem', { lineHeight: '1.65' }],
+        'portal-lg': ['1.1875rem', { lineHeight: '1.45' }],
+        'portal-title': ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
+        'portal-display': ['1.8125rem', { lineHeight: '1.24', letterSpacing: '-0.012em' }],
       },
 
       borderRadius: {

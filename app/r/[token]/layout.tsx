@@ -15,14 +15,28 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false, nocache: true },
 }
 
+/**
+ * `data-surface="portal"` is the whole re-skin.
+ *
+ * It is the only place in the app that sets it. The attribute selector in
+ * globals.css re-points the semantic tokens - surfaces, ink, border, radius,
+ * control height, --primary, and the eight tone washes - so every shared
+ * primitive rendered below this div comes out in the portal's material without
+ * a single component knowing which surface it is on.
+ */
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div dir="rtl" lang="he" className="flex min-h-dvh flex-col bg-surface-app">
+    <div
+      data-surface="portal"
+      dir="rtl"
+      lang="he"
+      className="flex min-h-dvh flex-col text-portal-base text-content-body"
+    >
       <PortalHeader />
 
       {/* pb-24 leaves room for the sticky decision bar on a request page, so
           the last card is never trapped underneath it. */}
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-24 pt-4 sm:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-gutter pb-24 pt-5">{children}</main>
 
       <PortalFooter whatsapp={whatsappLink()} />
     </div>

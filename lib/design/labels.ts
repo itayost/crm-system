@@ -84,7 +84,19 @@ export const CLIENT_REQUEST_STATUS_LABELS: Record<string, string> = {
 export const CLIENT_PHASE_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: 'ממתין לביצוע',
   IN_PROGRESS: 'בעבודה',
-  AWAITING_YOU: 'ממתין לאישורך',
+  /**
+   * 'ממתין לבדיקה שלך', not 'ממתין לאישורך'.
+   *
+   * The control exists now - PhasesService.recordClientReview, reached from the
+   * portal - but "review" is still the right word rather than "approval",
+   * because it has two outcomes: sign the work off, or ask for another round.
+   * Naming only the first would put a thumb on the scale of a decision that
+   * turns the phase into an invoice.
+   *
+   * Only PENDING_APPROVAL reaches this label. REVISIONS reads as work in
+   * progress, which is what it is - see clientPhaseStatusOf.
+   */
+  AWAITING_YOU: 'ממתין לבדיקה שלך',
   DONE: 'הושלם',
   PAID: 'שולם',
 }

@@ -17,12 +17,21 @@ const prismaMock = {
     findMany: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     delete: vi.fn(),
   },
   $transaction: vi.fn(),
 }
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
+
+// The owner notice is fire-and-forget and must never be able to turn a
+// recorded sign-off into an error on the client's screen.
+const sendMessage = vi.fn()
+vi.mock('@/lib/services/waha.service', () => ({ WahaService: { sendMessage: (...a: unknown[]) => sendMessage(...a) } }))
+vi.mock('@/lib/services/whatsapp-agent.service', () => ({
+  WhatsAppAgentService: { resolveOwnerChatId: async () => 'owner@c.us' },
+}))
 
 const { PhasesService } = await import('@/lib/services/phases.service')
 
@@ -240,5 +249,136 @@ describe('deleting a phase', () => {
       where: { id: 'c' },
       data: { order: 3 },
     })
+  })
+})
+
+describe('the client signs off a phase', () => {
+  const TOKEN = 'tok-1'
+  const DELIVERED = {
+    id: 'phase-1',
+    name: 'פיתוח החזית',
+    status: 'PENDING_APPROVAL',
+    price: 3600,
+    project: { name: 'האתר', userId: 'user-1', client: { name: 'רשת ביסטרו' } },
+  }
+
+  beforeEach(() => {
+    // Every other block in this file clears first; without it the call-count
+    // assertions below read another test's calls.
+    vi.clearAllMocks()
+    prismaMock.projectPhase.updateMany.mockResolvedValue({ count: 1 })
+    sendMessage.mockResolvedValue(undefined)
+  })
+
+  it('reaches the phase through the token, never by id alone', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+
+    await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    // The portal's entire security model is this where clause. A caller may
+    // pass any phase id and still only ever reach their own client's rows.
+    expect(prismaMock.projectPhase.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'phase-1', project: { client: { formToken: TOKEN } } },
+      }),
+    )
+  })
+
+  it('refuses an empty token outright', async () => {
+    await expect(PhasesService.recordClientReview('', 'phase-1', { decision: 'APPROVED' })).rejects.toThrow(
+      'קישור לא תקין',
+    )
+    expect(prismaMock.projectPhase.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('says the same thing for "not yours" as for "does not exist"', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(null)
+
+    await expect(
+      PhasesService.recordClientReview(TOKEN, 'someone-elses', { decision: 'APPROVED' }),
+    ).rejects.toThrow('שלב לא נמצא')
+  })
+
+  it('stamps the sign-off and the proof it was the client', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+
+    await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    const [call] = prismaMock.projectPhase.updateMany.mock.calls
+    expect(call[0].data.status).toBe('APPROVED')
+    expect(call[0].data.approvedAt).toBeInstanceOf(Date)
+    // approvedAt can be set by either side; clientReviewedAt is the narrower
+    // fact that matters if the invoice is ever argued about.
+    expect(call[0].data.clientReviewedAt).toBeInstanceOf(Date)
+    // Never touched here, or anywhere that is not an explicit "mark paid".
+    expect(call[0].data).not.toHaveProperty('paidAt')
+  })
+
+  it('claims the row conditionally, so a double-tap cannot bill twice', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+
+    await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    expect(prismaMock.projectPhase.updateMany.mock.calls[0][0].where).toEqual({
+      id: 'phase-1',
+      status: 'PENDING_APPROVAL',
+    })
+  })
+
+  it('treats a lost race as already answered rather than as an error', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+    prismaMock.projectPhase.updateMany.mockResolvedValue({ count: 0 })
+
+    const result = await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    expect(result.alreadyReviewed).toBe(true)
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('answers only a phase that is actually waiting on them', async () => {
+    for (const status of ['NOT_STARTED', 'IN_PROGRESS', 'REVISIONS', 'APPROVED']) {
+      prismaMock.projectPhase.updateMany.mockClear()
+      prismaMock.projectPhase.findFirst.mockResolvedValue({ ...DELIVERED, status })
+
+      const result = await PhasesService.recordClientReview(TOKEN, 'phase-1', {
+        decision: 'APPROVED',
+      })
+
+      expect(result.alreadyReviewed, `${status} must not be answerable`).toBe(true)
+      expect(prismaMock.projectPhase.updateMany).not.toHaveBeenCalled()
+    }
+  })
+
+  it('sends it back for another round without approving it', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+
+    await PhasesService.recordClientReview(TOKEN, 'phase-1', {
+      decision: 'REVISIONS',
+      note: '  הכותרת קטנה מדי  ',
+    })
+
+    const { data } = prismaMock.projectPhase.updateMany.mock.calls[0][0]
+    expect(data.status).toBe('REVISIONS')
+    // Follows the status both ways, exactly as update() does - so the amount
+    // leaves `outstanding` again rather than staying billable.
+    expect(data.approvedAt).toBeNull()
+    expect(data.clientNote).toBe('הכותרת קטנה מדי')
+  })
+
+  it('clears a stale revision note on approval', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+
+    await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    expect(prismaMock.projectPhase.updateMany.mock.calls[0][0].data.clientNote).toBeNull()
+  })
+
+  it('records the sign-off even when WhatsApp is down', async () => {
+    prismaMock.projectPhase.findFirst.mockResolvedValue(DELIVERED)
+    sendMessage.mockRejectedValue(new Error('Missing WAHA_API_URL environment variable'))
+
+    const result = await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
+
+    expect(result).toEqual({ alreadyReviewed: false, status: 'APPROVED' })
   })
 })

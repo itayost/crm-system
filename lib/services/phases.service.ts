@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
-import type { CreatePhaseInput, UpdatePhaseInput } from '@/lib/validations/phase'
+import type {
+  CreatePhaseInput,
+  PhaseReviewInput,
+  UpdatePhaseInput,
+} from '@/lib/validations/phase'
+import { phaseReviewOwnerNotice } from '@/lib/services/whatsapp-messages'
+import { WahaService } from '@/lib/services/waha.service'
+import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
 
 /**
  * Billing phases on a project.
@@ -96,6 +103,91 @@ export class PhasesService {
     return prisma.projectPhase.update({ where: { id: phaseId }, data: updateData })
   }
 
+
+  /**
+   * The client signs off delivered work, or asks for another round.
+   *
+   * The only method on this class scoped by a token instead of a userId,
+   * because the caller is the client. Same shape as
+   * RequestsService.recordClientDecision, and same invariant: the phase is
+   * reached through `project.client.formToken`, never by id alone, so a caller
+   * can pass any phase id they like and still only ever touch their own.
+   *
+   * This moves money. An APPROVED phase with no paidAt is what
+   * projectOutstanding() counts as an invoice worth chasing, so the moment a
+   * client presses approve the amount leaves "not yet due" and appears in
+   * Itay's dashboard and morning brief. That is the correct meaning - the
+   * schema has always described approvedAt as the sign-off - and it is why the
+   * portal says so above the button rather than after it.
+   *
+   * Only PENDING_APPROVAL is answerable. REVISIONS means Itay is mid-round and
+   * the ball is on his side; NOT_STARTED and IN_PROGRESS are not delivered yet.
+   */
+  static async recordClientReview(
+    token: string,
+    phaseId: string,
+    input: PhaseReviewInput,
+  ): Promise<{ alreadyReviewed: boolean; status: string }> {
+    if (!token?.trim()) {
+      throw new Error('קישור לא תקין')
+    }
+
+    const phase = await prisma.projectPhase.findFirst({
+      where: { id: phaseId, project: { client: { formToken: token } } },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        price: true,
+        project: { select: { name: true, userId: true, client: { select: { name: true } } } },
+      },
+    })
+
+    // Identical for "not yours" and "does not exist", so the message cannot be
+    // used to probe which phase ids are real.
+    if (!phase) {
+      throw new Error('שלב לא נמצא')
+    }
+
+    // Not an error. A double-tap on a phone is the expected case, and so is
+    // answering a link twice from two devices.
+    if (phase.status !== 'PENDING_APPROVAL') {
+      return { alreadyReviewed: true, status: phase.status }
+    }
+
+    const approved = input.decision === 'APPROVED'
+    const now = new Date()
+
+    // Conditional claim: two concurrent answers, and only the first one lands.
+    const claimed = await prisma.projectPhase.updateMany({
+      where: { id: phaseId, status: 'PENDING_APPROVAL' },
+      data: {
+        status: approved ? 'APPROVED' : 'REVISIONS',
+        // Follows the status both ways, exactly as update() does. paidAt is
+        // untouched here and always: money that arrived does not un-arrive.
+        approvedAt: approved ? now : null,
+        clientReviewedAt: now,
+        clientNote: approved ? null : (input.note?.trim() ?? null),
+      },
+    })
+
+    if (claimed.count === 0) {
+      return { alreadyReviewed: true, status: phase.status }
+    }
+
+    await notifyOwnerOfPhaseReview({
+      userId: phase.project.userId,
+      clientName: phase.project.client.name,
+      projectName: phase.project.name,
+      phaseName: phase.name,
+      price: Number(phase.price),
+      decision: input.decision,
+      note: input.note?.trim() ?? null,
+    })
+
+    return { alreadyReviewed: false, status: approved ? 'APPROVED' : 'REVISIONS' }
+  }
+
   /**
    * Swaps a phase with its neighbour. A no-op at the ends rather than an error:
    * the buttons are disabled there, so reaching this is a double-click, not a
@@ -142,5 +234,34 @@ export class PhasesService {
         await tx.projectPhase.update({ where: { id: row.id }, data: { order: index + 1 } })
       }
     })
+  }
+}
+
+/**
+ * Itay's line. Fire-and-forget: the review is already recorded, and a WAHA
+ * outage must not turn a client's sign-off into an error on their screen.
+ */
+async function notifyOwnerOfPhaseReview(params: {
+  userId: string
+  clientName: string
+  projectName: string
+  phaseName: string
+  price: number
+  decision: 'APPROVED' | 'REVISIONS'
+  note: string | null
+}) {
+  try {
+    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
+    if (!ownerChatId) {
+      console.warn('No owner chat id available - phase review notification skipped')
+      return
+    }
+
+    await WahaService.sendMessage({
+      chatId: ownerChatId,
+      text: phaseReviewOwnerNotice(params),
+    })
+  } catch (error) {
+    console.error('Failed to notify owner about a phase review:', error)
   }
 }

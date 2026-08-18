@@ -119,10 +119,17 @@ model ProjectPhase {
   order      Int
   status     PhaseStatus @default(NOT_STARTED)
   price      Decimal     @default(0) @db.Decimal(10, 2)
-  /// Signed off by the client. Says nothing about whether they have paid.
+  /// Signed off. Says nothing about whether they have paid.
   approvedAt DateTime?
   /// Set only by an explicit "סמן כשולם" - un-approving does not un-pay.
   paidAt     DateTime?
+
+  /// When the client themselves answered on this phase, from the portal.
+  /// approvedAt can be set by either side; this is the proof it was the client,
+  /// which is the fact that matters if an invoice is ever argued about.
+  clientReviewedAt DateTime?
+  /// What they said when they asked for another round. Cleared on approval.
+  clientNote       String?   @db.Text
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

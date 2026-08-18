@@ -267,6 +267,115 @@
 
 .tone-mark { background-color: hsl(var(--t-mark)); }
 
+/* --------------------------------------------------------------------
+ * The portal surface.
+ *
+ * /r/[token] is read by a client on a phone, from a WhatsApp link, to answer
+ * one question. The console's material is wrong for that reader: cold grey,
+ * 13px body, 4px radius, 26px controls. So the portal re-points the *semantic*
+ * layer rather than growing a parallel vocabulary - every shared primitive
+ * (StatusPill, Input, Label, Textarea, Select, Button) re-skins from this one
+ * block, and no component below it names a portal-specific colour.
+ *
+ * Unlayered on purpose, same as the tones above: it has to beat `:root`, which
+ * lives in `@layer base`, and unlayered CSS both wins that cascade and is never
+ * purged.
+ *
+ * Applied by app/r/[token]/layout.tsx. Nothing else may set it.
+ * -------------------------------------------------------------------- */
+/* The portal's own primitives.
+ *
+ * On :root rather than inside the scope below, for one reason: custom
+ * properties inherit downward only, and <body> is the portal div's *parent*.
+ * The body needs --paper too - the portal fills the viewport, but an iOS
+ * overscroll bounce rubber-bands past it and shows whatever is behind, which
+ * would be the console's cold grey at the edge of a warm page. Declaring here
+ * lets both read one value instead of two literals drifting apart. */
+:root {
+  --paper: 38 44% 96%;
+  --paper-raised: 0 0% 100%;
+  --paper-sunken: 37 33% 92%;
+  --ink: 24 10% 10%;
+  --ink-2: 30 9% 27%;
+  --ink-3: 32 7% 45%;
+  --ink-faint: 32 9% 63%;
+  --rule: 35 26% 87%;
+  --rule-strong: 35 23% 79%;
+  /* The journey rail's travelled connector - darker than a rule, lighter than
+   * ink, so "behind you" reads before any text is parsed. */
+  --rail-travelled: 36 19% 67%;
+}
+
+body:has([data-surface='portal']) {
+  background-color: hsl(var(--paper));
+}
+
+[data-surface='portal'] {
+  --surface-app: var(--paper);
+  --surface-subtle: var(--paper-sunken);
+  --surface-muted: var(--paper-sunken);
+  --background: var(--paper-raised);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink-2);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink-2);
+
+  --foreground: var(--ink-2);
+  --foreground-strong: var(--ink);
+  --foreground-body: var(--ink-2);
+  --foreground-muted: var(--ink-3);
+  --foreground-subtle: var(--ink-3);
+  --foreground-faint: var(--ink-faint);
+
+  --border: var(--rule);
+  --border-strong: var(--rule-strong);
+  --input: var(--rule-strong);
+  --ring: var(--ink);
+
+  /* The brand colour stops being a status colour.
+   *
+   * --primary, --link and --tone-info-solid are all 221.2 83.2% 53.3% at the
+   * root: one hue doing three unrelated jobs, which is why a primary button and
+   * an "info" chip are indistinguishable. On a surface with no legend and no
+   * training, colour has to mean exactly one thing - so here the brand is ink
+   * and every remaining hue is a status. */
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --link: var(--ink);
+  --secondary: var(--paper-sunken);
+  --secondary-foreground: var(--ink-2);
+  --muted: var(--paper-sunken);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--paper-sunken);
+  --accent-foreground: var(--ink-2);
+
+  /* Only the eight washes move, and only in hue - a -100 mixed for grey reads
+   * faintly cold on cream. `-foreground`, `-mark` and `-solid` are deliberately
+   * untouched, so contrast is unchanged and a status means on the portal
+   * exactly what it means in the console. */
+  --tone-neutral-surface: 38 26% 92%;
+  --tone-info-surface: 214 63% 94%;
+  --tone-success-surface: 133 35% 92%;
+  --tone-warning-surface: 25 79% 92%;
+  --tone-caution-surface: 46 81% 90%;
+  --tone-danger-surface: 7 67% 93%;
+  --tone-accent-surface: 272 49% 94%;
+  --tone-progress-surface: 169 46% 91%;
+
+  /* One thing per screen, read one-handed: 16px cards, 12px controls, and a
+   * 48px minimum target rather than the console's 26px. */
+  --radius-sm: 0.375rem;
+  --radius: 0.625rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --control-height: 3rem;
+  --page-gutter: 1.25rem;
+
+  background-color: hsl(var(--paper));
+  color: hsl(var(--ink-2));
+}
+
 @layer base {
   /* The font used to be applied with a universal selector, which also
    * overrode `font-mono` at the four call sites that ask for it - the agent
