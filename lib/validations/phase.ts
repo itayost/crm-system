@@ -21,3 +21,27 @@ export const updatePhaseSchema = z.object({
 
 export type CreatePhaseInput = z.infer<typeof createPhaseSchema>
 export type UpdatePhaseInput = z.infer<typeof updatePhaseSchema>
+
+/**
+ * The client's answer on a delivered phase.
+ *
+ * Separate from updatePhaseSchema for the same reason sendQuoteSchema is
+ * separate from updateRequestSchema: this transition moves money - an approved
+ * phase is what projectOutstanding() counts as an invoice worth chasing - and
+ * it must not be reachable through a generic update path.
+ *
+ * The note is required on a revision request and forbidden nowhere else. "Needs
+ * changes" with no explanation is not a message, it is a bounce, and the whole
+ * content of the action is what has to change.
+ */
+export const phaseReviewSchema = z
+  .object({
+    decision: z.enum(['APPROVED', 'REVISIONS']),
+    note: z.string().max(1000).optional(),
+  })
+  .refine((value) => value.decision !== 'REVISIONS' || !!value.note?.trim(), {
+    message: 'צריך לכתוב מה לתקן',
+    path: ['note'],
+  })
+
+export type PhaseReviewInput = z.infer<typeof phaseReviewSchema>

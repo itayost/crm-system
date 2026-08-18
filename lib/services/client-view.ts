@@ -473,6 +473,8 @@ export const clientProjectSelect = {
       price: true,
       approvedAt: true,
       paidAt: true,
+      clientReviewedAt: true,
+      clientNote: true,
     },
     orderBy: { order: 'asc' },
   },
@@ -494,8 +496,20 @@ export function clientPhaseStatusOf(phase: {
 }): ClientPhaseStatus {
   if (phase.paidAt) return 'PAID'
   if (phase.status === 'APPROVED') return 'DONE'
-  if (phase.status === 'PENDING_APPROVAL' || phase.status === 'REVISIONS') return 'AWAITING_YOU'
-  if (phase.status === 'IN_PROGRESS') return 'IN_PROGRESS'
+  if (phase.status === 'PENDING_APPROVAL') return 'AWAITING_YOU'
+  /**
+   * REVISIONS is Itay's turn, not the client's.
+   *
+   * It used to land on AWAITING_YOU alongside PENDING_APPROVAL, which was
+   * harmless while the portal had no phase action at all - both rendered as an
+   * unactionable chip. It stopped being harmless the moment a review control
+   * existed, because it would have put an approve button on work that is
+   * actively being redone *because the client asked for changes*.
+   *
+   * The internal label says it plainly: 'סבב תיקונים', a revision round. The
+   * ball is on his side, so to the client this is simply work in progress.
+   */
+  if (phase.status === 'REVISIONS' || phase.status === 'IN_PROGRESS') return 'IN_PROGRESS'
   return 'SCHEDULED'
 }
 
@@ -512,6 +526,18 @@ export interface ClientPhaseView {
    */
   approvedAt: string | null
   paidAt: string | null
+  /**
+   * The client can answer on this phase right now.
+   *
+   * Derived rather than left to the caller to infer from `status`, because
+   * "which phases are answerable" is exactly the kind of rule that gets
+   * re-implemented slightly differently in a component and a bot tool.
+   */
+  awaitingReview: boolean
+  /** When the client themselves last answered. Null if only Itay has. */
+  reviewedAt: string | null
+  /** What they asked to be changed, read back to them while it is being done. */
+  clientNote: string | null
 }
 
 export interface ClientProjectView {
@@ -564,6 +590,8 @@ export function toClientProject(row: {
     price: unknown
     approvedAt: Date | null
     paidAt: Date | null
+    clientReviewedAt?: Date | null
+    clientNote?: string | null
   }[]
 }): ClientProjectView {
   const phases = row.phases.map((phase) => ({
@@ -573,6 +601,9 @@ export function toClientProject(row: {
     price: decimal(phase.price) ?? 0,
     approvedAt: phase.approvedAt?.toISOString() ?? null,
     paidAt: phase.paidAt?.toISOString() ?? null,
+    awaitingReview: phase.status === 'PENDING_APPROVAL',
+    reviewedAt: phase.clientReviewedAt?.toISOString() ?? null,
+    clientNote: phase.clientNote ?? null,
   }))
 
   const money = row.phases.map((p) => ({

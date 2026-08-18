@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { InvalidToken } from '@/components/portal/invalid-token'
 import { JourneyRail, phaseSteps } from '@/components/portal/journey-rail'
+import { PhaseReview } from '@/components/portal/phase-review'
 import { PortalNav } from '@/components/portal/portal-nav'
 import { portalButton } from '@/components/portal/portal-button'
 import { PortalAnswer, PortalCard, PortalSection } from '@/components/portal/portal-page'
@@ -9,6 +10,7 @@ import { CLIENT_PHASE_STATUS_LABELS } from '@/lib/design/labels'
 import {
   listClientProjects,
   listClientRequests,
+  type ClientPhaseView,
   type ClientProjectView,
   type ClientRequestView,
 } from '@/lib/services/client-view'
@@ -49,15 +51,27 @@ export default async function PortalHomePage({
   const awaiting = requests.filter((r) => r.awaitingDecision)
   const active = projects.filter((p) => !p.completedAt)
 
+  // Delivered work waiting on the client is the same kind of fact as an
+  // unanswered quote - something only they can move - so it belongs in the same
+  // answer and the same band rather than two screens away under a tab.
+  const reviews = projects.flatMap((project) =>
+    project.phases.filter((phase) => phase.awaitingReview).map((phase) => ({ project, phase })),
+  )
+
   return (
     <div className="flex flex-col gap-8">
-      <PortalNav token={token} active="home" awaiting={awaiting.length} />
+      <PortalNav
+        token={token}
+        active="home"
+        awaiting={awaiting.length}
+        reviews={reviews.length}
+      />
 
       <header className="flex flex-col gap-2">
         {/* The client's own name is context, not the page's identity - the
             header above says whose system this is. */}
         <p className="text-portal-2xs text-content-muted">עבור {client.name}</p>
-        <PortalAnswer>{answer(awaiting, requests, active)}</PortalAnswer>
+        <PortalAnswer>{answer(awaiting, reviews, requests, active)}</PortalAnswer>
       </header>
 
       {awaiting.length > 0 && (
@@ -93,6 +107,19 @@ export default async function PortalHomePage({
         </PortalSection>
       )}
 
+      {reviews.length > 0 && (
+        <PortalSection className="gap-3">
+          {reviews.map(({ project, phase }) => (
+            <PhaseReview
+              key={phase.id}
+              token={token}
+              phase={phase}
+              projectName={project.name}
+            />
+          ))}
+        </PortalSection>
+      )}
+
       {active.map((project) => (
         <PulseSection key={project.id} token={token} project={project} />
       ))}
@@ -116,9 +143,22 @@ export default async function PortalHomePage({
  */
 function answer(
   awaiting: ClientRequestView[],
+  reviews: Array<{ phase: ClientPhaseView }>,
   requests: ClientRequestView[],
   active: ClientProjectView[],
 ): string {
+  const waiting = awaiting.length + reviews.length
+
+  // Two different kinds of waiting. Naming them separately when there is one of
+  // each beats "יש 2 דברים שממתינים לך", which tells them a number and not what
+  // it is about.
+  if (awaiting.length > 0 && reviews.length > 0) {
+    return `יש ${waiting} דברים שממתינים לך: הצעות מחיר ועבודה לבדיקה.`
+  }
+
+  if (reviews.length === 1) return 'סיימנו שלב, והוא ממתין לבדיקה שלך.'
+  if (reviews.length > 1) return `יש ${reviews.length} שלבים שממתינים לבדיקה שלך.`
+
   if (awaiting.length === 1) return 'יש הצעת מחיר אחת שממתינה לך.'
   if (awaiting.length > 1) return `יש ${awaiting.length} הצעות מחיר שממתינות לך.`
 

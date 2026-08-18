@@ -1,9 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { PhasesService } from '@/lib/services/phases.service'
 import { RequestsService } from '@/lib/services/requests.service'
 import { resolveClientAttachment } from '@/lib/services/client-view'
 import { StorageService } from '@/lib/services/storage.service'
+import { phaseReviewSchema } from '@/lib/validations/phase'
 import { clientDecisionSchema } from '@/lib/validations/request'
 import { checkRateLimit } from '@/lib/utils/rate-limit'
 
@@ -52,6 +54,54 @@ export async function decideOnQuote(
     // Service errors are already written in Hebrew and are safe to show: they
     // say "not found" for anything that is not this client's, so they cannot
     // be used to probe which request ids exist.
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'שגיאה ברישום התשובה',
+    }
+  }
+}
+
+
+/**
+ * The client signs off a delivered phase, or asks for another round.
+ *
+ * The portal has rendered "waiting on you" against a phase since the ledger
+ * shipped, with no control anywhere to answer it - the surface asked for
+ * something it could not accept. This is the control.
+ *
+ * It moves money, which is the reason it is its own action with its own
+ * schema rather than a flag on decideOnQuote: an approved phase is what
+ * projectOutstanding() counts as an invoice worth chasing, so pressing approve
+ * puts the amount into Itay's dashboard and morning brief. The rate limit is
+ * the same shape as the quote decision's, and for the same reason.
+ */
+export async function reviewPhase(
+  token: string,
+  phaseId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const limit = checkRateLimit(`portal-phase:${token}`, 10, 60_000)
+  if (!limit.allowed) {
+    return { ok: false, error: 'יותר מדי בקשות. נסו שוב בעוד דקה.' }
+  }
+
+  const parsed = phaseReviewSchema.safeParse({
+    decision: formData.get('decision'),
+    note: formData.get('note') || undefined,
+  })
+
+  if (!parsed.success) {
+    // The only reachable failure is an empty note on a revision request, and
+    // saying so beats a generic "invalid" on the one field they were typing in.
+    return { ok: false, error: parsed.error.issues[0]?.message ?? 'תשובה לא תקינה' }
+  }
+
+  try {
+    await PhasesService.recordClientReview(token, phaseId, parsed.data)
+    revalidatePath(`/r/${token}`)
+    revalidatePath(`/r/${token}/projects`)
+    return { ok: true }
+  } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'שגיאה ברישום התשובה',

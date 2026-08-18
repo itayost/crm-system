@@ -180,6 +180,85 @@ test.describe('portal on a phone', () => {
     await expect(page.getByText('אישרת את ההצעה')).toBeVisible()
   })
 
+  /**
+   * The control that did not exist.
+   *
+   * The portal has rendered "waiting on you" against a delivered phase since the
+   * ledger shipped, with nothing anywhere to answer it. This walks the whole
+   * path, and the assertion that matters is the money one: approving is what
+   * turns a phase into an invoice, so the ledger has to move with it.
+   */
+  test('a delivered phase can be signed off, and the ledger moves with it', async ({
+    page,
+    request,
+  }) => {
+    const { clientId, formToken } = await mintPortal(request)
+
+    const proj = await request.post('/api/projects', {
+      data: { name: `פרויקט שלבים ${Date.now()}`, type: 'WEBSITE', priority: 'MEDIUM', clientId },
+    })
+    expect(proj.ok()).toBeTruthy()
+    const project = await proj.json()
+    createdProjectIds.push(project.id)
+
+    const made = await request.post(`/api/projects/${project.id}/phases`, {
+      data: { name: 'פיתוח החזית', price: 3600 },
+    })
+    expect(made.ok()).toBeTruthy()
+    const phase = await made.json()
+
+    // Itay delivers it. Only PENDING_APPROVAL is answerable by the client.
+    const delivered = await request.put(`/api/projects/${project.id}/phases/${phase.id}`, {
+      data: { status: 'PENDING_APPROVAL' },
+    })
+    expect(delivered.ok()).toBeTruthy()
+
+    await page.goto(`/r/${formToken}/projects`)
+
+    // Scoped to the ledger: "לתשלום" also appears in the disclosure sentence and
+    // in the not-yet-due footnote, which is three matches for one word.
+    const ledger = page.locator('dl').filter({ hasText: 'לתשלום' })
+
+    // Nothing is owed yet - delivered is not the same as signed off.
+    await expect(ledger).toContainText('0 ₪')
+
+    // Both outcomes get the same weight, and the consequence is stated before
+    // the button rather than in a confirmation after it.
+    const approve = page.getByRole('button', { name: 'אישור השלב' })
+    const revise = page.getByRole('button', { name: 'צריך תיקון' })
+    await expect(page.getByText('והשלב עובר לתשלום')).toBeVisible()
+
+    const approveBox = await approve.boundingBox()
+    const reviseBox = await revise.boundingBox()
+    expect(approveBox, 'approve must render').not.toBeNull()
+    expect(reviseBox, 'the alternative must render').not.toBeNull()
+    // Within 20% of each other: making objection the small button would be a
+    // nudge toward signing off on work, on a control that bills.
+    expect(Math.abs(approveBox!.width - reviseBox!.width)).toBeLessThan(approveBox!.width * 0.2)
+
+    // A revision request will not send without saying what needs changing.
+    await revise.click()
+    await expect(page.getByRole('button', { name: 'שליחה' })).toBeDisabled()
+    await page.getByLabel('מה צריך לתקן?').fill('הכותרת קטנה מדי')
+    await page.getByRole('button', { name: 'שליחה' }).click()
+
+    // Back to Itay, and their words are read back rather than vanishing.
+    await expect(page.getByText('ביקשת: הכותרת קטנה מדי')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'אישור השלב' })).toHaveCount(0)
+
+    // Itay redelivers, and now the client signs off.
+    await request.put(`/api/projects/${project.id}/phases/${phase.id}`, {
+      data: { status: 'PENDING_APPROVAL' },
+    })
+    await page.reload()
+    await page.getByRole('button', { name: 'אישור השלב' }).click()
+
+    // The whole point: an approved phase is an invoice worth chasing, and the
+    // client's own ledger says so.
+    await expect(page.getByRole('button', { name: 'אישור השלב' })).toHaveCount(0)
+    await expect(ledger).toContainText('3,600')
+  })
+
   test('an invalid token still offers a way to reach us', async ({ page }) => {
     await page.goto('/r/nope-not-real')
     await expect(page.getByText('הקישור אינו תקין')).toBeVisible()

@@ -1,4 +1,5 @@
 import { JourneyRail, phaseSteps } from '@/components/portal/journey-rail'
+import { PhaseReview } from '@/components/portal/phase-review'
 import { PortalSection } from '@/components/portal/portal-page'
 import { StatusPill } from '@/components/ui/status-pill'
 import { CLIENT_PHASE_STATUS_LABELS } from '@/lib/design/labels'
@@ -15,11 +16,18 @@ import type { ClientProjectView } from '@/lib/services/client-view'
  * now carry dates and a position, so "where are we" has an answer that does not
  * require reading five status chips and inferring one.
  */
-export function PortalProjectCard({ project }: { project: ClientProjectView }) {
+export function PortalProjectCard({
+  token,
+  project,
+}: {
+  token: string
+  project: ClientProjectView
+}) {
   const steps = phaseSteps(project.phases, CLIENT_PHASE_STATUS_LABELS, project.advance)
   const current = project.phases.findIndex(
     (p) => p.status === 'IN_PROGRESS' || p.status === 'AWAITING_YOU',
   )
+  const awaiting = project.phases.filter((p) => p.awaitingReview)
 
   return (
     <section className="flex flex-col gap-5 rounded-lg border bg-card p-5 shadow-e1">
@@ -61,6 +69,10 @@ export function PortalProjectCard({ project }: { project: ClientProjectView }) {
       {project.description && (
         <p className="whitespace-pre-wrap text-portal-sm text-content-body">{project.description}</p>
       )}
+
+      {awaiting.map((phase) => (
+        <PhaseReview key={phase.id} token={token} phase={phase} projectName={project.name} />
+      ))}
 
       {project.total > 0 && (
         <div className="flex flex-col gap-2">

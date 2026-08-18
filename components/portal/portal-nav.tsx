@@ -16,15 +16,18 @@ export function PortalNav({
   token,
   active,
   awaiting,
+  reviews,
 }: {
   token: string
   active: 'home' | 'requests' | 'projects'
   awaiting?: number
+  /** Delivered phases waiting on the client. Same badge, same meaning. */
+  reviews?: number
 }) {
   const items = [
     { key: 'home', label: 'בית', href: `/r/${token}` },
     { key: 'requests', label: 'הפניות', href: `/r/${token}/requests`, badge: awaiting },
-    { key: 'projects', label: 'הפרויקטים', href: `/r/${token}/projects` },
+    { key: 'projects', label: 'הפרויקטים', href: `/r/${token}/projects`, badge: reviews },
   ] as const
 
   return (

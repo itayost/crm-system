@@ -184,7 +184,12 @@ describe('what a client is told about a billing phase', () => {
 
   it('puts the ball back in their court when it is there', () => {
     expect(phase('PENDING_APPROVAL')).toBe('AWAITING_YOU')
-    expect(phase('REVISIONS')).toBe('AWAITING_YOU')
+    // REVISIONS used to be asserted here too. It was wrong and it was harmless
+    // in the same breath: with no phase action anywhere in the portal, both
+    // rendered as an unactionable chip, so nothing forced the question of whose
+    // turn it actually was. A client asked for changes and Itay is making them
+    // - that is his turn, and see the 'whose turn it is on a phase' block.
+    expect(phase('REVISIONS')).toBe('IN_PROGRESS')
   })
 
   it('calls signed-off work done', () => {
@@ -526,5 +531,70 @@ describe('the advance is a line, not a gap', () => {
     })
 
     expect(view.advance).toBeNull()
+  })
+})
+
+describe('whose turn it is on a phase', () => {
+  it('only calls PENDING_APPROVAL the client’s turn', () => {
+    expect(clientPhaseStatusOf({ status: 'PENDING_APPROVAL', paidAt: null })).toBe('AWAITING_YOU')
+  })
+
+  it('does not hand REVISIONS back to the client', () => {
+    // REVISIONS means Itay is mid-round *because* the client asked for changes.
+    // It shared AWAITING_YOU with PENDING_APPROVAL while the portal had no phase
+    // action at all - harmless then, and an approve button on work being redone
+    // the moment one existed.
+    expect(clientPhaseStatusOf({ status: 'REVISIONS', paidAt: null })).toBe('IN_PROGRESS')
+  })
+
+  it('still lets payment outrank a pending review', () => {
+    expect(clientPhaseStatusOf({ status: 'PENDING_APPROVAL', paidAt: new Date() })).toBe('PAID')
+  })
+})
+
+describe('the phase a client can answer', () => {
+  const project = (phases: Array<Record<string, unknown>>) =>
+    toClientProject({
+      id: 'p1', name: 'פרויקט', description: null, status: 'ACTIVE',
+      deadline: null, completedAt: null, advanceAmount: 0, advancePaidAt: null,
+      phases: phases as Parameters<typeof toClientProject>[0]['phases'],
+    })
+
+  it('marks exactly the delivered one as answerable', () => {
+    const view = project([
+      { id: 'a', name: 'א', status: 'APPROVED', price: 1, approvedAt: new Date(), paidAt: null },
+      { id: 'b', name: 'ב', status: 'PENDING_APPROVAL', price: 1, approvedAt: null, paidAt: null },
+      { id: 'c', name: 'ג', status: 'REVISIONS', price: 1, approvedAt: null, paidAt: null },
+      { id: 'd', name: 'ד', status: 'IN_PROGRESS', price: 1, approvedAt: null, paidAt: null },
+      { id: 'e', name: 'ה', status: 'NOT_STARTED', price: 1, approvedAt: null, paidAt: null },
+    ])
+
+    expect(view.phases.filter((p) => p.awaitingReview).map((p) => p.id)).toEqual(['b'])
+  })
+
+  it('reads the revision note back while the work is being redone', () => {
+    const view = project([
+      {
+        id: 'c', name: 'ג', status: 'REVISIONS', price: 1, approvedAt: null, paidAt: null,
+        clientReviewedAt: new Date('2026-08-12'), clientNote: 'הכותרת עדיין קטנה מדי',
+      },
+    ])
+
+    expect(view.phases[0].clientNote).toBe('הכותרת עדיין קטנה מדי')
+    expect(view.phases[0].reviewedAt).toBe(new Date('2026-08-12').toISOString())
+    // And it reads as work in progress, not as something waiting on them.
+    expect(view.phases[0].status).toBe('IN_PROGRESS')
+    expect(view.phases[0].awaitingReview).toBe(false)
+  })
+
+  it('does not owe for work that is merely delivered', () => {
+    // The whole reason approval is a money event: outstanding counts APPROVED,
+    // and a phase sitting in review is not that yet.
+    const view = project([
+      { id: 'b', name: 'ב', status: 'PENDING_APPROVAL', price: 4000, approvedAt: null, paidAt: null },
+    ])
+
+    expect(view.outstanding).toBe(0)
+    expect(view.notYetDue).toBe(4000)
   })
 })

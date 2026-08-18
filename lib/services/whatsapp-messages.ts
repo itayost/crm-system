@@ -137,6 +137,32 @@ export function clientDecisionOwnerNotice(params: {
   return `${clientName} לא אישר את ההצעה לבקשה *${title}*${amount}.${reason}${openTask}`
 }
 
+/**
+ * Itay's line when a client answers on a delivered phase.
+ *
+ * An approval is not just good news - it is the moment the amount becomes an
+ * invoice worth chasing, so the message says so rather than leaving him to
+ * infer it from a dashboard number that moved.
+ */
+export function phaseReviewOwnerNotice(params: {
+  clientName: string
+  projectName: string
+  phaseName: string
+  price: number
+  decision: 'APPROVED' | 'REVISIONS'
+  note: string | null
+}): string {
+  const { clientName, projectName, phaseName, price, decision, note } = params
+  const amount = price > 0 ? ` (${price.toLocaleString('he-IL')} ₪)` : ''
+  const where = `*${phaseName}*${amount}\nבפרויקט ${projectName}`
+
+  if (decision === 'APPROVED') {
+    return `✅ ${clientName} אישר את השלב:\n${where}\n\nהשלב עבר לתשלום.`
+  }
+
+  return `🔄 ${clientName} ביקש תיקון בשלב:\n${where}\n\n"${note ?? ''}"`
+}
+
 interface FiledRequestNoticeParams {
   clientName: string
   contactName: string

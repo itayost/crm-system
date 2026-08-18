@@ -87,16 +87,14 @@ export const CLIENT_PHASE_STATUS_LABELS: Record<string, string> = {
   /**
    * 'ממתין לבדיקה שלך', not 'ממתין לאישורך'.
    *
-   * A phase in PENDING_APPROVAL or REVISIONS genuinely is waiting on the client
-   * - but the portal has no phase-approval control anywhere, so the old wording
-   * asked for something the page could not accept and left them hunting for a
-   * button that does not exist. Only PhasesService.update can move a phase, and
-   * building that as a client action would stamp approvedAt, which is what
-   * projectOutstanding() counts as an invoice worth chasing - a money change
-   * that deserves its own decision rather than a redesign's coattails.
+   * The control exists now - PhasesService.recordClientReview, reached from the
+   * portal - but "review" is still the right word rather than "approval",
+   * because it has two outcomes: sign the work off, or ask for another round.
+   * Naming only the first would put a thumb on the scale of a decision that
+   * turns the phase into an invoice.
    *
-   * So the label says the true thing: we are asking you to look. The portal
-   * pairs it with a way to reply, which is WhatsApp, where the conversation is.
+   * Only PENDING_APPROVAL reaches this label. REVISIONS reads as work in
+   * progress, which is what it is - see clientPhaseStatusOf.
    */
   AWAITING_YOU: 'ממתין לבדיקה שלך',
   DONE: 'הושלם',

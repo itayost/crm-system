@@ -56,7 +56,7 @@ export default async function PortalProjectsPage({
       ) : (
         <div className="flex flex-col gap-5">
           {projects.map((project) => (
-            <PortalProjectCard key={project.id} project={project} />
+            <PortalProjectCard key={project.id} token={token} project={project} />
           ))}
         </div>
       )}

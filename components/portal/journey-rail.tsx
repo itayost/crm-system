@@ -14,8 +14,10 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils'
  * So the client's version is vertical, dated, and shows the future:
  *
  *   done   filled ink marker + the date it happened on. Proof, with a timestamp.
- *   now    the only tone-coloured marker on the rail. Colour is scarce here
- *          precisely so this one is unmissable at arm's length.
+ *   now    tone-coloured. Colour is scarce on this rail precisely so these are
+ *          unmissable at arm's length. Usually one; a project can genuinely
+ *          have two live phases - one delivered and awaiting the client, one
+ *          being revised - and the hues say which is which.
  *   ahead  a hollow ring and a dotted connector, undated - the shape of what is
  *          left, which is the half that answers "what happens next" without the
  *          client having to ask for it.
@@ -207,6 +209,10 @@ export function phaseSteps(
       amount: phase.price > 0 ? phase.price : null,
       paid: phase.status === 'PAID',
       badge: done || ahead ? undefined : labels[phase.status],
+      // What they asked to be changed, read back while it is being changed.
+      // A client who requested a revision and then sees the phase go quiet has
+      // no way to tell whether the message landed.
+      note: phase.clientNote ? `ביקשת: ${phase.clientNote}` : undefined,
     }
   })
 
