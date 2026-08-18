@@ -15,6 +15,10 @@ const eslintConfig = [
       ".next/**",
       "out/**",
       "build/**",
+      // eve's compiler artifacts, including the source snapshots its dev
+      // runtime writes. Generated, gitignored, and not ours to lint.
+      ".eve/**",
+      ".output/**",
       "next-env.d.ts",
     ],
   },
