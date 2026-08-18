@@ -16,13 +16,35 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
-    // Fail at startup rather than on the first query inside a request.
     throw new Error('DATABASE_URL is not set; the database client cannot start.')
   }
 
   return new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+/**
+ * Built on first use, not on import.
+ *
+ * `next build` collects page data by importing every route module, and a build
+ * machine has no DATABASE_URL. Constructing eagerly turned a missing variable
+ * into a failed build rather than a failed request. The check above still
+ * fires, just at the moment something actually reaches for the database.
+ */
+let client: PrismaClient | undefined
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+function getClient(): PrismaClient {
+  // Module scope holds it in every environment; globalThis additionally holds
+  // it in development, where HMR would otherwise mint a client per reload.
+  client ??= globalForPrisma.prisma ?? createPrismaClient()
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = client
+  return client
+}
+
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const instance = getClient()
+    const value = Reflect.get(instance, property)
+    // Bind so `prisma.$transaction(...)` keeps its receiver.
+    return typeof value === 'function' ? value.bind(instance) : value
+  },
+})

@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test'
 import {
-  fillContactForm,
-  submitForm,
   expectToastSuccess,
   expectToastError,
   getTableRow,
