@@ -20,6 +20,16 @@ import { describeModelError } from '@/lib/ai/resilient-model'
 interface InboundBody {
   chatId: string
   text: string
+  /**
+   * The turn's system prompt, already built.
+   *
+   * Built by `buildSystemPrompt` in the CRM, unchanged, and carried here rather
+   * than rebuilt inside the agent. That keeps one source of prompt truth, avoids
+   * repeating five database reads and the extractor's model call, and preserves
+   * the injection defence by construction: the agent never interpolates client
+   * text into a system prompt, because it never composes one.
+   */
+  systemPrompt: string
   identity: {
     userId: string
     clientId: string
@@ -45,13 +55,20 @@ function isAuthorized(request: Request): boolean {
   return timingSafeMatch(provided, configured)
 }
 
-export default defineChannel({
+export default defineChannel<{ systemPrompt: string }>({
   /**
    * Two messages seconds apart must both be answered. The default, "steer",
    * cancels the turn already in flight, which would silently drop the first
    * client's reply - the behaviour the AI SDK path never had.
    */
   turnPolicy: 'queue',
+
+  /** Seeded on every inbound turn; projected below for the instructions resolver. */
+  state: { systemPrompt: '' },
+
+  metadata(state) {
+    return { systemPrompt: state.systemPrompt }
+  },
 
   routes: [
     // The full path, not a bare '/inbound': a custom channel's routes mount
@@ -64,13 +81,14 @@ export default defineChannel({
       }
 
       const body = (await request.json()) as InboundBody
-      if (!body?.chatId || typeof body.text !== 'string') {
+      if (!body?.chatId || typeof body.text !== 'string' || !body.systemPrompt) {
         return new Response('Bad Request', { status: 400 })
       }
 
       // Identity travels on session auth, which is where the tools read it from.
       // Attributes are strings only, and nothing here is model-supplied.
       const session = await from(body.chatId).send(body.text, {
+        state: { systemPrompt: body.systemPrompt },
         auth: {
           authenticator: 'crm-whatsapp',
           principalType: 'service',
