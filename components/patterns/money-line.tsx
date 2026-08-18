@@ -65,7 +65,7 @@ export function MoneyLine({
       className={cn('flex flex-wrap divide-x divide-x-reverse rounded-lg border bg-card', className)}
     >
       {figures.map((figure, i) => (
-        <Figure key={i} {...figure} className="min-w-[8rem] flex-1 px-4 py-2.5" />
+        <Figure key={i} {...figure} className="min-w-32 flex-1 px-4 py-2.5" />
       ))}
     </dl>
   )

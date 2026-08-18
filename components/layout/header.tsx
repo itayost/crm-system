@@ -74,7 +74,7 @@ export function Header() {
         type="button"
         onClick={() => setPaletteOpen(true)}
         aria-label="חיפוש ופעולות"
-        className="flex h-control max-w-md flex-1 items-center gap-2 rounded-md border bg-surface-subtle px-2.5 text-ui-xs text-content-faint transition-colors duration-fast hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-control max-w-md flex-1 items-center gap-2 rounded-md border bg-surface-subtle px-2.5 text-ui-xs text-content-faint transition-colors duration-fast hover:border-border-strong focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Search aria-hidden className="size-3.5" />
         <span className="hidden truncate sm:inline">חיפוש לקוח, פרויקט, פעולה...</span>

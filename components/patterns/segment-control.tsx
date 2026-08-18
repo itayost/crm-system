@@ -58,7 +58,7 @@ export function SegmentControl({
             onClick={() => onChange(segment.value)}
             className={cn(
               'inline-flex h-control items-center gap-1.5 whitespace-nowrap rounded-[5px] px-2.5 text-ui-sm transition-colors duration-fast',
-              'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
               active
                 ? 'bg-card font-semibold text-content-strong shadow-e1'
                 : 'text-content-muted hover:text-content-strong',

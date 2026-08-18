@@ -54,7 +54,7 @@ export function StatusPill({
         SHAPE[emphasis],
         toneClass[tone],
         interactive &&
-          'cursor-pointer transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+          'cursor-pointer transition-shadow hover:shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
         className,
       )}
       {...props}

@@ -22,7 +22,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-ui-sm transition-colors duration-fast',
-        'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
         active
           ? 'bg-surface-muted font-semibold text-content-strong'
           : 'text-content-body hover:bg-surface-subtle hover:text-content-strong',

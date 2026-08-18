@@ -147,7 +147,7 @@ export function DataTable<T>({
                         <Link
                           href={getRowHref(row)}
                           onClick={(e) => e.stopPropagation()}
-                          className="rounded-sm font-medium text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="rounded-sm font-medium text-content-strong outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           {col.cell(row)}
                         </Link>
@@ -181,7 +181,7 @@ export function DataTable<T>({
                 <Link
                   href={getRowHref(row)}
                   data-col={primary.key}
-                  className="min-w-0 flex-1 truncate rounded-sm text-ui-sm font-semibold text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-w-0 flex-1 truncate rounded-sm text-ui-sm font-semibold text-content-strong outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {primary.cell(row)}
                 </Link>
@@ -190,7 +190,7 @@ export function DataTable<T>({
                   type="button"
                   data-col={primary.key}
                   onClick={() => activate(row)}
-                  className="min-w-0 flex-1 truncate rounded-sm text-start text-ui-sm font-semibold text-content-strong outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-w-0 flex-1 truncate rounded-sm text-start text-ui-sm font-semibold text-content-strong outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {primary.cell(row)}
                 </button>

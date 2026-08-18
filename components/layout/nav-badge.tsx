@@ -25,7 +25,7 @@ export function NavBadge({ item, compact = false }: { item: NavItem; compact?: b
       <span
         aria-hidden
         className={cn(
-          'absolute end-1/4 top-1 size-1.5 rounded-full',
+          'absolute inset-e-1/4 top-1 size-1.5 rounded-full',
           item.badgeTone === 'danger' ? 'bg-tone-danger-mark' : 'bg-tone-caution-mark',
         )}
       />

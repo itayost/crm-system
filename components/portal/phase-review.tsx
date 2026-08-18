@@ -115,7 +115,7 @@ export function PhaseReview({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="ככל שתהיו ספציפיים יותר, כך נתקן מהר יותר."
-            className="w-full rounded-md border border-border-strong bg-card p-3.5 text-portal-sm text-content-body placeholder:text-content-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-md border border-border-strong bg-card p-3.5 text-portal-sm text-content-body placeholder:text-content-faint focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           />
           <ReviewError error={error} />
           <div className="flex flex-wrap gap-2.5">

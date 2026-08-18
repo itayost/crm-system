@@ -63,7 +63,7 @@ export function PhaseStrip({
       data-slot="phase-strip"
       role="img"
       aria-label={label ?? `${phases.length} שלבים, ${paid} שולמו`}
-      className={cn('flex h-2.5 min-w-[4.5rem] items-start gap-0.5', className)}
+      className={cn('flex h-2.5 min-w-18 items-start gap-0.5', className)}
     >
       {phases.map((phase, i) => (
         <span

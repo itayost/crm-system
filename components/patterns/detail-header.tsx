@@ -51,7 +51,7 @@ export function DetailHeader({
       <Link
         href={backHref}
         aria-label="חזרה"
-        className="rounded-md p-1 text-content-faint transition-colors duration-fast hover:text-content-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="rounded-md p-1 text-content-faint transition-colors duration-fast hover:text-content-strong focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ChevronRight aria-hidden className="size-4" />
       </Link>
