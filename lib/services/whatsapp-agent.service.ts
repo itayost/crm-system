@@ -1,5 +1,6 @@
 import { generateText, stepCountIs } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { models } from '@/lib/ai/models'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { createCrmTools } from './whatsapp-tools'
@@ -95,7 +96,7 @@ export class WhatsAppAgentService {
     const tools = createCrmTools(userId)
 
     const result = await generateText({
-      model: gateway('anthropic/claude-sonnet-4.6'),
+      model: gateway(models.whatsappAgent()),
       system: SYSTEM_PROMPT,
       messages,
       tools,

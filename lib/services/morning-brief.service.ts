@@ -1,6 +1,7 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
+import { models } from '@/lib/ai/models'
 import { describeModelError, ollamaModel, withModelFallback } from '@/lib/ai/resilient-model'
 import {
   REQUEST_TYPE_LABELS,
@@ -362,7 +363,7 @@ English enum value such as HIGH, WEBSITE or PENDING_REVIEW.`
       },
       () =>
         generateText({
-          model: gateway('anthropic/claude-sonnet-4.6'),
+          model: gateway(models.morningBrief()),
           system,
           prompt: briefData,
         }),

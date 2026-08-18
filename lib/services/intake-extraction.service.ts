@@ -1,6 +1,7 @@
 import { generateObject } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { z } from 'zod'
+import { models } from '@/lib/ai/models'
 import { EMPTY_INTAKE, intakeSchema, type Intake } from '@/lib/validations/intake'
 
 /**
@@ -14,7 +15,6 @@ import { EMPTY_INTAKE, intakeSchema, type Intake } from '@/lib/validations/intak
  * that into fields instead of into questions.
  */
 
-const MODEL = process.env.INTAKE_MODEL ?? 'anthropic/claude-sonnet-4.6'
 
 const SYSTEM_PROMPT = `אתה ממלא טופס פנייה של לקוח מתוך מה שהוא כתב או אמר. אתה לא מדבר עם הלקוח ולא שואל אותו כלום.
 
@@ -99,7 +99,7 @@ export class IntakeExtractionService {
 
     try {
       const result = await generateObject({
-        model: gateway(MODEL),
+        model: gateway(models.intake()),
         schema: turnAnalysisSchema,
         system: SYSTEM_PROMPT,
         prompt: parts.join('\n\n'),

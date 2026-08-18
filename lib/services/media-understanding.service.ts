@@ -1,5 +1,6 @@
 import { generateText } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { models } from '@/lib/ai/models'
 import { baseMimeType } from './storage.service'
 
 /**
@@ -7,7 +8,6 @@ import { baseMimeType } from './storage.service'
  * agent can reason about, through the same AI Gateway as every other model call.
  */
 
-const MODEL = process.env.SUPPORT_MEDIA_MODEL ?? 'google/gemini-2.5-flash'
 const MAX_TRANSCRIPT_CHARS = 4000
 
 export type MediaKind = 'audio' | 'video' | 'image' | 'other'
@@ -48,7 +48,7 @@ export class MediaUnderstandingService {
 
     try {
       const result = await generateText({
-        model: gateway(MODEL),
+        model: gateway(models.media()),
         messages: [
           {
             role: 'user',

@@ -1,6 +1,7 @@
 import { generateText, stepCountIs, tool } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { z } from 'zod'
+import { models } from '@/lib/ai/models'
 import { prisma } from '@/lib/db/prisma'
 import { GitHubService } from './github.service'
 
@@ -20,7 +21,6 @@ import { GitHubService } from './github.service'
  * and every repo carries docs written precisely to describe the product.
  */
 
-const MODEL = process.env.PRODUCT_CARD_MODEL ?? 'anthropic/claude-sonnet-4.6'
 
 /** How many route files the harvester will read (Masob has 111). */
 const PAGE_READ_CAP = 120
@@ -462,7 +462,7 @@ async function writeCard(
 
   try {
     const result = await generateText({
-      model: gateway(MODEL),
+      model: gateway(models.productCard()),
       system: CARD_SYSTEM_PROMPT.replace('${cap}', String(WRITER_STEP_CAP - 2)),
       prompt,
       tools: { readRepoFile },

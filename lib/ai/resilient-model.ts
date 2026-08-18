@@ -2,6 +2,7 @@ import { generateText } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { GatewayError } from '@ai-sdk/gateway'
 import type { LanguageModel } from 'ai'
+import { models } from './models'
 
 /**
  * The lifeline: a small local model on the VPS behind the AI Gateway.
@@ -22,8 +23,6 @@ export const DEGRADED_TIMEOUT_MS = 120_000
 /** One WhatsApp paragraph. The degraded reply must not ramble. */
 export const DEGRADED_MAX_OUTPUT_TOKENS = 200
 
-const DEFAULT_LOCAL_MODEL = 'gemma4:e4b'
-
 export function isOllamaConfigured(): boolean {
   return Boolean(process.env.OLLAMA_BASE_URL && process.env.OLLAMA_API_KEY)
 }
@@ -41,7 +40,7 @@ export function ollamaModel(): LanguageModel | null {
     baseURL: process.env.OLLAMA_BASE_URL!,
     apiKey: process.env.OLLAMA_API_KEY,
   })
-  return provider(process.env.OLLAMA_MODEL ?? DEFAULT_LOCAL_MODEL)
+  return provider(models.local())
 }
 
 /**
