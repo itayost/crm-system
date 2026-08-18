@@ -1,5 +1,6 @@
 import { generateText, stepCountIs } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
+import { models } from '@/lib/ai/models'
 import { prisma } from '@/lib/db/prisma'
 import {
   SupportConversationService,
@@ -28,7 +29,6 @@ import {
  * summary, file a ticket — and tools that can only reach the writing client's data.
  */
 
-const MODEL = 'anthropic/claude-sonnet-4.6'
 // Six, down from eight: with the product card already in the prompt, a long
 // step budget mostly bought latency and GitHub code-search 429s (10 req/min).
 const MAX_STEPS = 6
@@ -167,7 +167,7 @@ export class SupportAgentService {
     }
 
     const result = await generateText({
-      model: gateway(MODEL),
+      model: gateway(models.supportChat()),
       system: buildSystemPrompt({
         input,
         hasPendingSummary: !!conversation.pendingDraft,

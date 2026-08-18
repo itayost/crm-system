@@ -1,6 +1,7 @@
 import { generateObject } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import { z } from 'zod'
+import { models } from '@/lib/ai/models'
 import { prisma } from '@/lib/db/prisma'
 import { RequestsService } from './requests.service'
 import type { DraftRequestInput } from '@/lib/validations/request'
@@ -128,7 +129,7 @@ export class RequestExtractionService {
     let object: z.infer<typeof ExtractionResult>
     try {
       const result = await generateObject({
-        model: gateway('anthropic/claude-sonnet-4.6'),
+        model: gateway(models.requestExtraction()),
         schema: ExtractionResult,
         system: EXTRACTION_SYSTEM_PROMPT,
         prompt: this.buildPrompt(client, messages, existingOpen),
