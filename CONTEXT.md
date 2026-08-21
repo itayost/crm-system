@@ -46,3 +46,23 @@ months — a chat is a stream, פניות are spans over it, never partitions of
 A Contact in the active pipeline (`NEW → CONTACTED → MEETING_SCHEDULED →
 QUOTED`). `LOST` ends a lead; `INACTIVE` ends a client. A contact born with a
 business attached was never a lead.
+
+### מקדמה (Advance)
+
+The sum a client owes on signature, before any work is delivered. It belongs to
+the Project rather than to any one phase, and it has no approval step — there is
+nothing to sign off, so it is owed from the moment the project exists.
+
+### גבייה (Collectable)
+
+Every shekel Itay can invoice for right now, across all projects: unpaid
+מקדמות plus every phase signed off and not yet paid. The owner's question.
+_Avoid_: outstanding.
+
+### לתשלום (Signed-off unpaid)
+
+What a single project owes for work already approved: its signed-off, unpaid
+phases, never its מקדמה. The client's question, and deliberately narrower than
+גבייה — a client is being shown what their delivered work has cost, not what
+they agreed to pay on signature.
+_Avoid_: outstanding.
