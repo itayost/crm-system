@@ -124,4 +124,41 @@ figure is not 'success' and an outstanding one" is not either.
 
 - `MoneyService`'s Israel-month boundary (`startOfIsraelMonth`) is correct and moves unchanged.
 - The parallel label/tone maps in `lib/design/` are a separate candidate.
-- `morning-brief.service.ts:203` formats phase prices for prose, not as a total; it is left alone.
+- ~~`morning-brief.service.ts:203` formats phase prices for prose, not as a total; it is
+  left alone.~~ **This was wrong.** Line 203 formats prose, but `:195` filters on
+  `PENDING_APPROVAL`, `:201` filters on `status === 'APPROVED' && !paidAt`, and `:207`
+  totals the result. It was a fifth implementation, not a formatter. Caught during
+  execution by pre-running Task 7's grep gate, and migrated in an added Task 6b. See the
+  "Executed" section below.
+
+
+## Executed (2026-08-21)
+
+Shipped on `feat/collectable-ledger`, 11 commits, `82fd27e..942b148`. Deviations from the
+plan as written, all recorded with reasoning in the run's ledger:
+
+- **A fifth implementation was found mid-run.** `morning-brief.service.ts` held two more
+  hand-rolled predicates; the "Out of scope" bullet above was wrong. An extra task (6b)
+  migrated the money half. Its awaiting-approval list deliberately does NOT use the core:
+  `isAwaitingApproval` applies payment-wins-over-status, which is right for money and
+  wrong for a workflow list, because a paid-but-still-pending phase must stay on it.
+- **The brief still disagrees with the other surfaces, by design.** It counts approved
+  unpaid phases on ACTIVE projects only, excluding advances. Preserved rather than
+  widened, because changing a figure in a daily 06:00 message unasked is the hardest kind
+  of change to notice. Its heading now names its scope so the difference reads as
+  deliberate. Whether to align it is an open owner decision.
+- **`tests/money-agreement.test.ts` lost one assertion early.** Its
+  "keeps projectOutstanding narrower on purpose" test grepped for a literal that Task 1
+  removed. Deleted in Task 2 rather than rewritten against new literals, which would have
+  recreated the coupling this work exists to remove. The file went entirely in Task 7.
+- **E2E and the visual snapshot refresh were not run.** Playwright seeds the shared
+  production database, and `/money`'s baseline legitimately changed. Both handed to the
+  owner. The final review scoped the fallout to exactly one snapshot, `money` in
+  `e2e/visual.spec.ts:24` - no spec asserts `/money` text.
+- **`CLAUDE.md:47` and `AGENTS.md:47` still point at the deleted `lib/utils/project-money.ts`.**
+  Not fixed here: `CLAUDE.md` had 181 uncommitted deletions in the owner's tree at the
+  time. Handed back as a one-line change.
+- **A negative advance turned out to be reachable.** The assumption that
+  `lib/validations/project.ts`'s `z.number().min(0)` closed it was refuted by the final
+  review: `whatsapp-tools.ts` is a second write path taking LLM-supplied arguments. Fixed
+  at that boundary.
