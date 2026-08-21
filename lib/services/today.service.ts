@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db/prisma'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
 import { startOfIsraelDay } from '@/lib/services/morning-brief.service'
 import { isBotPaused } from '@/lib/config/bot-pause'
+import { openLedger } from '@/lib/money/ledger.server'
+import { collectable, isCollectable } from '@/lib/money/ledger'
 
 /**
  * What is owed today, as counts.
@@ -23,7 +25,7 @@ export interface TodayBadges {
   dueTasks: number
   /** Leads with a next action promised for today or earlier. */
   dueLeads: number
-  /** Approved but unpaid, in shekels. The invoices worth chasing. */
+  /** גבייה: everything invoiceable now, unpaid מקדמות included. */
   outstanding: number
   /**
    * Whether the client-facing WhatsApp bot is muted.
@@ -103,8 +105,6 @@ export class TodayService {
       phasesAwaiting,
       quotesUnanswered,
       quietLeads,
-      phases,
-      advances,
     ] = await Promise.all([
         prisma.contact.findMany({
           where: {
@@ -164,49 +164,20 @@ export class TodayService {
             ],
           },
         }),
-        prisma.projectPhase.findMany({
-          where: { status: 'APPROVED', paidAt: null, project: { userId } },
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            project: {
-              select: { id: true, name: true, client: { select: { name: true } } },
-            },
-          },
-          orderBy: { approvedAt: 'asc' },
-        }),
-        prisma.project.findMany({
-          where: { userId, advancePaidAt: null, advanceAmount: { gt: 0 } },
-          select: {
-            id: true,
-            name: true,
-            advanceAmount: true,
-            client: { select: { name: true } },
-          },
-        }),
       ])
 
-    const collect: TodayBoard['collect'] = [
-      ...phases.map((p) => ({
-        id: p.id,
-        projectId: p.project.id,
-        projectName: p.project.name,
-        clientName: p.project.client?.name ?? null,
-        name: p.name,
-        price: Number(p.price ?? 0),
-        kind: 'phase' as const,
-      })),
-      ...advances.map((p) => ({
-        id: `advance:${p.id}`,
-        projectId: p.id,
-        projectName: p.name,
-        clientName: p.client?.name ?? null,
-        name: 'מקדמה',
-        price: Number(p.advanceAmount ?? 0),
-        kind: 'advance' as const,
-      })),
-    ].sort((a, b) => b.price - a.price)
+    const collect: TodayBoard['collect'] = (await openLedger({ userId }))
+      .filter(isCollectable)
+      .map((row) => ({
+        id: row.id,
+        projectId: row.projectId,
+        projectName: row.projectName,
+        clientName: row.clientName,
+        name: row.name,
+        price: row.price,
+        kind: row.kind,
+      }))
+      .sort((a, b) => b.price - a.price)
 
     return {
       dueLeads: dueLeads.map((c) => ({
@@ -234,54 +205,23 @@ export class TodayService {
     const todayStart = startOfIsraelDay(now)
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
 
-    const [triageRequests, dueTasks, dueLeads, unpaidPhases, unpaidAdvances] = await Promise.all([
-      prisma.request.count({
-        where: { userId, status: 'PENDING_REVIEW' },
-      }),
+    const [triageRequests, dueTasks, dueLeads, ledger] = await Promise.all([
+      prisma.request.count({ where: { userId, status: 'PENDING_REVIEW' } }),
       prisma.task.count({
-        where: {
-          userId,
-          status: { in: ['TODO', 'IN_PROGRESS'] },
-          dueDate: { lt: todayEnd },
-        },
+        where: { userId, status: { in: ['TODO', 'IN_PROGRESS'] }, dueDate: { lt: todayEnd } },
       }),
       prisma.contact.count({
-        where: {
-          userId,
-          status: { in: [...LEAD_STATUSES] },
-          nextActionAt: { lt: todayEnd },
-        },
+        where: { userId, status: { in: [...LEAD_STATUSES] }, nextActionAt: { lt: todayEnd } },
       }),
-      // Phases have no userId of their own - ownership comes through the
-      // project, the same way AgentProjectConfig works.
-      prisma.projectPhase.findMany({
-        where: { status: 'APPROVED', paidAt: null, project: { userId } },
-        select: { price: true },
-      }),
-      /**
-       * Unpaid advances count too.
-       *
-       * The badge sits on the nav item that links to /money, so the two must
-       * agree - and the ledger there lists an advance as collectable, because
-       * a מקדמה is owed on signature rather than on sign-off. Leaving it out
-       * here meant the badge said nothing while the page it pointed at said
-       * ₪3,000. That is precisely the disagreement this service exists to
-       * prevent.
-       *
-       * Note this is deliberately a wider rule than `projectOutstanding()`,
-       * which answers a narrower question ("work signed off but unpaid") for a
-       * single project and stays as it is.
-       */
-      prisma.project.findMany({
-        where: { userId, advancePaidAt: null, advanceAmount: { gt: 0 } },
-        select: { advanceAmount: true },
-      }),
+      openLedger({ userId }),
     ])
 
-    const outstanding =
-      unpaidPhases.reduce((sum, p) => sum + Number(p.price ?? 0), 0) +
-      unpaidAdvances.reduce((sum, p) => sum + Number(p.advanceAmount ?? 0), 0)
-
-    return { triageRequests, dueTasks, dueLeads, outstanding, botPaused: isBotPaused() }
+    return {
+      triageRequests,
+      dueTasks,
+      dueLeads,
+      outstanding: collectable(ledger),
+      botPaused: isBotPaused(),
+    }
   }
 }
