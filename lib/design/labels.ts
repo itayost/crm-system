@@ -10,6 +10,8 @@
  * import it.
  */
 
+import type { LedgerState } from '@/lib/money/ledger'
+
 export const REQUEST_TYPE_LABELS: Record<string, string> = {
   REQUEST: 'בקשה',
   BUG: 'תקלה',
@@ -160,7 +162,7 @@ export const PHASE_STATUS_LABELS: Record<string, string> = {
  * How one billable thing reads on the money screens. Keyed by LedgerState, not
  * PhaseStatus, because a מקדמה has no phase status and used to borrow APPROVED.
  */
-export const LEDGER_STATE_LABELS: Record<string, string> = {
+export const LEDGER_STATE_LABELS: Record<LedgerState, string> = {
   scheduled: 'לא פעיל',
   inProgress: 'בעבודה',
   awaitingClient: 'ממתין לאישור לקוח',

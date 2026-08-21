@@ -37,7 +37,7 @@ describe('dashboard revenue', () => {
     prismaMock.request.count.mockResolvedValue(0)
   })
 
-  it('sums paid phases and paid advances', async () => {
+  it('counts a paid phase but not an unpaid advance', async () => {
     ledgerMock.mockResolvedValue([
       { kind: 'phase', state: 'paid', price: 2500, paidAt: '2026-08-01T00:00:00.000Z', phaseStatus: 'APPROVED' },
       { kind: 'advance', state: 'collectable', price: 1000, paidAt: null, phaseStatus: null },

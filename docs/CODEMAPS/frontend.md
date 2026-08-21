@@ -135,9 +135,12 @@ history.
   ever downward; zero in `components/patterns/` and `components/portal/`.
 - `tests/client-view.test.ts` - the whitelist. No storage path, no client id and
   no `intake.suggestedType` may leave the module, and `notYetDue` must reconcile
-  with `project-money.ts`.
-- `tests/money-agreement.test.ts` - the `כספים` badge and `/money` must count
-  the same thing.
+  with `lib/money/project.ts`.
+- `tests/money-ledger.test.ts` - money now has one module (`lib/money/ledger.ts`),
+  so there is nothing left for a `כספים`-badge-vs-`/money` grep test to police.
+  The guard that matters instead is "the rule that makes a prefilter sound":
+  collectability structurally implies unpaid, proven over every status × paid
+  combination.
 - `e2e/` - 82 tests across `main`, `auth` and `mobile` projects. Portal teardown
   runs inwards-out (tasks, requests, projects, then the client): neither
   `ClientsService.delete` nor `ProjectsService.delete` cascades, both on purpose,

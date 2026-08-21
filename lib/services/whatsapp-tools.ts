@@ -149,7 +149,7 @@ export function createCrmTools(userId: string) {
         name: z.string().describe('Project name'),
         type: z.enum(['LANDING_PAGE', 'WEBSITE', 'ECOMMERCE', 'WEB_APP', 'MOBILE_APP', 'MANAGEMENT_SYSTEM', 'CONSULTATION']),
         clientName: z.string().describe('Client/business name (fuzzy match). A contact name also works if they belong to a business.'),
-        advanceAmount: z.number().optional().describe('Advance (מקדמה) paid up front, in ILS. The rest of the money lives on the phases.'),
+        advanceAmount: z.number().min(0).optional().describe('Advance (מקדמה) paid up front, in ILS. The rest of the money lives on the phases.'),
         retention: z.number().optional().describe('Monthly/yearly maintenance fee'),
         retentionFrequency: z.enum(['MONTHLY', 'YEARLY']).optional(),
       }),
@@ -185,7 +185,7 @@ export function createCrmTools(userId: string) {
       inputSchema: z.object({
         nameQuery: z.string().describe('Project name to search for (fuzzy match)'),
         status: z.enum(['ACTIVE', 'COMPLETED']).optional(),
-        advanceAmount: z.number().optional().describe('Advance (מקדמה) in ILS'),
+        advanceAmount: z.number().min(0).optional().describe('Advance (מקדמה) in ILS'),
         advancePaid: z.boolean().optional().describe('Mark the advance paid or unpaid'),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
         deadline: z.string().optional().describe('Deadline date in ISO format'),

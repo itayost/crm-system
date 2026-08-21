@@ -267,7 +267,7 @@ export class MorningBriefService {
         lines: awaitingApproval,
       },
       {
-        title: 'תשלומים פתוחים',
+        title: 'שלבים לתשלום בפרויקטים פעילים',
         lines: unpaidPhases.map((p) => p.line),
         suffix: unpaidTotal > 0 ? `, סה"כ ${unpaidTotal.toLocaleString()} ₪` : undefined,
       },
@@ -336,7 +336,7 @@ data might be missing. Silence means "nothing to do", which is good news.
 Only these sections can appear:
 משימות באיחור · משימות להיום · משימות השבוע · לידים חדשים (מאתמול) ·
 פעולות להיום · לידים ללא פעולה מתוכננת וללא קשר 3+ ימים ·
-שלבים ממתינים לאישור לקוח · תשלומים פתוחים · פניות ממתינות לאישור ·
+שלבים ממתינים לאישור לקוח · שלבים לתשלום בפרויקטים פעילים · פניות ממתינות לאישור ·
 פניות פתוחות · משימות ממתינות לפי קטגוריה · פרויקטים בתהליך
 A count in a title is the real total; "...ועוד N" means the list was trimmed.
 "משימות ממתינות לפי קטגוריה" and "משימות שיווק ב-14 ימים אחרונים" are counts and
@@ -351,7 +351,7 @@ Write it like this:
    anything you infer. Mention [באיחור] ones before the rest.
 3. Then anything worth chasing, only where the data supports it:
    - "שלבים ממתינים לאישור לקוח" → nudge to chase the client for sign-off.
-   - "תשלומים פתוחים" → nudge to invoice or chase payment, and give the total.
+   - "שלבים לתשלום בפרויקטים פעילים" → nudge to invoice or chase payment, and give the total.
    - "פניות ממתינות לאישור" → suggest approving or dismissing via the bot.
    - "פניות פתוחות" → work already promised to a client; flag anything stale.
    - No marketing tasks in 14 days → a short nudge.

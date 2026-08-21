@@ -105,6 +105,7 @@ export class TodayService {
       phasesAwaiting,
       quotesUnanswered,
       quietLeads,
+      ledger,
     ] = await Promise.all([
         prisma.contact.findMany({
           where: {
@@ -164,9 +165,10 @@ export class TodayService {
             ],
           },
         }),
+        openLedger({ userId }),
       ])
 
-    const collect: TodayBoard['collect'] = (await openLedger({ userId }))
+    const collect: TodayBoard['collect'] = ledger
       .filter(isCollectable)
       .map((row) => ({
         id: row.id,

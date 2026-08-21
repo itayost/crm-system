@@ -115,7 +115,7 @@ export default function MoneyPage() {
       align: 'numeric',
       width: '8rem',
       mobile: 'meta',
-      cell: (r) => <bdi className={r.paidAt ? 'text-figure-paid' : undefined}>{formatCurrency(r.price)}</bdi>,
+      cell: (r) => <bdi className={isPaid(r) ? 'text-figure-paid' : undefined}>{formatCurrency(r.price)}</bdi>,
     },
     {
       key: 'paidAt',
