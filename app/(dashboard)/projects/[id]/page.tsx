@@ -46,7 +46,7 @@ import {
   RETENTION_FREQUENCY_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { projectTotal } from '@/lib/utils/project-money'
+import { projectTotal } from '@/lib/money/project'
 import type { ProjectRecord } from '@/lib/types/project'
 
 export default function ProjectDetailPage() {

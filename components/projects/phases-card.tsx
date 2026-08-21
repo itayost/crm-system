@@ -29,7 +29,7 @@ import { toneOf, PHASE_STATUS_TONES } from '@/lib/design/tones'
 import { label, PHASE_STATUS_LABELS } from '@/lib/design/labels'
 import { phaseStatus } from '@/lib/validations/enums'
 import { formatCurrency } from '@/lib/utils'
-import { projectTotal, projectPaid, projectOutstanding } from '@/lib/utils/project-money'
+import { projectTotal, projectPaid, projectOutstanding } from '@/lib/money/project'
 import { PhaseForm } from './phase-form'
 import type { ProjectPhase } from '@/lib/types/project'
 

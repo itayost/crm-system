@@ -14,7 +14,7 @@ import {
   fuzzyMatchRequest,
 } from './fuzzy-match'
 import { contactStatus, contactSource } from '@/lib/validations/enums'
-import { projectTotal, projectPaid, projectOutstanding } from '@/lib/utils/project-money'
+import { projectTotal, projectPaid, projectOutstanding } from '@/lib/money/project'
 
 export function createCrmTools(userId: string) {
   return {

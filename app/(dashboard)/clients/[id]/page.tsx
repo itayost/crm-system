@@ -31,7 +31,7 @@ import {
 import type { RequestMetrics } from '@/lib/services/request-metrics.service'
 import { toneOf, PROJECT_STATUS_TONES, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS, CONTACT_STATUS_LABELS } from '@/lib/design/labels'
-import { projectTotal, projectPaid, projectOutstanding } from '@/lib/utils/project-money'
+import { projectTotal, projectPaid, projectOutstanding } from '@/lib/money/project'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { PhaseSummary } from '@/lib/types/project'
 

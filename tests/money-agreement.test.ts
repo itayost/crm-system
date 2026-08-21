@@ -20,6 +20,12 @@ describe('outstanding is defined once', () => {
   const today = readFileSync(join(ROOT, 'lib/services/today.service.ts'), 'utf8')
   const money = readFileSync(join(ROOT, 'lib/services/money.service.ts'), 'utf8')
 
+  // A third test here used to grep project-money.ts's source text for the
+  // literal "narrower than owner-wide" predicate; that literal is gone now
+  // that projectOutstanding defers to the ledger's state machine, and the
+  // intent lives on as behaviour instead - see money-ledger.test.ts and the
+  // 18 assertions in project-money.test.ts.
+
   it('counts unpaid approved phases on both sides', () => {
     expect(today).toContain("status: 'APPROVED'")
     expect(today).toContain('paidAt: null')
@@ -33,14 +39,5 @@ describe('outstanding is defined once', () => {
     expect(today).toContain('advanceAmount')
     expect(money).toContain("kind: 'advance'")
     expect(money).toContain('advancePaidAt')
-  })
-
-  it('keeps projectOutstanding narrower on purpose', () => {
-    // The per-project helper answers "work signed off but not yet paid for",
-    // which excludes advances by design. If that ever changes, the comment in
-    // today.service.ts explaining the difference is now a lie.
-    const helper = readFileSync(join(ROOT, 'lib/utils/project-money.ts'), 'utf8')
-    expect(helper).toContain("p.status === 'APPROVED' && !p.paidAt")
-    expect(helper).not.toContain('advancePaidAt ? amount(advance) : 0\n  return advancePart + sum(phases.filter((p) => p.status')
   })
 })

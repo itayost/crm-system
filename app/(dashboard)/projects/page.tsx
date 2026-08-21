@@ -36,7 +36,7 @@ import {
   PHASE_STATUS_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { projectTotal, projectOutstanding } from '@/lib/utils/project-money'
+import { projectTotal, projectOutstanding } from '@/lib/money/project'
 import type { ProjectListItem } from '@/lib/types/project'
 
 type View = 'active' | 'completed' | 'all'

@@ -26,7 +26,7 @@ import {
   readIntake,
   type Intake,
 } from '@/lib/validations/intake'
-import { projectOutstanding, projectPaid, projectTotal } from '@/lib/utils/project-money'
+import { projectOutstanding, projectPaid, projectTotal } from '@/lib/money/project'
 
 /**
  * DISMISSED is absent on purpose. A ticket Itay decided not to act on is not a
