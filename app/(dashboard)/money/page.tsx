@@ -17,8 +17,9 @@ import {
   type Column,
   type Segment,
 } from '@/components/patterns'
-import { toneOf, PHASE_STATUS_TONES } from '@/lib/design/tones'
-import { label, PHASE_STATUS_LABELS } from '@/lib/design/labels'
+import { toneOf, LEDGER_STATE_TONES } from '@/lib/design/tones'
+import { label, LEDGER_STATE_LABELS } from '@/lib/design/labels'
+import { isAwaitingApproval, isCollectable, isPaid } from '@/lib/money/ledger'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Ledger, LedgerRow } from '@/lib/services/money.service'
 
@@ -57,9 +58,9 @@ export default function MoneyPage() {
 
   const buckets = useMemo(
     () => ({
-      due: all.filter((r) => r.status === 'APPROVED' && !r.paidAt),
-      awaiting: all.filter((r) => r.status === 'PENDING_APPROVAL'),
-      paid: all.filter((r) => Boolean(r.paidAt)),
+      due: all.filter(isCollectable),
+      awaiting: all.filter(isAwaitingApproval),
+      paid: all.filter(isPaid),
       all,
     }),
     [all],
@@ -102,14 +103,11 @@ export default function MoneyPage() {
       key: 'status',
       header: 'מצב',
       mobile: 'trailing',
-      cell: (r) =>
-        r.paidAt ? (
-          <StatusPill tone="success" dot>שולם</StatusPill>
-        ) : (
-          <StatusPill tone={toneOf(PHASE_STATUS_TONES, r.status)} dot>
-            {label(PHASE_STATUS_LABELS, r.status)}
-          </StatusPill>
-        ),
+      cell: (r) => (
+        <StatusPill tone={toneOf(LEDGER_STATE_TONES, r.state)} dot>
+          {label(LEDGER_STATE_LABELS, r.state)}
+        </StatusPill>
+      ),
     },
     {
       key: 'price',
@@ -132,7 +130,7 @@ export default function MoneyPage() {
       width: '8rem',
       mobile: 'actions',
       cell: (r) =>
-        !r.paidAt && r.status === 'APPROVED' && r.kind === 'phase' ? (
+        isCollectable(r) && r.kind === 'phase' ? (
           <Button
             size="sm"
             variant="outline"

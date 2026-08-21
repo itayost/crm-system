@@ -108,6 +108,18 @@ export const PHASE_STATUS_TONES: Record<string, Tone> = {
   APPROVED: 'success',
 }
 
+/**
+ * Money is not a status: an unpaid invoice is not a success just because the
+ * work behind it was approved. collectable is the one that wants attention.
+ */
+export const LEDGER_STATE_TONES: Record<string, Tone> = {
+  scheduled: 'neutral',
+  inProgress: 'progress',
+  awaitingClient: 'caution',
+  collectable: 'warning',
+  paid: 'success',
+}
+
 export const TASK_STATUS_TONES: Record<string, Tone> = {
   TODO: 'neutral',
   // `progress`, not `info` - "in progress" now reads the same here as it does

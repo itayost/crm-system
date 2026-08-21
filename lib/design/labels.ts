@@ -156,6 +156,18 @@ export const PHASE_STATUS_LABELS: Record<string, string> = {
   APPROVED: 'אושר',
 }
 
+/**
+ * How one billable thing reads on the money screens. Keyed by LedgerState, not
+ * PhaseStatus, because a מקדמה has no phase status and used to borrow APPROVED.
+ */
+export const LEDGER_STATE_LABELS: Record<string, string> = {
+  scheduled: 'לא פעיל',
+  inProgress: 'בעבודה',
+  awaitingClient: 'ממתין לאישור לקוח',
+  collectable: 'לגבייה',
+  paid: 'שולם',
+}
+
 export const TASK_CATEGORY_LABELS: Record<string, string> = {
   CLIENT_WORK: 'עבודת לקוח',
   MARKETING: 'שיווק',
