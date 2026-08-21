@@ -13,7 +13,6 @@ import {
 } from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
 import {
-  isAwaitingApproval,
   isSignedOffUnpaid,
   phaseEntry,
   signedOffUnpaid,
@@ -197,17 +196,24 @@ export class MorningBriefService {
     // Two things that only become visible once money lives on phases: work
     // sitting in the client's court, and work signed off but never paid for.
     //
-    // The predicates come from lib/money/ledger so this brief cannot tell Itay
-    // a different story than the כספים badge, the היום board and /money. The
-    // advance is deliberately not passed: both sections are about *phases* -
-    // work signed off - which is לתשלום rather than גבייה. See CONTEXT.md.
+    // These ask different questions. The money figures come from lib/money/ledger
+    // so this brief cannot tell Itay a different story than the כספים badge,
+    // the היום board and /money. Advance is excluded; both count only phases (work
+    // signed off), which is לתשלום rather than גבייה.
     //
-    // Scoped to ACTIVE projects, which is narrower than every other surface.
-    // Preserved on purpose: widening it here would move a number in the daily
+    // The awaiting-approval list, though, deliberately does NOT use the core's
+    // isAwaitingApproval predicate. That predicate answers a money question
+    // (how much is awaiting sign-off?) and applies payment-wins-over-status logic
+    // correctly for money. But the list answers a WORKFLOW question: where is this
+    // phase sitting *in the approval process*? A paid-but-still-pending phase
+    // should stay on the list because the client has not yet signed off the work.
+    //
+    // Both are scoped to ACTIVE projects, narrower than every other surface,
+    // preserved deliberately: widening either would move a number in the daily
     // message without anyone asking for it.
     const awaitingApproval = activeProjects.flatMap((p) =>
       p.phases
-        .filter((ph) => isAwaitingApproval(phaseEntry(ph)))
+        .filter((ph) => ph.status === 'PENDING_APPROVAL')
         .map((ph) => `- ${ph.name} (${p.name} / ${p.client.name})`)
     )
 
