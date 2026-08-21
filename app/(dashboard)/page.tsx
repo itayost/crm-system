@@ -56,7 +56,6 @@ interface ActiveProject {
 
 interface DashboardData {
   revenue: number
-  outstanding: number
   contacts: { leads: number; clients: number }
   projects: { active: number; completed: number }
   tasks: { pending: number; overdue: number }
