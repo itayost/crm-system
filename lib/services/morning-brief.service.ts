@@ -12,6 +12,12 @@ import {
   label,
 } from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
+import {
+  isAwaitingApproval,
+  isSignedOffUnpaid,
+  phaseEntry,
+  signedOffUnpaid,
+} from '@/lib/money/ledger'
 
 const BRIEF_TIME_ZONE = process.env.BRIEF_TIME_ZONE ?? 'Asia/Jerusalem'
 
@@ -190,21 +196,31 @@ export class MorningBriefService {
 
     // Two things that only become visible once money lives on phases: work
     // sitting in the client's court, and work signed off but never paid for.
+    //
+    // The predicates come from lib/money/ledger so this brief cannot tell Itay
+    // a different story than the כספים badge, the היום board and /money. The
+    // advance is deliberately not passed: both sections are about *phases* -
+    // work signed off - which is לתשלום rather than גבייה. See CONTEXT.md.
+    //
+    // Scoped to ACTIVE projects, which is narrower than every other surface.
+    // Preserved on purpose: widening it here would move a number in the daily
+    // message without anyone asking for it.
     const awaitingApproval = activeProjects.flatMap((p) =>
       p.phases
-        .filter((ph) => ph.status === 'PENDING_APPROVAL')
+        .filter((ph) => isAwaitingApproval(phaseEntry(ph)))
         .map((ph) => `- ${ph.name} (${p.name} / ${p.client.name})`)
     )
 
     const unpaidPhases = activeProjects.flatMap((p) =>
       p.phases
-        .filter((ph) => ph.status === 'APPROVED' && !ph.paidAt)
-        .map((ph) => ({
-          line: `- ${ph.name} (${p.name} / ${p.client.name}) | ${Number(ph.price).toLocaleString()} ₪`,
-          amount: Number(ph.price),
+        .map((ph) => ({ ph, entry: phaseEntry(ph) }))
+        .filter(({ entry }) => isSignedOffUnpaid(entry))
+        .map(({ ph, entry }) => ({
+          line: `- ${ph.name} (${p.name} / ${p.client.name}) | ${entry.price.toLocaleString()} ₪`,
+          amount: entry.price,
         }))
     )
-    const unpaidTotal = unpaidPhases.reduce((sum, p) => sum + p.amount, 0)
+    const unpaidTotal = signedOffUnpaid(activeProjects.flatMap((p) => p.phases.map(phaseEntry)))
 
     // Every section that has something to say, in reading order. Sections with
     // nothing in them are dropped rather than reported as empty: the brief used
