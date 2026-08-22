@@ -11,7 +11,7 @@ import {
   resolvedRequestClientNotice,
   startedWorkClientNotice,
 } from './whatsapp-messages'
-import { WhatsAppAgentService } from './whatsapp-agent.service'
+import { notifyOwner } from './owner-line'
 import { isBotPaused } from '@/lib/config/bot-pause'
 import { BILLING_NEEDS_APPROVAL } from '@/lib/validations/enums'
 import type {
@@ -242,15 +242,8 @@ async function notifyOwnerOfDecision(
     })
     if (!request) return
 
-    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-    if (!ownerChatId) {
-      console.warn('No owner chat id available - client decision notification skipped')
-      return
-    }
-
-    await WahaService.sendMessage({
-      chatId: ownerChatId,
-      text: clientDecisionOwnerNotice({
+    await notifyOwner(
+      clientDecisionOwnerNotice({
         clientName: request.client.name,
         title: request.title,
         decision,
@@ -258,7 +251,8 @@ async function notifyOwnerOfDecision(
         note: request.clientDecisionNote,
         openTaskTitle: isLiveTask(request.task) ? request.task!.title : null,
       }),
-    })
+      { about: 'a client decision' },
+    )
   } catch (error) {
     // The decision is already recorded and the phase already exists.
     console.error('Failed to notify owner about a client decision:', error)

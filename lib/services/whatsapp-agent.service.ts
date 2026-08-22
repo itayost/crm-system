@@ -4,7 +4,7 @@ import { models } from '@/lib/ai/models'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { createCrmTools } from './whatsapp-tools'
-import { WahaService } from './waha.service'
+import { CONVERSATION_ID } from './owner-line'
 
 const SYSTEM_PROMPT = `You are a smart CRM assistant for a Hebrew-speaking freelancer named Itay who builds websites, apps, and digital projects.
 You manage his contacts (leads and clients), projects, and tasks via WhatsApp.
@@ -77,7 +77,6 @@ Request statuses: PENDING_REVIEW, OPEN, IN_PROGRESS, RESOLVED, DISMISSED
 Priorities: LOW, MEDIUM, HIGH, URGENT`
 
 const MAX_CONVERSATION_MESSAGES = 20
-const CONVERSATION_ID = 'singleton'
 
 interface ConversationMessage {
   role: 'user' | 'assistant'
@@ -154,39 +153,5 @@ export class WhatsAppAgentService {
         lastActiveAt: new Date(),
       },
     })
-  }
-
-  static async saveOwnerChatId(chatId: string) {
-    await prisma.botConversation.upsert({
-      where: { id: CONVERSATION_ID },
-      update: { ownerChatId: chatId },
-      create: {
-        id: CONVERSATION_ID,
-        messages: [],
-        ownerChatId: chatId,
-        lastActiveAt: new Date(),
-      },
-    })
-  }
-
-  static async getOwnerChatId(): Promise<string | null> {
-    const conversation = await prisma.botConversation.findFirst({
-      where: { id: CONVERSATION_ID },
-      select: { ownerChatId: true },
-    })
-    return conversation?.ownerChatId ?? null
-  }
-
-  /**
-   * Where to reach Itay. The stored chat id is the LID he actually writes from;
-   * before he has ever messaged the bot, fall back to his configured phone so
-   * notifications are not silently dropped on a fresh deployment.
-   */
-  static async resolveOwnerChatId(): Promise<string | null> {
-    const stored = await this.getOwnerChatId()
-    if (stored) return stored
-
-    const phone = process.env.OWNER_PHONE
-    return phone ? WahaService.formatChatId(phone) : null
   }
 }

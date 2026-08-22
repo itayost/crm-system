@@ -4,6 +4,7 @@ import { isWebhookAuthorized } from '@/lib/api/webhook-auth'
 import { isBotPaused } from '@/lib/config/bot-pause'
 import { WahaService, botSessionName, withTyping } from '@/lib/services/waha.service'
 import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
+import { notifyOwner, rememberOwnerChat } from '@/lib/services/owner-line'
 import { identifySender, type WhatsAppSender } from '@/lib/services/whatsapp-identity'
 import { SupportAgentService } from '@/lib/services/support-agent.service'
 import { archiveBotMessage, releaseArchivedMessage } from '@/lib/services/whatsapp-archive'
@@ -127,7 +128,7 @@ async function handleOwnerMessage(chatId: string, text: string) {
   }
 
   // Save owner's chatId (LID) for morning briefs and notifications
-  await WhatsAppAgentService.saveOwnerChatId(chatId)
+  await rememberOwnerChat(chatId)
 
   const reply = await WhatsAppAgentService.processMessage(user.id, text)
 
@@ -305,21 +306,14 @@ async function degradedTurn(params: {
     ]
   ).catch(() => {})
 
-  try {
-    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-    if (ownerChatId && ownerChatId !== chatId) {
-      await WahaService.sendMessage({
-        chatId: ownerChatId,
-        text: degradedTurnOwnerNotice({
-          contactName: contact.name,
-          clientName: contact.clientName,
-          snippet: lastMessage,
-        }),
-      })
-    }
-  } catch (notifyError) {
-    console.error('Failed to notify the owner about a degraded turn:', notifyError)
-  }
+  await notifyOwner(
+    degradedTurnOwnerNotice({
+      contactName: contact.name,
+      clientName: contact.clientName,
+      snippet: lastMessage,
+    }),
+    { about: 'a degraded turn', unlessChatId: chatId }
+  )
 
   return reply
 }
@@ -333,24 +327,13 @@ async function handleUnknownSender(
     text: UNKNOWN_SENDER_HOLD_MESSAGE,
   })
 
-  const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-
-  if (!ownerChatId) {
-    console.warn('No owner chat id available - skipping unknown sender notification')
-    return
-  }
-
-  // The owner reaches this branch only when his own number failed to resolve;
-  // notifying him about himself would just be noise on top of the hold message.
-  if (ownerChatId === sender.chatId) return
-
-  await WahaService.sendMessage({
-    chatId: ownerChatId,
-    text: unknownSenderOwnerNotice({
+  await notifyOwner(
+    unknownSenderOwnerNotice({
       phone: sender.phone,
       chatId: sender.chatId,
       contactName: sender.contact?.name,
       message: text,
     }),
-  })
+    { about: 'an unknown sender', unlessChatId: sender.chatId }
+  )
 }

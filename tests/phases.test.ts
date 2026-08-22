@@ -20,6 +20,10 @@ const prismaMock = {
     updateMany: vi.fn(),
     delete: vi.fn(),
   },
+  // Read by owner-line.ts's resolver, which the client sign-off notice goes
+  // through. A stored chat id lets resolution succeed so a WAHA failure is
+  // what actually reaches sendMessage, rather than the lookup failing first.
+  botConversation: { findFirst: vi.fn() },
   $transaction: vi.fn(),
 }
 
@@ -29,9 +33,6 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 // recorded sign-off into an error on the client's screen.
 const sendMessage = vi.fn()
 vi.mock('@/lib/services/waha.service', () => ({ WahaService: { sendMessage: (...a: unknown[]) => sendMessage(...a) } }))
-vi.mock('@/lib/services/whatsapp-agent.service', () => ({
-  WhatsAppAgentService: { resolveOwnerChatId: async () => 'owner@c.us' },
-}))
 
 const { PhasesService } = await import('@/lib/services/phases.service')
 
@@ -267,6 +268,7 @@ describe('the client signs off a phase', () => {
     // assertions below read another test's calls.
     vi.clearAllMocks()
     prismaMock.projectPhase.updateMany.mockResolvedValue({ count: 1 })
+    prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: 'owner@c.us' })
     sendMessage.mockResolvedValue(undefined)
   })
 
@@ -380,5 +382,10 @@ describe('the client signs off a phase', () => {
     const result = await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
 
     expect(result).toEqual({ alreadyReviewed: false, status: 'APPROVED' })
+    // The stored chat id above must actually be what let this fail here -
+    // otherwise this test would pass just as well if the lookup itself
+    // collapsed first, and a regression to the old short-circuit would go
+    // unnoticed.
+    expect(sendMessage).toHaveBeenCalled()
   })
 })

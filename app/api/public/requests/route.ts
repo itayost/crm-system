@@ -7,8 +7,7 @@ import {
   validateAttachment,
 } from '@/lib/services/storage.service'
 import { PublicRequestsService, SubmitResult } from '@/lib/services/public-requests.service'
-import { WahaService } from '@/lib/services/waha.service'
-import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
+import { notifyOwner } from '@/lib/services/owner-line'
 
 const TYPE_LABELS: Record<string, string> = {
   BUG: 'תקלה',
@@ -76,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     const result = await PublicRequestsService.submit(client, { ...data, attachments })
 
-    notifyOwner(result, data.type).catch((err) =>
+    notifyOwnerOfPublicRequest(result, data.type).catch((err) =>
       console.error('Failed to notify owner of new request:', err)
     )
 
@@ -93,13 +92,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function notifyOwner(result: SubmitResult, type?: string) {
-  const ownerChatId = await WhatsAppAgentService.getOwnerChatId()
-  if (!ownerChatId) {
-    console.log('No owner chatId set — skipping new request notification')
-    return
-  }
-
+async function notifyOwnerOfPublicRequest(result: SubmitResult, type?: string) {
   const lines = [
     '🔔 *פנייה חדשה מטופס!*',
     '',
@@ -110,7 +103,7 @@ async function notifyOwner(result: SubmitResult, type?: string) {
   if (result.attachmentCount > 0) lines.push(`*קבצים:* ${result.attachmentCount}`)
   lines.push('', 'ממתין לאישור בלוח הבקשות.')
 
-  await WahaService.sendMessage({ chatId: ownerChatId, text: lines.join('\n') })
+  await notifyOwner(lines.join('\n'), { about: 'a new request' })
 }
 
 // No OPTIONS handler, and no Access-Control-* header anywhere in this file.

@@ -116,6 +116,7 @@ const prismaMock = {
   project: { findMany: vi.fn(), findFirst: vi.fn() },
   request: { findMany: vi.fn(), create: vi.fn() },
   client: { findFirst: vi.fn(), update: vi.fn() },
+  botConversation: { findFirst: vi.fn() },
   $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
   // Stands in for the atomic jsonb appends (pendingMedia, repoFindings, and
   // the history delta with its in-SQL trim).
@@ -153,7 +154,6 @@ const prismaMock = {
 }
 
 const wahaMock = { sendMessage: vi.fn() }
-const agentMock = { resolveOwnerChatId: vi.fn() }
 const githubMock = { listTree: vi.fn(), searchCode: vi.fn(), readFile: vi.fn() }
 const extractMock = vi.fn()
 
@@ -163,7 +163,6 @@ vi.mock('@/lib/services/waha.service', () => ({
   botSessionName: () => 'bot',
   personalSessionName: () => 'personal',
 }))
-vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
 vi.mock('@/lib/services/intake-extraction.service', () => ({
   IntakeExtractionService: { extract: (...args: unknown[]) => extractMock(...args) },
 }))
@@ -234,7 +233,7 @@ describe('support agent', () => {
     prismaMock.project.findFirst.mockResolvedValue({ id: 'project-1', name: 'האתר' })
     prismaMock.request.findMany.mockResolvedValue([])
     prismaMock.request.create.mockResolvedValue({ id: 'request-1' })
-    agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
+    prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: 'owner-chat@lid' })
     wahaMock.sendMessage.mockResolvedValue(undefined)
     extractMock.mockResolvedValue({ intake: EMPTY_INTAKE, relation: null })
     prismaMock.client.findFirst.mockResolvedValue(null)
@@ -1452,7 +1451,7 @@ describe('support agent', () => {
   })
 
   it('pings the owner when a NEW report ends a turn with nothing filed', async () => {
-    agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
+    prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: 'owner-chat@lid' })
     extractMock.mockResolvedValue({
       intake: { ...EMPTY_INTAKE, suggestedType: 'BUG', whatHappened: 'תמחור לא מתווסף' },
       relation: { relation: 'NEW', relatedTitle: null, rationaleHe: null },
@@ -1472,7 +1471,7 @@ describe('support agent', () => {
   })
 
   it('stays silent when the turn actually filed or only answered a question', async () => {
-    agentMock.resolveOwnerChatId.mockResolvedValue('owner-chat@lid')
+    prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: 'owner-chat@lid' })
 
     // Case 1: question - ticketless turns are legitimate.
     extractMock.mockResolvedValue({

@@ -20,8 +20,11 @@ const wahaMock = {
 
 const agentMock = {
   processMessage: vi.fn(),
-  saveOwnerChatId: vi.fn(),
-  resolveOwnerChatId: vi.fn(),
+}
+
+const ownerLineMock = {
+  notifyOwner: vi.fn(),
+  rememberOwnerChat: vi.fn(),
 }
 
 const supportMock = {
@@ -69,6 +72,7 @@ vi.mock('@/lib/services/waha.service', () => ({
   },
 }))
 vi.mock('@/lib/services/whatsapp-agent.service', () => ({ WhatsAppAgentService: agentMock }))
+vi.mock('@/lib/services/owner-line', () => ownerLineMock)
 vi.mock('@/lib/services/support-agent.service', () => ({ SupportAgentService: supportMock }))
 vi.mock('next/server', async () => {
   const actual = await vi.importActual<typeof import('next/server')>('next/server')
@@ -136,7 +140,8 @@ describe('bot webhook identity routing', () => {
     prismaMock.whatsAppMessage.update.mockResolvedValue({ id: 'msg-1' })
     prismaMock.whatsAppMessage.findUnique.mockResolvedValue(null)
     agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
-    agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
+    ownerLineMock.notifyOwner.mockResolvedValue(true)
+    ownerLineMock.rememberOwnerChat.mockResolvedValue(undefined)
     supportMock.handleMessage.mockResolvedValue('תשובת התמיכה')
     mediaMock.processIncomingMedia.mockResolvedValue(null)
     prismaMock.project.findMany.mockResolvedValue([])
@@ -192,7 +197,7 @@ describe('bot webhook identity routing', () => {
     expect(wahaMock.getPhoneFromChatId).toHaveBeenCalledWith(OWNER_CHAT_ID, 'bot')
     expect(agentMock.processMessage).toHaveBeenCalledWith('user-1', 'מה יש היום?')
     expect(sentTexts()).toEqual([{ chatId: OWNER_CHAT_ID, text: 'תשובת הסוכן' }])
-    expect(agentMock.saveOwnerChatId).toHaveBeenCalledWith(OWNER_CHAT_ID)
+    expect(ownerLineMock.rememberOwnerChat).toHaveBeenCalledWith(OWNER_CHAT_ID)
   })
 
   it('routes a client contact to the support agent, never the owner agent', async () => {
@@ -203,7 +208,7 @@ describe('bot webhook identity routing', () => {
     await flushAfter()
 
     expect(agentMock.processMessage).not.toHaveBeenCalled()
-    expect(agentMock.saveOwnerChatId).not.toHaveBeenCalled()
+    expect(ownerLineMock.rememberOwnerChat).not.toHaveBeenCalled()
     expect(supportMock.handleMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'user-1',
@@ -412,10 +417,11 @@ describe('bot webhook identity routing', () => {
     await flushAfter()
 
     // Local model unavailable -> the canned tier, plus the owner handoff ping.
-    expect(sentTexts()).toEqual([
-      { chatId: OWNER_CHAT_ID, text: expect.stringContaining('לא נפתחה פנייה') },
-      { chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE },
-    ])
+    expect(sentTexts()).toEqual([{ chatId: 'client-chat@lid', text: CLIENT_ACK_MESSAGE }])
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(
+      expect.stringContaining('לא נפתחה פנייה'),
+      { about: 'a degraded turn', unlessChatId: 'client-chat@lid' }
+    )
     expect(prismaMock.whatsAppMessage.create).toHaveBeenCalled()
     // Handed back to the batch extraction so the request is not lost by both paths.
     expect(prismaMock.whatsAppMessage.update).toHaveBeenCalledWith({
@@ -441,9 +447,12 @@ describe('bot webhook identity routing', () => {
       lastMessage: 'יש באג באתר',
     })
     expect(sentTexts()).toEqual([
-      { chatId: OWNER_CHAT_ID, text: expect.stringContaining('מסעדת הגן') },
       { chatId: 'client-chat@lid', text: 'קיבלתי את ההודעה, איתי יראה אותה ויחזור אליך.' },
     ])
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(
+      expect.stringContaining('מסעדת הגן'),
+      { about: 'a degraded turn', unlessChatId: 'client-chat@lid' }
+    )
     // The exchange still lands in the conversation record.
     expect(conversationMock.appendHistory).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: 'client-chat@lid' }),
@@ -477,13 +486,15 @@ describe('bot webhook identity routing', () => {
     await POST(webhookRequest(incoming('stranger@lid', 'היי, אפשר הצעת מחיר?')))
 
     expect(agentMock.processMessage).not.toHaveBeenCalled()
-    expect(agentMock.saveOwnerChatId).not.toHaveBeenCalled()
+    expect(ownerLineMock.rememberOwnerChat).not.toHaveBeenCalled()
 
-    const texts = sentTexts()
-    expect(texts[0]).toEqual({ chatId: 'stranger@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE })
-    expect(texts[1].chatId).toBe(OWNER_CHAT_ID)
-    expect(texts[1].text).toContain('0539999999')
-    expect(texts[1].text).toContain('היי, אפשר הצעת מחיר?')
+    expect(sentTexts()).toEqual([{ chatId: 'stranger@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE }])
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(
+      expect.stringContaining('0539999999'),
+      { about: 'an unknown sender', unlessChatId: 'stranger@lid' }
+    )
+    const [notice] = ownerLineMock.notifyOwner.mock.calls[0]
+    expect(notice).toContain('היי, אפשר הצעת מחיר?')
   })
 
   it('treats a lead (contact without a client) like an unknown sender', async () => {
@@ -496,10 +507,11 @@ describe('bot webhook identity routing', () => {
 
     expect(agentMock.processMessage).not.toHaveBeenCalled()
 
-    const texts = sentTexts()
-    expect(texts[0]).toEqual({ chatId: 'lead-chat@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE })
-    expect(texts[1].chatId).toBe(OWNER_CHAT_ID)
-    expect(texts[1].text).toContain('יוסי')
+    expect(sentTexts()).toEqual([{ chatId: 'lead-chat@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE }])
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(expect.stringContaining('יוסי'), {
+      about: 'an unknown sender',
+      unlessChatId: 'lead-chat@lid',
+    })
   })
 
   it('holds a sender whose phone cannot be resolved', async () => {
@@ -520,15 +532,26 @@ describe('bot webhook identity routing', () => {
     await POST(webhookRequest(incoming(OWNER_CHAT_ID)))
 
     expect(sentTexts()).toEqual([{ chatId: OWNER_CHAT_ID, text: UNKNOWN_SENDER_HOLD_MESSAGE }])
+    // The route no longer knows whether the excluded chat is his own - it just
+    // tells the module who not to notify, and the module makes the call.
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(expect.any(String), {
+      about: 'an unknown sender',
+      unlessChatId: OWNER_CHAT_ID,
+    })
   })
 
   it('still holds the sender when no owner chat id is available', async () => {
     wahaMock.getPhoneFromChatId.mockResolvedValue('0539999999')
-    agentMock.resolveOwnerChatId.mockResolvedValue(null)
+    ownerLineMock.notifyOwner.mockResolvedValue(false)
 
     await POST(webhookRequest(incoming('stranger@lid')))
 
     expect(sentTexts()).toEqual([{ chatId: 'stranger@lid', text: UNKNOWN_SENDER_HOLD_MESSAGE }])
+    // The route does not read the result - delivery is the module's concern.
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledWith(expect.any(String), {
+      about: 'an unknown sender',
+      unlessChatId: 'stranger@lid',
+    })
   })
 
   it('ignores non-message events, own messages, and malformed payloads', async () => {
@@ -558,7 +581,8 @@ describe('bot pause switch', () => {
     prismaMock.user.findFirst.mockResolvedValue({ id: 'user-1' })
     prismaMock.contact.findMany.mockResolvedValue([])
     agentMock.processMessage.mockResolvedValue('תשובת הסוכן')
-    agentMock.resolveOwnerChatId.mockResolvedValue(OWNER_CHAT_ID)
+    ownerLineMock.notifyOwner.mockResolvedValue(true)
+    ownerLineMock.rememberOwnerChat.mockResolvedValue(undefined)
     conversationMock.exists.mockResolvedValue(true)
     wahaMock.sendMessage.mockResolvedValue(undefined)
     wahaMock.getPhoneFromChatId.mockResolvedValue(null)

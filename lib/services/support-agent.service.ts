@@ -12,6 +12,7 @@ import { configuredProjects, createRepoTools } from './support-repo-tools'
 import { IntakeExtractionService, type TurnRelation } from './intake-extraction.service'
 import { ProductCardService } from './product-card.service'
 import { ClientProfileService } from './client-profile.service'
+import { notifyOwner } from './owner-line'
 import {
   INTAKE_FIELD_LABELS,
   intakeKind,
@@ -254,20 +255,11 @@ export function isAffirmation(text: string): boolean {
 
 /** One line to Itay's own chat; a failure here must never break the client reply. */
 async function notifyPossiblyMissedRequest(input: SupportAgentInput) {
-  try {
-    const { WhatsAppAgentService } = await import('./whatsapp-agent.service')
-    const { WahaService } = await import('./waha.service')
-    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-    if (!ownerChatId) return
-
-    const snippet = input.text.replace(/\s+/g, ' ').slice(0, 80)
-    await WahaService.sendMessage({
-      chatId: ownerChatId,
-      text: `⚠️ יתכן שפנייה מ-${input.contactName} (${input.clientName}) לא נקלטה: "${snippet}" — שווה הצצה בשיחה.`,
-    })
-  } catch (error) {
-    console.error('Missed-request notice failed:', error)
-  }
+  const snippet = input.text.replace(/\s+/g, ' ').slice(0, 80)
+  await notifyOwner(
+    `⚠️ יתכן שפנייה מ-${input.contactName} (${input.clientName}) לא נקלטה: "${snippet}" — שווה הצצה בשיחה.`,
+    { about: 'a possibly missed request' },
+  )
 }
 
 /**

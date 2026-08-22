@@ -5,8 +5,7 @@ import {
   type PendingDraft,
   type SupportConversationContext,
 } from './support-conversation.service'
-import { WahaService } from './waha.service'
-import { WhatsAppAgentService } from './whatsapp-agent.service'
+import { notifyOwner } from './owner-line'
 import { filedRequestOwnerNotice } from './whatsapp-messages'
 
 /**
@@ -87,7 +86,7 @@ export async function fileDraftAsRequest(
   }
 
   await SupportConversationService.clearPendingDraft(context)
-  await notifyOwner(context, draft, project?.name, unconfirmed)
+  await notifyOwnerOfFiling(context, draft, project?.name, unconfirmed)
 
   return { requestId: request?.id }
 }
@@ -103,35 +102,23 @@ export async function ownProject(
   })
 }
 
-async function notifyOwner(
+async function notifyOwnerOfFiling(
   context: FilingContext,
   draft: PendingDraft,
   projectName: string | undefined,
   unconfirmed: boolean
 ) {
-  // The ticket already exists at this point: a WhatsApp hiccup must not turn into
-  // a failed tool call that leaves the client without a confirmation.
-  try {
-    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-    if (!ownerChatId) {
-      console.warn('No owner chat id available - filed request notification skipped')
-      return
-    }
-
-    await WahaService.sendMessage({
-      chatId: ownerChatId,
-      text: filedRequestOwnerNotice({
-        clientName: context.clientName,
-        contactName: context.contactName,
-        projectName,
-        title: draft.title,
-        description: draft.description,
-        type: draft.type,
-        priority: draft.priority,
-        unconfirmed,
-      }),
-    })
-  } catch (error) {
-    console.error('Failed to notify owner about a filed request:', error)
-  }
+  await notifyOwner(
+    filedRequestOwnerNotice({
+      clientName: context.clientName,
+      contactName: context.contactName,
+      projectName,
+      title: draft.title,
+      description: draft.description,
+      type: draft.type,
+      priority: draft.priority,
+      unconfirmed,
+    }),
+    { about: 'a filed request' },
+  )
 }

@@ -6,18 +6,10 @@ const prismaMock = {
   contact: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
 }
 
-const wahaMock = { sendMessage: vi.fn() }
-const agentMock = { getOwnerChatId: vi.fn() }
+const ownerLineMock = { notifyOwner: vi.fn() }
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
-vi.mock('@/lib/services/waha.service', () => ({
-  WahaService: wahaMock,
-  botSessionName: () => 'bot',
-  personalSessionName: () => 'personal',
-}))
-vi.mock('@/lib/services/whatsapp-agent.service', () => ({
-  WhatsAppAgentService: agentMock,
-}))
+vi.mock('@/lib/services/owner-line', () => ownerLineMock)
 
 const { POST } = await import('@/app/api/public/leads/route')
 const { resetRateLimits } = await import('@/lib/utils/rate-limit')
@@ -69,8 +61,7 @@ describe('public lead intake', () => {
     prismaMock.contact.findFirst.mockResolvedValue(null)
     prismaMock.contact.create.mockResolvedValue({ id: 'contact-1', name: LEAD.name, phone: '0544994417' })
     prismaMock.contact.update.mockResolvedValue({ id: 'contact-1', name: LEAD.name, phone: '0544994417' })
-    agentMock.getOwnerChatId.mockResolvedValue('972544994417@c.us')
-    wahaMock.sendMessage.mockResolvedValue(undefined)
+    ownerLineMock.notifyOwner.mockResolvedValue(true)
   })
 
   // The whole point of the change: an unset secret must not leave the endpoint
@@ -82,7 +73,7 @@ describe('public lead intake', () => {
 
     expect(res.status).toBe(401)
     expect(prismaMock.contact.create).not.toHaveBeenCalled()
-    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+    expect(ownerLineMock.notifyOwner).not.toHaveBeenCalled()
   })
 
   it('rejects a wrong or missing secret', async () => {
@@ -107,8 +98,10 @@ describe('public lead intake', () => {
     expect(created.source).toBe('WEBSITE')
     expect(created.userId).toBe('owner-1')
 
-    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
-    expect(wahaMock.sendMessage.mock.calls[0][0].text).toContain('ליד חדש מהאתר')
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledTimes(1)
+    const [notice, opts] = ownerLineMock.notifyOwner.mock.calls[0]
+    expect(notice).toContain('ליד חדש מהאתר')
+    expect(opts).toEqual({ about: 'a new lead' })
   })
 
   // Five identical submissions in six seconds is what actually happened on
@@ -121,7 +114,7 @@ describe('public lead intake', () => {
     expect(res.status).toBe(200)
     expect(prismaMock.contact.create).not.toHaveBeenCalled()
     expect(prismaMock.contact.update).not.toHaveBeenCalled()
-    expect(wahaMock.sendMessage).not.toHaveBeenCalled()
+    expect(ownerLineMock.notifyOwner).not.toHaveBeenCalled()
   })
 
   it('merges a submission that adds something new, without a second row', async () => {
@@ -139,7 +132,7 @@ describe('public lead intake', () => {
     expect(update.data.email).toBe('dana@example.com')
     expect(update.data.status).toBeUndefined()
 
-    expect(wahaMock.sendMessage.mock.calls[0][0].text).toContain('איש קשר קיים')
+    expect(ownerLineMock.notifyOwner.mock.calls[0][0]).toContain('איש קשר קיים')
   })
 
   // An old contact is not a repeat: the window is measured from the last time
@@ -153,7 +146,7 @@ describe('public lead intake', () => {
 
     expect(res.status).toBe(200)
     expect(prismaMock.contact.update).toHaveBeenCalledTimes(1)
-    expect(wahaMock.sendMessage).toHaveBeenCalledTimes(1)
+    expect(ownerLineMock.notifyOwner).toHaveBeenCalledTimes(1)
   })
 
   it('keeps a differing budget out of the duplicate window', async () => {
