@@ -1,9 +1,7 @@
 import { chromium, FullConfig } from '@playwright/test'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { BASE_URL } from './base-url'
-
-const prisma = new PrismaClient()
 
 const TEST_USER = {
   email: 'e2e-test@test.com',
