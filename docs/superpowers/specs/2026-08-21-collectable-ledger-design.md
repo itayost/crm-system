@@ -157,7 +157,7 @@ plan as written, all recorded with reasoning in the run's ledger:
   production database, and `/money`'s baseline legitimately changed. Both handed to the
   owner. The final review scoped the fallout to exactly one snapshot, `money` in
   `e2e/visual.spec.ts:24` - no spec asserts `/money` text.
-- **`CLAUDE.md:47` and `AGENTS.md:47` still point at the deleted `lib/utils/project-money.ts`.**
+- ~~**`CLAUDE.md:47` and `AGENTS.md:47` still point at the deleted `lib/utils/project-money.ts`.**~~ **Fixed 2026-08-22**, after the merge, in both files. Both now also carry the rule that `notifyOwner()` is the only way to reach Itay.
   Not fixed here: `CLAUDE.md` had 181 uncommitted deletions in the owner's tree at the
   time. Handed back as a one-line change.
 - **A negative advance turned out to be reachable.** The assumption that

@@ -82,7 +82,7 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 - Statuses: **ACTIVE, COMPLETED** only. There is no DRAFT / ON_HOLD / CANCELLED
 - Types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
 - Priority: LOW, MEDIUM, HIGH, URGENT
-- **Billed per phase.** A project has an `advanceAmount` (מקדמה) plus many `ProjectPhase` rows. There is no `Project.price` -- the total is `advance + Σ phase prices`, computed by `projectTotal()` in `lib/utils/project-money.ts`. Never re-derive money inline; use those helpers
+- **Billed per phase.** A project has an `advanceAmount` (מקדמה) plus many `ProjectPhase` rows. There is no `Project.price` -- the total is `advance + Σ phase prices`, computed by `projectTotal()` in `lib/money/project.ts`. Never re-derive money inline; use those helpers -- and never re-derive "what is owed" either: `collectable()` and `signedOffUnpaid()` in `lib/money/ledger.ts` own that, and `גבייה` (owner-wide, advances included) is deliberately wider than `לתשלום` (per project, phases only). See `docs/adr/0003-collectable-is-not-what-a-client-owes.md`
 - `retention` + `retentionFrequency` are unchanged (recurring maintenance)
 - Has many Tasks and many Requests
 
@@ -410,6 +410,13 @@ so the gate is opt-in per request and nothing written before it existed changed.
   comes back. So the "finished" notice asks `isBotPaused()` and swaps its
   sign-off: `אני כאן` when the bot can hear a reply, the portal link when it
   cannot. Never promise a channel that is switched off
+- **`notifyOwner()` in `lib/services/owner-line.ts` is the only way to reach
+  Itay.** It owns resolving his chat id -- the stored LID, else `OWNER_PHONE` --
+  plus delivery, the missing-recipient guard and swallowing failures. Never
+  hand-roll a `WahaService.sendMessage` to him: three notification paths once
+  resolved without the phone fallback and went silent on a fresh deployment.
+  Notices are Hebrew; the `about` label is short English because it is the only
+  part that reaches a log, and notices carry client names
 
 ## Prompt caching
 
