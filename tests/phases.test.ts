@@ -382,5 +382,10 @@ describe('the client signs off a phase', () => {
     const result = await PhasesService.recordClientReview(TOKEN, 'phase-1', { decision: 'APPROVED' })
 
     expect(result).toEqual({ alreadyReviewed: false, status: 'APPROVED' })
+    // The stored chat id above must actually be what let this fail here -
+    // otherwise this test would pass just as well if the lookup itself
+    // collapsed first, and a regression to the old short-circuit would go
+    // unnoticed.
+    expect(sendMessage).toHaveBeenCalled()
   })
 })

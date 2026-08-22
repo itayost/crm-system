@@ -10,6 +10,10 @@ const { notifyOwner, rememberOwnerChat } = await import('@/lib/services/owner-li
 
 const STORED = '972500000000@lid'
 
+// The label content is inert here - these tests exercise resolution and
+// fallback, not what gets logged - so any real OwnerNoticeSubject will do.
+const ABOUT = 'a phase review'
+
 describe('resolving where to reach Itay', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -22,7 +26,7 @@ describe('resolving where to reach Itay', () => {
     prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: STORED })
     vi.stubEnv('OWNER_PHONE', '0501111111')
 
-    await notifyOwner('שלום', { about: 'a test' })
+    await notifyOwner('שלום', { about: ABOUT })
 
     expect(wahaMock.sendMessage).toHaveBeenCalledWith({ chatId: STORED, text: 'שלום' })
   })
@@ -31,7 +35,7 @@ describe('resolving where to reach Itay', () => {
     prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: null })
     vi.stubEnv('OWNER_PHONE', '0501111111')
 
-    await expect(notifyOwner('שלום', { about: 'a test' })).resolves.toBe(true)
+    await expect(notifyOwner('שלום', { about: ABOUT })).resolves.toBe(true)
 
     expect(wahaMock.sendMessage).toHaveBeenCalledWith({
       chatId: '0501111111@c.us',
@@ -43,7 +47,7 @@ describe('resolving where to reach Itay', () => {
     prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: null })
     vi.stubEnv('OWNER_PHONE', '')
 
-    await expect(notifyOwner('שלום', { about: 'a test' })).resolves.toBe(false)
+    await expect(notifyOwner('שלום', { about: ABOUT })).resolves.toBe(false)
     expect(wahaMock.sendMessage).not.toHaveBeenCalled()
   })
 
@@ -54,7 +58,7 @@ describe('resolving where to reach Itay', () => {
       throw new Error('bad number')
     })
 
-    await expect(notifyOwner('שלום', { about: 'a test' })).resolves.toBe(false)
+    await expect(notifyOwner('שלום', { about: ABOUT })).resolves.toBe(false)
   })
 })
 
@@ -67,20 +71,20 @@ describe('not telling Itay about his own message', () => {
 
   it('skips when the excluded chat is his own', async () => {
     await expect(
-      notifyOwner('שלום', { about: 'a test', unlessChatId: STORED }),
+      notifyOwner('שלום', { about: ABOUT, unlessChatId: STORED }),
     ).resolves.toBe(false)
     expect(wahaMock.sendMessage).not.toHaveBeenCalled()
   })
 
   it('sends when the excluded chat is somebody else', async () => {
     await expect(
-      notifyOwner('שלום', { about: 'a test', unlessChatId: 'someone-else@lid' }),
+      notifyOwner('שלום', { about: ABOUT, unlessChatId: 'someone-else@lid' }),
     ).resolves.toBe(true)
     expect(wahaMock.sendMessage).toHaveBeenCalled()
   })
 
   it('sends when nothing is excluded', async () => {
-    await expect(notifyOwner('שלום', { about: 'a test' })).resolves.toBe(true)
+    await expect(notifyOwner('שלום', { about: ABOUT })).resolves.toBe(true)
     expect(wahaMock.sendMessage).toHaveBeenCalled()
   })
 })

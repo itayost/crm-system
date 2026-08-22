@@ -3,6 +3,7 @@ import { gateway } from '@ai-sdk/gateway'
 import { prisma } from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
 import { createCrmTools } from './whatsapp-tools'
+import { CONVERSATION_ID } from './owner-line'
 
 const SYSTEM_PROMPT = `You are a smart CRM assistant for a Hebrew-speaking freelancer named Itay who builds websites, apps, and digital projects.
 You manage his contacts (leads and clients), projects, and tasks via WhatsApp.
@@ -75,7 +76,6 @@ Request statuses: PENDING_REVIEW, OPEN, IN_PROGRESS, RESOLVED, DISMISSED
 Priorities: LOW, MEDIUM, HIGH, URGENT`
 
 const MAX_CONVERSATION_MESSAGES = 20
-const CONVERSATION_ID = 'singleton'
 
 interface ConversationMessage {
   role: 'user' | 'assistant'
