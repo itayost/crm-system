@@ -20,6 +20,10 @@ const prismaMock = {
     updateMany: vi.fn(),
     delete: vi.fn(),
   },
+  // Read by owner-line.ts's resolver, which the client sign-off notice goes
+  // through. A stored chat id lets resolution succeed so a WAHA failure is
+  // what actually reaches sendMessage, rather than the lookup failing first.
+  botConversation: { findFirst: vi.fn() },
   $transaction: vi.fn(),
 }
 
@@ -264,6 +268,7 @@ describe('the client signs off a phase', () => {
     // assertions below read another test's calls.
     vi.clearAllMocks()
     prismaMock.projectPhase.updateMany.mockResolvedValue({ count: 1 })
+    prismaMock.botConversation.findFirst.mockResolvedValue({ ownerChatId: 'owner@c.us' })
     sendMessage.mockResolvedValue(undefined)
   })
 
