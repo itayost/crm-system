@@ -2,31 +2,6 @@
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
-## Development Commands
-
-```bash
-# Development server
-npm run dev          # Start Next.js development server on http://localhost:3000
-
-# Build & Production
-npm run build        # Build the production-ready application
-npm start            # Start production server
-
-# Code Quality
-npm run lint         # Run ESLint for code quality checks
-
-# Database (Prisma)
-npm run db:push      # Push schema changes to database without migrations
-npm run db:migrate   # Apply migrations to the database
-npm run db:studio    # Open Prisma Studio for database management
-
-# Testing
-npm test             # Run Vitest unit/route tests (tests/*.test.ts)
-npm run test:watch   # Vitest in watch mode
-npm run test:e2e     # Run Playwright E2E tests (62 tests across 8 spec files)
-npm run typecheck    # tsc --noEmit
-```
-
 ## Project Overview
 
 A **Next.js 15 CRM system** for a Hebrew-speaking freelancer (RTL). A 2026-03 redesign cut a 12-model architecture down to four; it has since grown back to **11 models** as WhatsApp support, client requests and phase billing landed. The four originals (User, Contact, Project, Task) are still the spine.
@@ -40,19 +15,6 @@ The CRM is built for a freelancer in the digital field who:
 - Works with capacity for 3-4 large or 6-7 small projects simultaneously
 - Needs efficient time management and accurate project tracking
 - Requires fast lead response (< 2 hours)
-
-## Technology Stack
-
-- **Framework**: Next.js 15 (App Router), React 19, TypeScript
-- **UI**: Tailwind CSS, Radix UI primitives, shadcn/ui components
-- **Authentication**: NextAuth.js v4 with JWT strategy and credentials provider
-- **Database**: PostgreSQL (Supabase) with Prisma ORM
-- **Forms**: React Hook Form with Zod validation
-- **Charts**: Recharts for dashboard analytics
-- **Notifications**: react-hot-toast (dashboard), Sonner (toasts)
-- **Styling**: Tailwind CSS with RTL support, Hebrew font (Heebo)
-- **Testing**: Playwright for E2E tests
-- **HTTP Client**: Axios via `lib/api/client.ts`
 
 ## Data Model
 
@@ -455,16 +417,6 @@ Run with: `npm run test:e2e`
 - **UI Components**: shadcn/ui with consistent RTL styling
 - **Immutability**: Never mutate objects; use spread operator for updates
 - **Contact phases**: Use the `phase` filter (lead/client) rather than separate models
-
-## Codebase Metrics
-
-- ~74 TypeScript files
-- 11 database models, 17 enums
-- 4 service classes
-- 9 API route files (7 resource routes + 2 auth routes)
-- 6 dashboard pages (+ detail pages for contacts and projects)
-- 62 E2E tests across 8 spec files, plus 364 Vitest tests in 30 files
-- 23 shadcn/ui components
 
 ## Legacy Context
 
