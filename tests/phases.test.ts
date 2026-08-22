@@ -29,9 +29,6 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: prismaMock }))
 // recorded sign-off into an error on the client's screen.
 const sendMessage = vi.fn()
 vi.mock('@/lib/services/waha.service', () => ({ WahaService: { sendMessage: (...a: unknown[]) => sendMessage(...a) } }))
-vi.mock('@/lib/services/whatsapp-agent.service', () => ({
-  WhatsAppAgentService: { resolveOwnerChatId: async () => 'owner@c.us' },
-}))
 
 const { PhasesService } = await import('@/lib/services/phases.service')
 

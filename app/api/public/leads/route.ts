@@ -8,8 +8,7 @@ import {
   type LeadOutcome,
   type LeadSubmission,
 } from '@/lib/services/public-leads.service'
-import { WahaService } from '@/lib/services/waha.service'
-import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
+import { notifyOwner } from '@/lib/services/owner-line'
 
 /**
  * Lead intake from the website.
@@ -123,12 +122,6 @@ async function notifyOwnerOfNewLead(
   data: LeadSubmission,
   outcome: LeadOutcome
 ) {
-  const ownerChatId = await WhatsAppAgentService.getOwnerChatId()
-  if (!ownerChatId) {
-    console.log('No owner chatId set — skipping new lead notification')
-    return
-  }
-
   const lines = [
     outcome === 'MERGED' ? '🔔 *טופס מהאתר מאיש קשר קיים*' : '🔔 *ליד חדש מהאתר!*',
     '',
@@ -146,8 +139,5 @@ async function notifyOwnerOfNewLead(
     lines.push(data.notes)
   }
 
-  await WahaService.sendMessage({
-    chatId: ownerChatId,
-    text: lines.join('\n'),
-  })
+  await notifyOwner(lines.join('\n'), { about: 'a new lead' })
 }
