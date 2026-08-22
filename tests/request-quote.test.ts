@@ -60,6 +60,7 @@ const prismaMock = {
   task: { create: vi.fn(), delete: vi.fn() },
   project: { findFirst: vi.fn() },
   contact: { findFirst: vi.fn(async () => null) },
+  botConversation: { findFirst: vi.fn(async () => ({ ownerChatId: 'owner@c.us' })) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 }
 
@@ -73,9 +74,6 @@ vi.mock('@/lib/services/waha.service', () => ({
 }))
 vi.mock('@/lib/services/storage.service', () => ({
   StorageService: { removeAttachments: vi.fn() },
-}))
-vi.mock('@/lib/services/whatsapp-agent.service', () => ({
-  WhatsAppAgentService: { resolveOwnerChatId: vi.fn(async () => 'owner@c.us') },
 }))
 
 // The portal link in the quote message is built from this. Unset, there is no

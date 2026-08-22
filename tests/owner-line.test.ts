@@ -122,6 +122,8 @@ describe('remembering his chat id', () => {
     await rememberOwnerChat(STORED)
 
     const arg = prismaMock.botConversation.upsert.mock.calls[0][0]
+    expect(arg.where.id).toBe('singleton')
+    expect(arg.create.id).toBe('singleton')
     expect(arg.update).toEqual({ ownerChatId: STORED })
     expect(arg.create.ownerChatId).toBe(STORED)
   })

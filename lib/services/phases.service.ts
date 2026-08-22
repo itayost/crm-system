@@ -6,8 +6,7 @@ import type {
   UpdatePhaseInput,
 } from '@/lib/validations/phase'
 import { phaseReviewOwnerNotice } from '@/lib/services/whatsapp-messages'
-import { WahaService } from '@/lib/services/waha.service'
-import { WhatsAppAgentService } from '@/lib/services/whatsapp-agent.service'
+import { notifyOwner } from '@/lib/services/owner-line'
 
 /**
  * Billing phases on a project.
@@ -250,18 +249,5 @@ async function notifyOwnerOfPhaseReview(params: {
   decision: 'APPROVED' | 'REVISIONS'
   note: string | null
 }) {
-  try {
-    const ownerChatId = await WhatsAppAgentService.resolveOwnerChatId()
-    if (!ownerChatId) {
-      console.warn('No owner chat id available - phase review notification skipped')
-      return
-    }
-
-    await WahaService.sendMessage({
-      chatId: ownerChatId,
-      text: phaseReviewOwnerNotice(params),
-    })
-  } catch (error) {
-    console.error('Failed to notify owner about a phase review:', error)
-  }
+  await notifyOwner(phaseReviewOwnerNotice(params), { about: 'a phase review' })
 }
