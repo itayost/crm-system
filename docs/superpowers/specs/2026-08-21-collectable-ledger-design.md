@@ -146,7 +146,9 @@ plan as written, all recorded with reasoning in the run's ledger:
   unpaid phases on ACTIVE projects only, excluding advances. Preserved rather than
   widened, because changing a figure in a daily 06:00 message unasked is the hardest kind
   of change to notice. Its heading now names its scope so the difference reads as
-  deliberate. Whether to align it is an open owner decision.
+  deliberate. **Settled 2026-08-22:** asked directly, Itay confirmed the section
+  answers "what work have I finished that nobody has paid me for", so it stays as
+  it is. Aligning it would answer a different question.
 - **`tests/money-agreement.test.ts` lost one assertion early.** Its
   "keeps projectOutstanding narrower on purpose" test grepped for a literal that Task 1
   removed. Deleted in Task 2 rather than rewritten against new literals, which would have

@@ -208,9 +208,17 @@ export class MorningBriefService {
     // phase sitting *in the approval process*? A paid-but-still-pending phase
     // should stay on the list because the client has not yet signed off the work.
     //
-    // Both are scoped to ACTIVE projects, narrower than every other surface,
-    // preserved deliberately: widening either would move a number in the daily
-    // message without anyone asking for it.
+    // Both are scoped to ACTIVE projects, narrower than every other surface.
+    //
+    // That is settled, not an oversight. Asked directly (2026-08-22), Itay
+    // confirmed this section answers "what work have I finished that nobody has
+    // paid me for" - which is לתשלום on live work, not גבייה. It is a different
+    // question from the one the כספים badge, the היום board and /money answer,
+    // so its total is SUPPOSED to be smaller than theirs.
+    //
+    // Do not "fix" the discrepancy by switching to openLedger. Doing so would
+    // start counting unpaid מקדמות and completed projects, answering "what can I
+    // invoice" instead - a question this section was never asking.
     const awaitingApproval = activeProjects.flatMap((p) =>
       p.phases
         .filter((ph) => ph.status === 'PENDING_APPROVAL')

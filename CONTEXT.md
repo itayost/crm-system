@@ -65,4 +65,8 @@ What a single project owes for work already approved: its signed-off, unpaid
 phases, never its מקדמה. The client's question, and deliberately narrower than
 גבייה — a client is being shown what their delivered work has cost, not what
 they agreed to pay on signature.
+
+The morning brief's תשלומים פתוחים section asks this same question, narrowed
+further to live work: signed-off unpaid phases on ACTIVE projects. Its total is
+therefore smaller than גבייה and is meant to be.
 _Avoid_: outstanding.
