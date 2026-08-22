@@ -47,11 +47,19 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
+     * - eve (the mounted agent, see below)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     *
+     * `eve` is excluded because the agent authenticates its own callers in
+     * agent/channels/eve.ts. Left in, this redirect would answer every
+     * agent request that has no CRM session cookie with a 302 to /login,
+     * which breaks the HTTP API for OIDC callers and the eve TUI alike.
+     * Excluding it removes the session gate, not the gate: the channel's
+     * placeholderAuth still refuses browser traffic in production.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|eve|_next/static|_next/image|favicon.ico|public).*)',
   ],
 }

@@ -2,6 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { SupportConversationService, type PendingDraft } from './support-conversation.service'
+import { inMemoryTurnCell, type TurnCell } from './support-turn-cell'
 import { fileDraftAsRequest } from './support-filing'
 import { priority, requestType } from '@/lib/validations/request'
 import { intakeFrequency, mergeIntake, EMPTY_INTAKE, type Intake } from '@/lib/validations/intake'
@@ -35,6 +36,13 @@ export interface SupportToolContext {
    * response to it - the only thing that makes filing legitimate.
    */
   confirmableDraft?: PendingDraft | null
+  /**
+   * Where the turn keeps which summary may be filed. Omit it and the tools use
+   * their own turn-local bindings, seeded from `confirmableDraft`, exactly as
+   * before. The eve agent supplies one backed by durable session state, because
+   * its tools are separate modules with no closure to share.
+   */
+  turnCell?: TurnCell
   /**
    * What the intake extractor pulled from this turn's message. Folded under
    * the model's proposeSummary fields so nothing the client already said is
@@ -114,12 +122,11 @@ export function createSupportTools(context: SupportToolContext) {
   // already shown. Re-proposing the identical text during this turn is the model
   // repeating itself and must not revoke that; proposing something *different*
   // must, because the client has not seen the new wording.
-  let confirmable = context.confirmableDraft ?? null
-
-  // The wording the client demonstrably read, kept even after a re-proposal
-  // revokes `confirmable`. It is the only text we can prove was in front of
-  // them, so it is what gets filed when the exchange has to be ended.
-  const seenByClient = context.confirmableDraft ?? null
+  //
+  // The two values live behind a cell so the rule can also be enforced from the
+  // eve agent, whose tools are separate modules with no shared closure. Absent a
+  // supplied cell this is the same pair of turn-local bindings as before.
+  const turn = context.turnCell ?? inMemoryTurnCell(context.confirmableDraft ?? null)
 
   return {
     listMyProjects: tool({
@@ -260,8 +267,8 @@ export function createSupportTools(context: SupportToolContext) {
         }
 
         await SupportConversationService.setPendingDraft(context, draft)
-        if (!confirmable || !sameSummary(confirmable, draft)) {
-          confirmable = null
+        if (!turn.getConfirmable() || !sameSummary(turn.getConfirmable()!, draft)) {
+          turn.setConfirmable(null)
         }
 
         return {
@@ -300,10 +307,10 @@ export function createSupportTools(context: SupportToolContext) {
         // the client actually read. Where those have come apart past the round
         // limit, the client's version wins.
         const rounds = context.confirmationRounds ?? 0
-        const draft = confirmable
+        const draft = turn.getConfirmable()
           ? pending.draft
           : rounds >= MAX_CONFIRMATION_ROUNDS
-            ? seenByClient
+            ? turn.getSeenByClient()
             : null
 
         if (!draft) {
@@ -314,7 +321,7 @@ export function createSupportTools(context: SupportToolContext) {
           }
         }
 
-        if (!confirmable) {
+        if (!turn.getConfirmable()) {
           console.warn(
             `Support confirmation stopped converging after ${rounds} rounds on chat ${context.chatId}; filing the wording the client approved`
           )
