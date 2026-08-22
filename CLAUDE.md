@@ -2,34 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands
-
-```bash
-# Development server
-npm run dev          # Start Next.js development server on http://localhost:3000
-
-# Build & Production
-npm run build        # Build the production-ready application
-npm start            # Start production server
-
-# Code Quality
-npm run lint         # Run ESLint for code quality checks
-
-# Database (Prisma)
-npm run db:push      # Push schema changes to database without migrations
-npm run db:migrate   # Apply migrations to the database
-npm run db:studio    # Open Prisma Studio for database management
-
-# Testing
-npm test             # Run Vitest unit/route tests (tests/*.test.ts)
-npm run test:watch   # Vitest in watch mode
-npm run test:e2e     # Run Playwright E2E tests (62 tests across 8 spec files)
-npm run typecheck    # tsc --noEmit
-```
-
 ## Project Overview
 
-A **Next.js 15 CRM system** for a Hebrew-speaking freelancer (RTL). A 2026-03 redesign cut a 12-model architecture down to four; it has since grown back to **11 models** as WhatsApp support, client requests and phase billing landed. The four originals (User, Contact, Project, Task) are still the spine.
+A **Next.js 15 CRM system** for a Hebrew-speaking freelancer (RTL). A 2026-03 redesign cut a 12-model architecture down to four; it has since grown back as WhatsApp support, client requests and phase billing landed. The four originals (User, Contact, Project, Task) are still the spine.
 
 ## Business Context
 
@@ -41,22 +16,9 @@ The CRM is built for a freelancer in the digital field who:
 - Needs efficient time management and accurate project tracking
 - Requires fast lead response (< 2 hours)
 
-## Technology Stack
-
-- **Framework**: Next.js 15 (App Router), React 19, TypeScript
-- **UI**: Tailwind CSS, Radix UI primitives, shadcn/ui components
-- **Authentication**: NextAuth.js v4 with JWT strategy and credentials provider
-- **Database**: PostgreSQL (Supabase) with Prisma ORM
-- **Forms**: React Hook Form with Zod validation
-- **Charts**: Recharts for dashboard analytics
-- **Notifications**: react-hot-toast (dashboard), Sonner (toasts)
-- **Styling**: Tailwind CSS with RTL support, Hebrew font (Heebo)
-- **Testing**: Playwright for E2E tests
-- **HTTP Client**: Axios via `lib/api/client.ts`
-
 ## Data Model
 
-The schema (`prisma/schema.prisma`) has 11 models. The five that carry the
+Read `prisma/schema.prisma` for the full schema. The five models that carry the
 domain are below; the rest (Client, Request, WhatsAppMessage, BotConversation,
 SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 
@@ -82,7 +44,7 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 - Statuses: **ACTIVE, COMPLETED** only. There is no DRAFT / ON_HOLD / CANCELLED
 - Types: LANDING_PAGE, WEBSITE, ECOMMERCE, WEB_APP, MOBILE_APP, MANAGEMENT_SYSTEM, CONSULTATION
 - Priority: LOW, MEDIUM, HIGH, URGENT
-- **Billed per phase.** A project has an `advanceAmount` (מקדמה) plus many `ProjectPhase` rows. There is no `Project.price` -- the total is `advance + Σ phase prices`, computed by `projectTotal()` in `lib/utils/project-money.ts`. Never re-derive money inline; use those helpers
+- **Billed per phase.** A project has an `advanceAmount` (מקדמה) plus many `ProjectPhase` rows. There is no `Project.price` -- the total is `advance + Σ phase prices`, computed by `projectTotal()` in `lib/money/project.ts`. Never re-derive money inline; use those helpers -- and never re-derive "what is owed" either: `collectable()` and `signedOffUnpaid()` in `lib/money/ledger.ts` own that, and `גבייה` (owner-wide, advances included) is deliberately wider than `לתשלום` (per project, phases only). See `docs/adr/0003-collectable-is-not-what-a-client-owes.md`
 - `retention` + `retentionFrequency` are unchanged (recurring maintenance)
 - Has many Tasks and many Requests
 
@@ -90,6 +52,7 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 
 - A billable stage: `name`, `order`, `status`, `price`, `approvedAt`, `paidAt`
 - Statuses: NOT_STARTED, IN_PROGRESS, PENDING_APPROVAL, REVISIONS, APPROVED. **Not a straight line** -- PENDING_APPROVAL and REVISIONS cycle, which is why the UI uses a Select and not a "next stage" button
+- **The client answers PENDING_APPROVAL from the portal** (`PhasesService.recordClientReview`, token-scoped). Approving stamps `approvedAt` and makes the phase billable; asking for changes moves it to REVISIONS with their note. REVISIONS is *Itay's* turn, so the client sees it as work in progress -- never as something waiting on them
 - **Approval and payment are separate.** `approvedAt` follows the status both ways; `paidAt` moves only on an explicit `paid` flag, so un-approving a phase never un-pays it
 - **No `userId`** -- ownership comes through the project (same as `AgentProjectConfig`), so `PhasesService` proves project ownership on every call. Cascades on project delete
 - Dashboard revenue = paid phases + paid advances. Approved-but-unpaid surfaces separately as `outstanding`
@@ -102,107 +65,9 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 
 ## Architecture
 
-### Directory Structure
-
-```text
-app/
-  (auth)/
-    login/page.tsx           # Login page
-    layout.tsx               # Auth layout
-  (dashboard)/
-    page.tsx                 # Dashboard (KPIs, recent items, charts)
-    layout.tsx               # Dashboard layout with sidebar + header
-    contacts/
-      page.tsx               # Contacts list with lead/client phase tabs
-      [id]/page.tsx          # Contact detail page
-    projects/
-      page.tsx               # Projects list with status filters
-      [id]/page.tsx          # Project detail with tasks
-    tasks/
-      page.tsx               # Tasks list with filters
-  api/
-    auth/
-      [...nextauth]/route.ts # NextAuth handler
-      register/route.ts      # User registration
-    contacts/
-      route.ts               # GET (list) + POST (create)
-      [id]/route.ts          # GET + PUT + DELETE
-    projects/
-      route.ts               # GET (list) + POST (create)
-      [id]/route.ts          # GET + PUT + DELETE
-    tasks/
-      route.ts               # GET (list) + POST (create)
-      [id]/route.ts          # GET + PUT + DELETE
-    dashboard/
-      route.ts               # GET dashboard aggregate data
-
-lib/
-  api/
-    api-handler.ts           # Shared API route handler wrapper
-    client.ts                # Axios client for frontend API calls
-  auth/
-    auth.config.ts           # NextAuth provider configuration
-    auth.ts                  # NextAuth instance
-  db/
-    prisma.ts                # Prisma client singleton
-  services/
-    contacts.service.ts      # Contact CRUD, phase filtering, lead-to-client conversion
-    projects.service.ts      # Project CRUD with contact validation
-    tasks.service.ts         # Task CRUD with project linking
-    dashboard.service.ts     # Dashboard aggregation queries
-  validations/
-    contact.ts               # Zod schemas for contact input
-    project.ts               # Zod schemas for project input
-    task.ts                  # Zod schemas for task input
-  config/                    # Configuration (currently empty)
-  errors/                    # Error utilities (currently empty)
-  hooks/                     # Custom hooks (currently empty)
-  utils/
-    project-money.ts         # projectTotal / projectPaid / projectOutstanding
-  utils.ts                   # cn(), formatDate(), formatCurrency()
-  design/
-    labels.ts                # every enum's Hebrew, decided once
-    tones.ts                 # every status's colour, decided once
-  types/                     # wire shapes shared by pages (contact, project, request)
-
-components/
-  forms/
-    contact-form.tsx         # Contact create/edit form
-    project-form.tsx         # Project create/edit form
-    task-form.tsx            # Task create/edit form
-  layout/
-    header.tsx               # Top header with user info
-    sidebar.tsx              # Navigation sidebar
-  ui/                        # shadcn/ui components (23 components)
-  charts/                    # Chart components (currently empty)
-  shared/                    # Shared components (currently empty)
-
-tests/                       # Vitest route/unit tests (mocked Prisma + WAHA)
-  whatsapp-bot-webhook.test.ts   # Bot-session identity routing
-  whatsapp-index-webhook.test.ts # Personal-session indexing
-  whatsapp-identity.test.ts      # Phone normalization and contact matching
-
-e2e/
-  auth.spec.ts               # Authentication flows
-  dashboard.spec.ts          # Dashboard page tests
-  contacts.spec.ts           # Contact CRUD and conversion tests
-  projects.spec.ts           # Project CRUD and status transition tests
-  tasks.spec.ts              # Task CRUD and linking tests
-  navigation.spec.ts         # Sidebar navigation tests
-  fixtures.ts                # Shared test fixtures and helpers
-  global-setup.ts            # Playwright global setup (login)
-  global-teardown.ts         # Playwright global teardown
-
-prisma/
-  schema.prisma              # Database schema
-```
-
 ### Key Files
 
 - `middleware.ts` -- Protects all routes except `/api`, `/_next`, `/favicon.ico`; redirects unauthenticated users to `/login`
-- `playwright.config.ts` -- E2E test configuration
-- `next.config.ts` -- Next.js configuration
-- `tailwind.config.js` -- Tailwind with RTL support
 
 ### Authentication
 
@@ -213,20 +78,9 @@ prisma/
 
 ### Service Layer Pattern
 
-Each service is a static class with methods that accept `userId` as the first parameter for data scoping:
-
-```typescript
-// Example pattern
-class ContactsService {
-  static async getAll(userId: string, filters?: ContactFilters): Promise<Contact[]>
-  static async getById(userId: string, id: string): Promise<Contact | null>
-  static async create(userId: string, data: CreateContactInput): Promise<Contact>
-  static async update(userId: string, id: string, data: UpdateContactInput): Promise<Contact>
-  static async delete(userId: string, id: string): Promise<void>
-}
-```
-
-Services: `ContactsService`, `ProjectsService`, `TasksService`, `DashboardService`
+Each service in `lib/services/` is a static class whose methods take `userId` as
+the first parameter. **Every query must be scoped by it** -- that is the only
+thing standing between two users' data.
 
 ### API Route Pattern
 
@@ -310,24 +164,9 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 
 ## Pausing the bot
 
-`WHATSAPP_BOT_PAUSED=1` (any value other than `0`/`false`/`off`/`no`/empty) plus a
-redeploy stops the bot talking to clients:
-
-- the bot webhook drops **CLIENT and UNKNOWN** senders whole -- no reply, no
-  `WhatsAppMessage` row, and therefore no ticket from `extract-requests`. A
-  message sent to the bot while it is paused reaches WhatsApp and nothing else
-- the hourly `support-followups` sweep sends no reminders; unanswered
-  confirmations keep waiting and are swept once the bot is back
-
-Deliberately **not** paused: the owner agent (Itay's own line into the CRM), the
-morning brief, the personal-session indexing webhook, and the other crons.
-Sender classification runs before the check -- it is the only way to tell the
-owner from a client, and it reads without sending or writing anything.
-
-Because Vercel env changes only reach new deployments, both pausing and
-resuming cost a redeploy. For an instant stop with no deploy, stop the `bot`
-session on WAHA instead -- but WhatsApp then queues everything and delivers it
-in a burst on restart.
+`WHATSAPP_BOT_PAUSED` stops the bot talking to clients. The full runbook --
+what stays running, and why both pausing and resuming cost a redeploy -- lives
+in the `pausing-the-bot` skill.
 
 ## Website lead intake
 
@@ -410,6 +249,13 @@ so the gate is opt-in per request and nothing written before it existed changed.
   comes back. So the "finished" notice asks `isBotPaused()` and swaps its
   sign-off: `אני כאן` when the bot can hear a reply, the portal link when it
   cannot. Never promise a channel that is switched off
+- **`notifyOwner()` in `lib/services/owner-line.ts` is the only way to reach
+  Itay.** It owns resolving his chat id -- the stored LID, else `OWNER_PHONE` --
+  plus delivery, the missing-recipient guard and swallowing failures. Never
+  hand-roll a `WahaService.sendMessage` to him: three notification paths once
+  resolved without the phone fallback and went silent on a fresh deployment.
+  Notices are Hebrew; the `about` label is short English because it is the only
+  part that reaches a log, and notices carry client names
 
 ## Prompt caching
 
@@ -449,19 +295,9 @@ Run with: `npm run test:e2e`
 - **Immutability**: Never mutate objects; use spread operator for updates
 - **Contact phases**: Use the `phase` filter (lead/client) rather than separate models
 
-## Codebase Metrics
-
-- ~74 TypeScript files
-- 11 database models, 17 enums
-- 4 service classes
-- 9 API route files (7 resource routes + 2 auth routes)
-- 6 dashboard pages (+ detail pages for contacts and projects)
-- 62 E2E tests across 8 spec files, plus 364 Vitest tests in 30 files
-- 23 shadcn/ui components
-
 ## Legacy Context
 
-The `claude-context/` directory contains planning documents from the original 12-model design. These documents describe the old architecture (leads, clients, payments, activities, notifications, milestones, documents as separate models) and are outdated. The current system uses the simplified 4-model architecture described above. Do not rely on those documents for understanding the current codebase.
+The `claude-context/` directory contains planning documents from the original 12-model design. These documents describe the old architecture (leads, clients, payments, activities, notifications, milestones, documents as separate models) and are outdated. Do not rely on those documents for understanding the current codebase.
 
 ## Agent skills
 
