@@ -80,7 +80,7 @@ User ──< Client ──< Project ──< ProjectPhase
 | **indexes** | status, (userId,status), deadline, clientId, primaryContactId | |
 
 There is **no `price` column**. A project's total is `advanceAmount` plus the
-sum of its phases — see `lib/utils/project-money.ts`.
+sum of its phases — see `lib/money/project.ts`.
 
 ### ProjectPhase — a billable stage
 
@@ -164,7 +164,9 @@ Remaining models — `WhatsAppMessage`, `BotConversation`, `SupportConversation`
   INACTIVE, unless the same request sets one.
 - **Money** — revenue is paid phases plus paid advances. Approval (`approvedAt`)
   and payment (`paidAt`) are independent, so un-approving never un-pays. All
-  three totals come from `lib/utils/project-money.ts`.
+  three totals come from `lib/money/project.ts`; the owner-wide predicates
+  (`collectable`, `signedOffUnpaid`, `received`, `agreed`) live in
+  `lib/money/ledger.ts`.
 
 ## Migrations
 

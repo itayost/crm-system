@@ -3,7 +3,7 @@ import {
   projectTotal,
   projectPaid,
   projectOutstanding,
-} from '@/lib/utils/project-money'
+} from '@/lib/money/project'
 
 /**
  * These three run on the server against Prisma Decimals and in the browser

@@ -26,7 +26,7 @@ import {
   projectPaid,
   projectOutstanding,
   type PhaseAmount,
-} from '@/lib/utils/project-money'
+} from '@/lib/money/project'
 
 interface ClientProject {
   status: string

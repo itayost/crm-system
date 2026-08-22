@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toneOf, PROJECT_STATUS_TONES } from '@/lib/design/tones'
 import { label, PROJECT_STATUS_LABELS } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { projectTotal } from '@/lib/utils/project-money'
+import { projectTotal } from '@/lib/money/project'
 import type { ContactProject } from '@/lib/types/contact'
 
 /**

@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/db/prisma'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
+import { fullLedger } from '@/lib/money/ledger.server'
+import { received } from '@/lib/money/ledger'
 
 export class DashboardService {
   static async getData(userId: string) {
     const [
-      paidPhases,
-      paidAdvances,
-      approvedUnpaid,
+      ledger,
       leadCount,
       clientCount,
       activeProjectCount,
@@ -21,20 +21,7 @@ export class DashboardService {
       // Revenue is money that actually arrived, not work that got finished.
       // It used to be "sum of price on COMPLETED projects", so a project half
       // delivered and half paid for showed up as nothing at all.
-      // ProjectPhase has no userId of its own, hence the relation filter.
-      prisma.projectPhase.aggregate({
-        where: { paidAt: { not: null }, project: { userId } },
-        _sum: { price: true },
-      }),
-      prisma.project.aggregate({
-        where: { userId, advancePaidAt: { not: null } },
-        _sum: { advanceAmount: true },
-      }),
-      // Signed off but not settled - the invoices worth chasing.
-      prisma.projectPhase.aggregate({
-        where: { status: 'APPROVED', paidAt: null, project: { userId } },
-        _sum: { price: true },
-      }),
+      fullLedger({ userId }),
       prisma.contact.count({
         where: { userId, status: { in: [...LEAD_STATUSES] } },
       }),
@@ -100,9 +87,7 @@ export class DashboardService {
     ])
 
     return {
-      revenue:
-        Number(paidPhases._sum.price ?? 0) + Number(paidAdvances._sum.advanceAmount ?? 0),
-      outstanding: Number(approvedUnpaid._sum.price ?? 0),
+      revenue: received(ledger),
       contacts: {
         leads: leadCount,
         clients: clientCount,

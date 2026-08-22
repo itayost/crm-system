@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 import { PHASE_STATUS_TONES, toneOf, type Tone } from '@/lib/design/tones'
-import type { PhaseAmount } from '@/lib/utils/project-money'
+import type { PhaseAmount } from '@/lib/money/project'
 
 /**
  * A project's phases as one glyph.

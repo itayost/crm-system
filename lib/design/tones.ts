@@ -9,6 +9,8 @@
  * can be changed there for the whole product at once.
  */
 
+import type { LedgerState } from '@/lib/money/ledger'
+
 export type Tone =
   | 'neutral'
   | 'info'
@@ -106,6 +108,18 @@ export const PHASE_STATUS_TONES: Record<string, Tone> = {
   PENDING_APPROVAL: 'caution',
   REVISIONS: 'warning',
   APPROVED: 'success',
+}
+
+/**
+ * Money is not a status: an unpaid invoice is not a success just because the
+ * work behind it was approved. collectable is the one that wants attention.
+ */
+export const LEDGER_STATE_TONES: Record<LedgerState, Tone> = {
+  scheduled: 'neutral',
+  inProgress: 'progress',
+  awaitingClient: 'caution',
+  collectable: 'warning',
+  paid: 'success',
 }
 
 export const TASK_STATUS_TONES: Record<string, Tone> = {

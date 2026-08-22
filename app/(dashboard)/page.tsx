@@ -27,7 +27,7 @@ import {
   REQUEST_TYPE_LABELS,
 } from '@/lib/design/labels'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { projectTotal } from '@/lib/utils/project-money'
+import { projectTotal } from '@/lib/money/project'
 import type { TodayBoard } from '@/lib/services/today.service'
 import type { RequestMetrics } from '@/lib/services/request-metrics.service'
 import type { PhaseSummary } from '@/lib/types/project'
@@ -56,7 +56,6 @@ interface ActiveProject {
 
 interface DashboardData {
   revenue: number
-  outstanding: number
   contacts: { leads: number; clients: number }
   projects: { active: number; completed: number }
   tasks: { pending: number; overdue: number }

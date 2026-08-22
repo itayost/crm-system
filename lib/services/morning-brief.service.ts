@@ -13,6 +13,11 @@ import {
   label,
 } from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
+import {
+  isSignedOffUnpaid,
+  phaseEntry,
+  signedOffUnpaid,
+} from '@/lib/money/ledger'
 
 const BRIEF_TIME_ZONE = process.env.BRIEF_TIME_ZONE ?? 'Asia/Jerusalem'
 
@@ -191,6 +196,30 @@ export class MorningBriefService {
 
     // Two things that only become visible once money lives on phases: work
     // sitting in the client's court, and work signed off but never paid for.
+    //
+    // These ask different questions. The money figures come from lib/money/ledger
+    // so this brief cannot tell Itay a different story than the כספים badge,
+    // the היום board and /money. Advance is excluded; both count only phases (work
+    // signed off), which is לתשלום rather than גבייה.
+    //
+    // The awaiting-approval list, though, deliberately does NOT use the core's
+    // isAwaitingApproval predicate. That predicate answers a money question
+    // (how much is awaiting sign-off?) and applies payment-wins-over-status logic
+    // correctly for money. But the list answers a WORKFLOW question: where is this
+    // phase sitting *in the approval process*? A paid-but-still-pending phase
+    // should stay on the list because the client has not yet signed off the work.
+    //
+    // Both are scoped to ACTIVE projects, narrower than every other surface.
+    //
+    // That is settled, not an oversight. Asked directly (2026-08-22), Itay
+    // confirmed this section answers "what work have I finished that nobody has
+    // paid me for" - which is לתשלום on live work, not גבייה. It is a different
+    // question from the one the כספים badge, the היום board and /money answer,
+    // so its total is SUPPOSED to be smaller than theirs.
+    //
+    // Do not "fix" the discrepancy by switching to openLedger. Doing so would
+    // start counting unpaid מקדמות and completed projects, answering "what can I
+    // invoice" instead - a question this section was never asking.
     const awaitingApproval = activeProjects.flatMap((p) =>
       p.phases
         .filter((ph) => ph.status === 'PENDING_APPROVAL')
@@ -199,13 +228,14 @@ export class MorningBriefService {
 
     const unpaidPhases = activeProjects.flatMap((p) =>
       p.phases
-        .filter((ph) => ph.status === 'APPROVED' && !ph.paidAt)
-        .map((ph) => ({
-          line: `- ${ph.name} (${p.name} / ${p.client.name}) | ${Number(ph.price).toLocaleString()} ₪`,
-          amount: Number(ph.price),
+        .map((ph) => ({ ph, entry: phaseEntry(ph) }))
+        .filter(({ entry }) => isSignedOffUnpaid(entry))
+        .map(({ ph, entry }) => ({
+          line: `- ${ph.name} (${p.name} / ${p.client.name}) | ${entry.price.toLocaleString()} ₪`,
+          amount: entry.price,
         }))
     )
-    const unpaidTotal = unpaidPhases.reduce((sum, p) => sum + p.amount, 0)
+    const unpaidTotal = signedOffUnpaid(activeProjects.flatMap((p) => p.phases.map(phaseEntry)))
 
     // Every section that has something to say, in reading order. Sections with
     // nothing in them are dropped rather than reported as empty: the brief used
@@ -246,7 +276,7 @@ export class MorningBriefService {
         lines: awaitingApproval,
       },
       {
-        title: 'תשלומים פתוחים',
+        title: 'שלבים לתשלום בפרויקטים פעילים',
         lines: unpaidPhases.map((p) => p.line),
         suffix: unpaidTotal > 0 ? `, סה"כ ${unpaidTotal.toLocaleString()} ₪` : undefined,
       },
@@ -315,7 +345,7 @@ data might be missing. Silence means "nothing to do", which is good news.
 Only these sections can appear:
 משימות באיחור · משימות להיום · משימות השבוע · לידים חדשים (מאתמול) ·
 פעולות להיום · לידים ללא פעולה מתוכננת וללא קשר 3+ ימים ·
-שלבים ממתינים לאישור לקוח · תשלומים פתוחים · פניות ממתינות לאישור ·
+שלבים ממתינים לאישור לקוח · שלבים לתשלום בפרויקטים פעילים · פניות ממתינות לאישור ·
 פניות פתוחות · משימות ממתינות לפי קטגוריה · פרויקטים בתהליך
 A count in a title is the real total; "...ועוד N" means the list was trimmed.
 "משימות ממתינות לפי קטגוריה" and "משימות שיווק ב-14 ימים אחרונים" are counts and
@@ -330,7 +360,7 @@ Write it like this:
    anything you infer. Mention [באיחור] ones before the rest.
 3. Then anything worth chasing, only where the data supports it:
    - "שלבים ממתינים לאישור לקוח" → nudge to chase the client for sign-off.
-   - "תשלומים פתוחים" → nudge to invoice or chase payment, and give the total.
+   - "שלבים לתשלום בפרויקטים פעילים" → nudge to invoice or chase payment, and give the total.
    - "פניות ממתינות לאישור" → suggest approving or dismissing via the bot.
    - "פניות פתוחות" → work already promised to a client; flag anything stale.
    - No marketing tasks in 14 days → a short nudge.
