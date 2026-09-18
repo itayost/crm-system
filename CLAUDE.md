@@ -154,7 +154,7 @@ WhatsApp (WAHA) variables, used for the outbound notices the CRM sends on its ow
 
 - `OWNER_PHONE` -- Itay's number; `notifyOwner()` (`lib/services/owner-line.ts`) falls back to it when there is no resolved chat id, and the client portal's error page (`lib/portal/whatsapp-link.ts`) offers it as a direct link
 - `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
-- `WAHA_PERSONAL_SESSION` (default `personal`)
+- `WAHA_BOT_SESSION` (default `bot`) -- the WAHA session every outbound notice goes out on. `botSessionName()` in `lib/services/waha-transport.ts` is the default session for `WahaService.sendMessage`, so `notifyOwner()` and all three client notices depend on it. Not retired; nothing listens on it, but the CRM still sends from it
 
 ## Website lead intake
 

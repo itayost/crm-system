@@ -82,41 +82,50 @@ export function Header() {
         </kbd>
       </button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="ms-auto hidden size-7 md:inline-flex"
-        aria-label="קיצורי מקלדת"
-        onClick={() => setShortcutsOpen(true)}
-      >
-        <Keyboard aria-hidden className="size-4" />
-      </Button>
+      {/*
+        ms-auto lives on this wrapper, not on the shortcuts button alone: that
+        button is `hidden` below md, and an auto margin on a display:none
+        element does nothing. Below the width where the search box's max-w-md
+        cap first leaves free space, this is a no-op either way - the search
+        box's flex-1 already claims all of it.
+      */}
+      <div className="ms-auto flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden size-7 md:inline-flex"
+          aria-label="קיצורי מקלדת"
+          onClick={() => setShortcutsOpen(true)}
+        >
+          <Keyboard aria-hidden className="size-4" />
+        </Button>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-7" aria-label="תפריט משתמש">
-            <span className="grid size-6 place-items-center rounded-full bg-surface-muted text-ui-2xs font-semibold text-content-muted">
-              {initials(session?.user?.name)}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>
-            <span className="block text-ui-sm font-medium">{session?.user?.name ?? 'משתמש'}</span>
-            <span className="block text-ui-2xs text-content-subtle">{session?.user?.email}</span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
-            <Keyboard className="size-4" />
-            קיצורי מקלדת
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => signOut()} className="text-tone-danger-foreground">
-            <LogOut className="size-4" />
-            התנתק
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-7" aria-label="תפריט משתמש">
+              <span className="grid size-6 place-items-center rounded-full bg-surface-muted text-ui-2xs font-semibold text-content-muted">
+                {initials(session?.user?.name)}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <span className="block text-ui-sm font-medium">{session?.user?.name ?? 'משתמש'}</span>
+              <span className="block text-ui-2xs text-content-subtle">{session?.user?.email}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
+              <Keyboard className="size-4" />
+              קיצורי מקלדת
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut()} className="text-tone-danger-foreground">
+              <LogOut className="size-4" />
+              התנתק
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
 

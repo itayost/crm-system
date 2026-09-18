@@ -58,14 +58,10 @@ async function ownerChatId(): Promise<string | null> {
   }
 }
 
-/** The eight events a caller can name in a log line. Add here, not as a raw string. */
+/** The four events a caller can name in a log line. Add here, not as a raw string. */
 type OwnerNoticeSubject =
   | 'a phase review'
-  | 'a possibly missed request'
   | 'a client decision'
-  | 'a filed request'
-  | 'a degraded turn'
-  | 'an unknown sender'
   | 'a new lead'
   | 'a new request'
 

@@ -122,7 +122,7 @@ sum of its phases — see `lib/money/project.ts`.
 | description | Text? | |
 | type, status, priority, source | enums | status defaults PENDING_REVIEW for AI drafts |
 | isAiGenerated, aiConfidence, aiNote | AI provenance | |
-| intake | Jsonb? | structured intake filled by the support agent |
+| intake | Jsonb? | structured intake; no writer until Plan 7 gives it one |
 | attachments | String[] | |
 | clientId | String | FK -> Client, required |
 | contactId, projectId, taskId | String? | optional links |
