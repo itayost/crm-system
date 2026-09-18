@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
 import { startOfIsraelDay } from '@/lib/services/morning-brief.service'
-import { isBotPaused } from '@/lib/config/bot-pause'
 import { openLedger } from '@/lib/money/ledger.server'
 import { collectable, isCollectable } from '@/lib/money/ledger'
 
@@ -27,15 +26,6 @@ export interface TodayBadges {
   dueLeads: number
   /** גבייה: everything invoiceable now, unpaid מקדמות included. */
   outstanding: number
-  /**
-   * Whether the client-facing WhatsApp bot is muted.
-   *
-   * Rides along here because it is read on every screen and there is no other
-   * reason to make a request for it. Today this state is completely invisible
-   * in the UI, which means "the bot went quiet" is diagnosed by reading a
-   * deploy log.
-   */
-  botPaused: boolean
 }
 
 export interface TodayBoard {
@@ -223,7 +213,6 @@ export class TodayService {
       dueTasks,
       dueLeads,
       outstanding: collectable(ledger),
-      botPaused: isBotPaused(),
     }
   }
 }

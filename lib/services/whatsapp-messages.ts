@@ -68,15 +68,12 @@ export function resolvedRequestClientNotice(
 /**
  * Where to send a client who wants to answer back.
  *
- * Every one of these notices goes out from the bot number, and while the bot is
- * paused each inbound message on that session is dropped whole - it reaches
- * WhatsApp and nothing else. So "אני כאן" is not a nicety then, it is false:
- * the client replies, nobody hears it, and they conclude they were ignored.
- * The portal works in both states, so that is where a paused bot points them.
+ * There is no bot listening on any WhatsApp number, so "אני כאן" would be a
+ * promise nobody keeps - the client replies, nobody hears it, and they
+ * conclude they were ignored. The portal is always the correct answer.
  */
-export function replyInvitation(params: { paused: boolean; portalUrl: string | null }): string {
-  if (!params.paused) return 'אם יש עוד משהו, אני כאן.'
-  if (params.portalUrl) return `אם יש עוד משהו, אפשר לפתוח פנייה חדשה כאן:\n${params.portalUrl}`
+export function replyInvitation(portalUrl: string | null): string {
+  if (portalUrl) return `אם יש עוד משהו, אפשר לפתוח פנייה חדשה כאן:\n${portalUrl}`
   return 'אם יש עוד משהו, אפשר להתקשר אליי.'
 }
 

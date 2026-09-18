@@ -6,7 +6,6 @@ import { Search, LogOut, Keyboard } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 
 import { Button } from '@/components/ui/button'
-import { StatusPill } from '@/components/ui/status-pill'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +16,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ALL_NAV, isActiveHref } from './nav-items'
-import { useBadges } from './badges-provider'
 import { CommandPalette } from './command-palette'
 
 const SHORTCUTS: [string, string][] = [
@@ -33,8 +31,7 @@ function initials(name?: string | null) {
 }
 
 /**
- * A 44px band with three jobs: where you are, how to get anywhere, and whether
- * the bot is talking to clients.
+ * A 44px band with two jobs: where you are, and how to get anywhere.
  *
  * Gone: the greeting, a clock that re-rendered the header every sixty seconds,
  * a permanently-disabled dark-mode button - an advertisement for a feature that
@@ -43,7 +40,6 @@ function initials(name?: string | null) {
 export function Header() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const badges = useBadges()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
 
@@ -86,27 +82,10 @@ export function Header() {
         </kbd>
       </button>
 
-      {/*
-        The single most useful thing in this bar. isBotPaused() is read per
-        request from the environment and has never been surfaced anywhere, so
-        "the bot went quiet" was a question answered by reading a deploy log.
-      */}
-      <span className="ms-auto hidden sm:inline" data-testid="bot-status">
-        {badges.botPaused ? (
-          <StatusPill tone="caution" dot>
-            הבוט מושהה
-          </StatusPill>
-        ) : (
-          <StatusPill tone="success" emphasis="quiet" dot>
-            הבוט פעיל
-          </StatusPill>
-        )}
-      </span>
-
       <Button
         variant="ghost"
         size="icon"
-        className="hidden size-7 md:inline-flex"
+        className="ms-auto hidden size-7 md:inline-flex"
         aria-label="קיצורי מקלדת"
         onClick={() => setShortcutsOpen(true)}
       >

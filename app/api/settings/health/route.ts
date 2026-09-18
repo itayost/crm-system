@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
 import { withAuth, createResponse } from '@/lib/api/api-handler'
-import { isBotPaused } from '@/lib/config/bot-pause'
 
 /**
  * Which integrations are wired, as booleans.
@@ -14,7 +13,6 @@ const present = (name: string) => Boolean((process.env[name] ?? '').trim())
 
 export const GET = withAuth(async (_req: NextRequest) => {
   return createResponse({
-    botPaused: isBotPaused(),
     waha: present('WAHA_API_URL') && present('WAHA_API_KEY'),
     whatsappWebhook: present('WHATSAPP_WEBHOOK_SECRET'),
     ownerPhone: present('OWNER_PHONE'),

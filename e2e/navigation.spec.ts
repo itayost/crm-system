@@ -40,16 +40,6 @@ test.describe('Navigation', () => {
     await expect(activeSidebarLink(page)).toHaveText(/לקוחות/)
   })
 
-  test('bot-status: the header says whether the bot is talking to clients', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    // Replaces the greeting assertion. isBotPaused() is read per request and
-    // used to be invisible in the UI entirely, so "the bot went quiet" was
-    // diagnosed by reading a deploy log.
-    await expect(page.getByTestId('bot-status')).toContainText(/הבוט פעיל|הבוט מושהה/)
-  })
-
   test('header-user-menu: dropdown contains shortcuts and logout', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
