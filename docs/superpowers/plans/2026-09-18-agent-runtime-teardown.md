@@ -29,7 +29,9 @@ This is **Plan 2 of 5**.
 - Status chips through `<StatusPill>`, never `<Badge>`; never pass `bg-*` through its `className`.
 - `components/patterns/` allows **zero** physical direction utilities; repo-wide budget of 4 is consumed.
 - Do **not** run `prettier`; it has no config here.
-- **Do not run Playwright.** It cannot start on any branch cut from `main` (`e2e/global-setup.ts` builds `new PrismaClient()` with no driver adapter, which Prisma 7 requires; the fix, `e3a2090`, is stranded on `fix/money-status-coverage`). Per-task gate is `npm run typecheck && npm run test && npm run build`.
+- **Do not run Playwright during the tasks**, even though it now works. PR #24 merged on 2026-09-18 and `e2e` starts again on `main` (verified: `auth.spec.ts` 3/3). But Task 1 deletes the header's bot-status badge, which appears on every page, so **all four `*-darwin.png` visual baselines go stale the moment it lands**. Re-recording them per task means re-recording them repeatedly.
+
+  Per-task gate is `npm run typecheck && npm run test && npm run build`. The controller runs the full `E2E_PORT=3002 npx playwright test` **once**, after Task 7, and re-records the visual baselines then. `E2E_PORT=3002` is required; `NEXTAUTH_URL` pins the port and logout fails without it.
 
 ## What survives, and must still work at every commit
 
