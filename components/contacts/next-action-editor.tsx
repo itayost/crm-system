@@ -13,10 +13,10 @@ import { StatusPill } from '@/components/ui/status-pill'
  * The one thing owed to this lead next, and when.
  *
  * This used to live only in Itay's head, so the morning brief had to guess
- * from lastContactedAt - which the WhatsApp webhooks used to write and
- * neither survives the 2026-09 teardown, and a phone call never did, meaning
- * a lead he rang yesterday looked abandoned and a lead with a meeting booked
- * for Thursday got nagged about on Tuesday.
+ * from lastContactedAt - which both WhatsApp webhooks used to write (neither
+ * survives the 2026-09 teardown) and a phone call never did, meaning a lead
+ * he rang yesterday looked abandoned and a lead with a meeting booked for
+ * Thursday got nagged about on Tuesday.
  */
 function toDateInputValue(iso: string | null): string {
   if (!iso) return ''
