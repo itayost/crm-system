@@ -261,9 +261,11 @@ git rm -r "app/api/cron/refresh-product-cards" "app/api/projects/[id]/agent-conf
 git rm tests/product-cards.test.ts tests/support-repo-tools.test.ts tests/github-service.test.ts
 ```
 
-- [ ] **Step 3: Empty the crons array**
+- [ ] **Step 3: Remove only the `refresh-product-cards` entry**
 
-`vercel.json` should now read `{ "crons": [] }` or have the key removed entirely. Either is valid; prefer removing the key.
+`vercel.json` should now list **exactly one** cron, `morning-brief`, which Task 5 removes. Do not empty the array here.
+
+> An earlier draft of this step said the array is empty after this task. That was wrong: Tasks 1, 3, 4 and 5 each remove one entry, and `morning-brief` survives until Task 5. The commit made against that draft (`c785c4d`) carries the false line "vercel.json now has no crons" in its body; the code is correct, only the message is not.
 
 - [ ] **Step 4: Run the gate**
 
