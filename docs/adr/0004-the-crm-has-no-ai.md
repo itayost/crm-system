@@ -65,10 +65,14 @@ the prose was AI, and the prose was the only part that was not duplicated.
 - **What is genuinely lost:** 24/7 first response, automatic ticket extraction
   from chat, and voice-note transcription. Clients who would rather send a
   WhatsApp voice message than fill a form are worse off, and that is accepted.
-- **`lastContactedAt` loses its only writer.** Both webhooks wrote it and
-  `today.service.ts` reads it for lead staleness, so the teardown must ship
-  together with the דיברתי control or היום fills with permanent false alarms.
-  This coupling is the single most load-bearing detail in the migration.
+- **`lastContactedAt` loses its only writer.** Both webhooks wrote it, and
+  `today.service.ts` reads it for the quiet-leads count. That count is also
+  gated on `nextActionAt: null`, so the teardown does not flood it; what it
+  does is quietly change what it measures. With the field never written, the
+  staleness clause collapses to `createdAt < 3 days ago`, so "leads I have not
+  spoken to recently" silently becomes "leads whose record is old", and a lead
+  phoned yesterday starts counting as quiet. A metric that lies is worse than
+  one that is missing, which is why the דיברתי control ships first.
 - `Request.contactId` was populated by phone-number identity on the bot
   session. The portal knows the business (`Client.formToken`), not the person,
   so the request form gains a contact select to keep attribution.

@@ -131,9 +131,17 @@ captures the next action together.
 
 > This is not optional polish. `lastContactedAt` is written by exactly two
 > places, `api/whatsapp/index/route.ts:54` and `api/whatsapp/webhook/route.ts:224`,
-> both deleted here. `today.service.ts:163` reads it for lead staleness. Ship
-> the teardown without דיברתי and every lead reads as stale forever, breaking
-> the one screen that currently works.
+> both deleted here, and `today.service.ts:159-169` reads it for the
+> quiet-leads count.
+>
+> That count is also gated on `nextActionAt: null`, so the teardown does not
+> flood it. The failure is subtler: with the field never written, the staleness
+> `OR` collapses to `createdAt < 3 days ago`, so the count stops meaning "leads
+> I have not spoken to recently" and starts meaning "leads whose record is
+> old". A lead phoned yesterday with no next action set begins counting as
+> quiet, where a recent WhatsApp would previously have excluded them. The
+> number grows and misleads rather than breaking visibly, which is the harder
+> bug to notice.
 
 `nextActionAt` and `nextActionNote` are deliberately **kept**. They lose the
 morning brief as a consumer, so היום becomes their only surface and must show
