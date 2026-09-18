@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 
@@ -80,12 +81,12 @@ export function SpokeButton({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>דיברתי איתו</DialogTitle>
+            <DialogDescription>
+              נרשום שדיברתם עכשיו. מה צריך לעשות אחר כך?
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-content-muted">
-              נרשום שדיברתם עכשיו. מה צריך לעשות אחר כך?
-            </p>
             <Input
               placeholder="מה צריך לעשות? לדוגמה: לשלוח הצעת מחיר"
               value={note}

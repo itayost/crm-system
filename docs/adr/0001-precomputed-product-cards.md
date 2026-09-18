@@ -1,11 +1,12 @@
 # 0001 — Product knowledge is precomputed cards, not live retrieval
 
 Date: 2026-07-31
-Status: superseded by [0004](0004-the-crm-has-no-ai.md)
+Status: superseded by the decision in [0004](0004-the-crm-has-no-ai.md)
 Amended: 2026-08-01 (cards v2 — see below)
 
-> Retained as history. ProductCard and the support agent it fed were removed on
-> 2026-09-18; nothing below describes code that still exists.
+> ProductCard and the support agent it fed will be removed by ADR 0004; still
+> present as of this commit. This document is kept for history and will stop
+> describing live code once that removal ships.
 
 ## Context
 

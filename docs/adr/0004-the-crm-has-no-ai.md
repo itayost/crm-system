@@ -1,7 +1,7 @@
 # 0004 — The CRM has no AI, and the portal is the only way in
 
 Date: 2026-09-18
-Status: accepted
+Status: approved, not started
 Supersedes: [0001](0001-precomputed-product-cards.md), [0002](0002-degrade-dont-die.md)
 
 ## Context
