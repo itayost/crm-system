@@ -11,11 +11,8 @@ import { PageHeader, FactRail, TonePanel, type Fact } from '@/components/pattern
 
 interface Health {
   waha: boolean
-  whatsappWebhook: boolean
   ownerPhone: boolean
-  github: boolean
   publicLeads: boolean
-  ollama: boolean
 }
 
 function Wired({ on, note }: { on: boolean; note?: string }) {
@@ -53,11 +50,8 @@ export default function SettingsPage() {
   const connections: Fact[] = health
     ? [
         { term: 'WAHA', value: <Wired on={health.waha} note="WhatsApp HTTP API" /> },
-        { term: 'Webhook', value: <Wired on={health.whatsappWebhook} note="נכשל סגור ללא סוד" /> },
         { term: 'מספר בעלים', value: <Wired on={health.ownerPhone} /> },
-        { term: 'GitHub', value: <Wired on={health.github} note="קריאה בלבד" /> },
         { term: 'לידים מהאתר', value: <Wired on={health.publicLeads} /> },
-        { term: 'Ollama', value: <Wired on={health.ollama} note="שכבת גיבוי" /> },
       ]
     : []
 

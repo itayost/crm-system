@@ -14,10 +14,7 @@ const present = (name: string) => Boolean((process.env[name] ?? '').trim())
 export const GET = withAuth(async (_req: NextRequest) => {
   return createResponse({
     waha: present('WAHA_API_URL') && present('WAHA_API_KEY'),
-    whatsappWebhook: present('WHATSAPP_WEBHOOK_SECRET'),
     ownerPhone: present('OWNER_PHONE'),
-    github: present('GITHUB_TOKEN'),
     publicLeads: present('PUBLIC_LEAD_SECRET'),
-    ollama: present('OLLAMA_BASE_URL'),
   })
 })
