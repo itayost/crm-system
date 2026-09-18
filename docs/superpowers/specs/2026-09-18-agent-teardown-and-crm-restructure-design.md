@@ -21,6 +21,13 @@ too many places to be, too much clicking to do one real thing, and it asks for
 upkeep that earns nothing back. Notably *not* wrong: היום answers "what needs
 me today" adequately, so the overview is not the problem.
 
+On "too many places": the diagnosis stands, but its original justification did
+not. It was argued from the claim that the sidebar presented seven undifferentiated
+destinations, and that is false — the nav has been grouped into primary,
+registry and footer blocks since the 2026-08-17 rebuild (see section B). The
+count is still high for one person with ten clients, and משימות and פרויקטים
+are still two stops for one sitting, which is what section B actually fixes.
+
 ## What this is not
 
 This project began from a draft document proposing a ground-up rebuild. That
@@ -108,6 +115,21 @@ PRIMARY                          SECONDARY
   לידים    the pipeline
 ```
 
+**This is a smaller change than an earlier draft of this spec claimed.** That
+draft described the nav as seven items of equal weight, "a database browser
+wearing a sidebar". It is not. `components/layout/nav-items.ts` already exports
+`NAV_PRIMARY` (היום, פניות, משימות, לידים, each with a badge count),
+`NAV_REGISTRY` (לקוחות, פרויקטים, כספים) and `NAV_FOOTER` (הגדרות), and
+`components/layout/sidebar.tsx:69,76` renders the three groups separated by
+rules. Its own comment records that the *previous* nav was "six items in one
+undifferentiated group headed ראשי" — the 2026-08-17 rebuild already fixed the
+problem the draft described.
+
+So the hierarchy exists and the target above is largely reached. The one real
+change is **merging משימות and פרויקטים into a single עבודה surface**, which
+moves פרויקטים out of the registry block and collapses two primary destinations
+into one.
+
 `Task.projectId` is nullable and standalone tasks are supported, so עבודה needs
 a home for project-less tasks rather than assuming every task hangs off a
 project.
@@ -120,11 +142,27 @@ is the attachment point. This is the concrete answer to "too much clicking".
 `status`, `source`, `notes`, `nextActionAt`, `nextActionNote`,
 `lastContactedAt`, `convertedAt`, and the two lead-qualification fields
 `estimatedBudget` and `projectType`, which the website form posts through
-`/api/public/leads` and the leads page renders. `company`, `address`, `taxId`
-and `isVip` move to `Client` alone; `Contact.notes` stays person-level while
-`Client.notes` is the business-level free text named in `CONTEXT.md`. `Priority` becomes a boolean across `Task`, `Project`
-and `Request`; `PRIORITY_EMPHASIS` already rendered LOW and MEDIUM as nothing,
-so this makes the form match what the design layer had already concluded.
+`/api/public/leads` and the leads page renders.
+
+**`Contact.company` also stays.** An earlier draft of this spec moved it to
+`Client` with the other business facts. That was wrong: it is the lead's
+*stated* business name, captured before any `Client` row exists, and
+`ClientsService.convertContactToClient` reads it as
+`name: overrides?.name ?? contact.company ?? contact.name`
+(`lib/services/clients.service.ts:145`) to seed the new client's name. The
+website form posts it and the leads table renders it. A lead has no `clientId`,
+so there is nowhere else it can live; removing it breaks lead intake and
+conversion both.
+
+`address`, `taxId` and `isVip` are genuinely duplicated — on `Contact` they
+appear only in the update schema, the wire type and a read-only card — and those
+three move to `Client` alone. `Contact.notes` stays person-level while
+`Client.notes` is the business-level free text named in `CONTEXT.md`.
+
+`Priority` becomes a boolean across `Task`, `Project` and `Request`;
+`PRIORITY_EMPHASIS` already rendered LOW and MEDIUM as nothing, so this makes
+the form match what the design layer had already concluded. It touches **40
+files** and is therefore a plan of its own.
 
 **דיברתי.** One control on the lead row that stamps `lastContactedAt` and
 captures the next action together.
@@ -182,17 +220,25 @@ on its page (Vercel, GitHub, Figma, spec doc, live URL).
 
 ## Sequencing
 
-1. Export data.
-2. Ship דיברתי and the היום next-action surface **first**, while the webhooks
-   still write `lastContactedAt`. This removes the coupling risk before it can
-   bite.
-3. Delete the AI layer, routes, crons and models. Drop tables.
-4. Schema cuts: Contact/Client split, Priority boolean, lead states.
-5. Operator IA rebuild.
-6. Portal: contact select, type-conditional intake.
-7. Project quick links.
+The work runs as **seven plans**, not the five an earlier draft assumed. Two of
+the steps below turned out to be far larger than they read here and were split
+once their real blast radius was measured against the code.
 
-Step 2 before step 3 is the one ordering constraint that is not negotiable.
+| Plan | Scope | Why separate |
+|---|---|---|
+| 1 | דיברתי + היום next actions | Must ship while the webhooks still write `lastContactedAt` |
+| 2 | Delete the agent runtime: services, routes, crons, `lib/ai` | Pure deletion; reviewable as "did anything break" |
+| 3 | Drop the AI schema: 5 models, `profileHe`, `Request`'s 4 AI columns | Needs an irreversible export first; the AI columns reach 10 surviving files |
+| 4 | Contact/Client split + lead-state reduction | Both are data migrations, not just schema changes |
+| 5 | `Priority` to a boolean | **40 files**; cannot share a plan with anything |
+| 6 | Merge משימות and פרויקטים into עבודה | The only real IA delta (see section B) |
+| 7 | Portal contact select, type-conditional intake, project quick links | Client-facing; separate risk profile |
+
+**Plan 1 before Plan 2 is the one ordering constraint that is not negotiable.**
+Everything else can reorder, though 2 before 3 avoids editing files that are
+about to be deleted.
+
+Plans 1 to 4 are written. 5 to 7 are not.
 
 ## Testing
 
