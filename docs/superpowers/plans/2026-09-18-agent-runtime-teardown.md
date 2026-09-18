@@ -479,6 +479,5 @@ columns all still exist and are Plan 3's to remove."
 
 - Dropping any model, table or column, and the JSON export that must precede it. **Plan 3.**
 - Removing `profileHe`'s UI (`components/clients/profile-card.tsx`, `client-profile.service.ts`) and the `Request` AI columns' ten consumers. **Plan 3.**
-- The operator IA rebuild and the lead-state reduction. **Plan 3.**
-- The portal contact select and type-conditional intake. **Plan 4.**
-- Per-project quick links. **Plan 5.**
+- The operator IA rebuild, the Contact/Client split, the `Priority` boolean and the lead-state reduction. **Plan 4.**
+- The portal contact select, type-conditional intake, and per-project quick links. **Plan 5.**
