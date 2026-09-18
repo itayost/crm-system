@@ -23,6 +23,7 @@ import {
 import { ContactForm } from '@/components/forms/contact-form'
 import { ContactStatusSelect } from '@/components/contacts/contact-status-select'
 import { NextActionEditor } from '@/components/contacts/next-action-editor'
+import { SpokeButton } from '@/components/patterns/spoke-button'
 import { ContactInfoCard } from '@/components/contacts/contact-info-card'
 import { ContactProjectsCard } from '@/components/contacts/contact-projects-card'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
@@ -184,12 +185,22 @@ export default function ContactDetailPage() {
       </div>
 
       {isPipeline && (
-        <NextActionEditor
-          contactId={contact.id}
-          nextActionAt={contact.nextActionAt}
-          nextActionNote={contact.nextActionNote}
-          onChanged={fetchContact}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-start">
+          <div className="flex-1">
+            <NextActionEditor
+              contactId={contact.id}
+              nextActionAt={contact.nextActionAt}
+              nextActionNote={contact.nextActionNote}
+              onChanged={fetchContact}
+            />
+          </div>
+          <SpokeButton
+            contactId={contact.id}
+            nextActionAt={contact.nextActionAt}
+            nextActionNote={contact.nextActionNote}
+            onDone={fetchContact}
+          />
+        </div>
       )}
 
       <ContactInfoCard contact={contact} />

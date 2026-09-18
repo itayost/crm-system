@@ -18,6 +18,7 @@ import {
   type Column,
   type Segment,
 } from '@/components/patterns'
+import { SpokeButton } from '@/components/patterns/spoke-button'
 import { toneOf, CONTACT_STATUS_TONES } from '@/lib/design/tones'
 import { label, CONTACT_STATUS_LABELS, CONTACT_SOURCE_LABELS } from '@/lib/design/labels'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
@@ -236,6 +237,23 @@ export default function LeadsPage() {
       align: 'numeric',
       width: '7rem',
       cell: (c) => <bdi>{formatDate(c.createdAt)}</bdi>,
+    },
+    {
+      key: 'spoke',
+      header: '',
+      width: '6rem',
+      mobile: 'actions',
+      cell: (c) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <SpokeButton
+            contactId={c.id}
+            nextActionAt={c.nextActionAt}
+            nextActionNote={c.nextActionNote}
+            onDone={fetchContacts}
+            variant="row"
+          />
+        </span>
+      ),
     },
   ]
 

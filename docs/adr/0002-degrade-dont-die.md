@@ -1,7 +1,11 @@
 # 0002 — The support bot degrades, it does not die
 
 Date: 2026-08-01
-Status: accepted
+Status: superseded by the decision in [0004](0004-the-crm-has-no-ai.md)
+
+> The chain described below protects model calls that will stop happening once
+> the AI layer is removed by ADR 0004; still present as of this commit. This
+> document is kept for history.
 
 ## Context
 
