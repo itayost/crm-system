@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { Prisma, type ContactStatus } from '@prisma/client'
-import type { CreateContactInput, UpdateContactInput } from '@/lib/validations/contact'
+import type { CreateContactInput, UpdateContactInput, RecordConversationInput } from '@/lib/validations/contact'
 import { ClientsService } from './clients.service'
 import { LEAD_STATUSES, CLIENT_STATUSES, TERMINAL_CONTACT_STATUSES } from '@/lib/validations/enums'
 
@@ -194,6 +194,45 @@ export class ContactsService {
     return prisma.contact.update({
       where: { id },
       data: updateData,
+    })
+  }
+
+  /**
+   * דיברתי: the single lead action, stamping "I spoke to them" and capturing
+   * what is owed next in one call.
+   *
+   * This is the **only** writer of lastContactedAt. Both WhatsApp webhooks used
+   * to write it and neither survives the 2026-09 teardown, while
+   * today.service.ts still reads it for the quiet-leads count. Without this
+   * method that count silently stops meaning "not spoken to recently" and
+   * starts meaning "record is older than three days".
+   *
+   * The two next-action fields are only written when supplied, so pressing
+   * דיברתי without touching them records the conversation and leaves an
+   * existing plan alone.
+   */
+  static async recordConversation(
+    userId: string,
+    id: string,
+    data: RecordConversationInput
+  ) {
+    const existing = await prisma.contact.findFirst({ where: { id, userId } })
+
+    if (!existing) {
+      throw new Error('איש קשר לא נמצא')
+    }
+
+    return prisma.contact.update({
+      where: { id },
+      data: {
+        lastContactedAt: new Date(),
+        ...(data.nextActionAt !== undefined && {
+          nextActionAt: data.nextActionAt ? new Date(data.nextActionAt) : null,
+        }),
+        ...(data.nextActionNote !== undefined && {
+          nextActionNote: data.nextActionNote || null,
+        }),
+      },
     })
   }
 

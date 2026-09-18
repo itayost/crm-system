@@ -50,3 +50,14 @@ export const updateContactSchema = z.object({
 
 export type CreateContactInput = z.infer<typeof createContactSchema>
 export type UpdateContactInput = z.infer<typeof updateContactSchema>
+
+/**
+ * דיברתי. Deliberately has no lastContactedAt field: the stamp is the server's
+ * clock, so the control cannot be used to backdate a conversation.
+ */
+export const recordConversationSchema = z.object({
+  nextActionAt: z.string().datetime().nullable().optional(),
+  nextActionNote: z.string().nullable().optional(),
+})
+
+export type RecordConversationInput = z.infer<typeof recordConversationSchema>
