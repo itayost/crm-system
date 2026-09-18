@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * Both ways Itay can approve a ticket must land on the same operation, or one of
- * them silently stops creating tasks and notifying clients.
+ * The dashboard action route is the only way left to approve or dismiss a
+ * request - the owner agent's review tool that used to reach the same
+ * operation through fuzzy title matching is gone.
  */
 
 const requestsServiceMock = {
@@ -16,18 +17,7 @@ const requestsServiceMock = {
   createDrafts: vi.fn(),
 }
 
-const fuzzyMock = {
-  fuzzyMatchRequest: vi.fn(),
-  fuzzyMatchContact: vi.fn(),
-  fuzzyMatchClient: vi.fn(),
-  fuzzyMatchProject: vi.fn(),
-  fuzzyMatchTask: vi.fn(),
-}
-
 vi.mock('@/lib/services/requests.service', () => ({ RequestsService: requestsServiceMock }))
-vi.mock('@/lib/services/fuzzy-match', () => fuzzyMock)
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }))
-vi.mock('ai', () => ({ tool: <T>(definition: T) => definition }))
 
 // The auth wrapper is not under test here: stand in for it with a fixed user.
 vi.mock('@/lib/api/api-handler', () => ({
@@ -40,7 +30,6 @@ vi.mock('@/lib/api/api-handler', () => ({
 }))
 
 const { POST } = await import('@/app/api/requests/[id]/action/route')
-const { createCrmTools } = await import('@/lib/services/whatsapp-tools')
 
 /** The route only reads the JSON body; NextRequest's extras are irrelevant here. */
 function actionRequest(action: string) {
@@ -80,25 +69,5 @@ describe('approval paths', () => {
 
     expect(requestsServiceMock.dismiss).toHaveBeenCalledWith('user-1', 'request-1')
     expect(requestsServiceMock.approve).not.toHaveBeenCalled()
-  })
-
-  it("the owner agent's review tool approves through the same operation", async () => {
-    fuzzyMock.fuzzyMatchRequest.mockResolvedValue({
-      match: { id: 'request-1', title: 'תיקון כפתור' },
-      matches: [],
-      ambiguous: false,
-    })
-
-    const tools = createCrmTools('user-1') as unknown as Record<
-      string,
-      { execute: (input: unknown) => Promise<unknown> }
-    >
-    const result = await tools.reviewRequest.execute({
-      titleQuery: 'כפתור',
-      decision: 'approve',
-    })
-
-    expect(requestsServiceMock.approve).toHaveBeenCalledWith('user-1', 'request-1')
-    expect(result).toMatchObject({ success: true })
   })
 })

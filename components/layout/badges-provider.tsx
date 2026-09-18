@@ -11,7 +11,6 @@ const EMPTY: TodayBadges = {
   dueTasks: 0,
   dueLeads: 0,
   outstanding: 0,
-  botPaused: false,
 }
 
 const BadgesContext = createContext<TodayBadges>(EMPTY)

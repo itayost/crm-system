@@ -9,10 +9,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 /**
- * The client profile the support bot reads - and may therefore say out loud.
- * Deliberately a separate field from הערות: everything here can reach the
- * client's ears, so the editor says exactly that. The מילון section is the one
- * the bot appends to itself when a clarification resolves a client's term.
+ * Owner-maintained notes about the client, kept separate from הערות.
+ * There is no bot reading this anymore - it is Itay's own reference, freeform
+ * Hebrew markdown with a suggested מילון מונחים section for the client's own
+ * vocabulary.
  */
 export function ClientProfileCard({
   clientId,
@@ -26,7 +26,7 @@ export function ClientProfileCard({
   const [value, setValue] = useState(profileHe ?? '')
   const [saving, setSaving] = useState(false)
 
-  // The bot may have added a glossary line since the page loaded.
+  // Stay in sync if the client record was reloaded from elsewhere.
   useEffect(() => {
     setValue(profileHe ?? '')
   }, [profileHe])
@@ -35,7 +35,7 @@ export function ClientProfileCard({
     setSaving(true)
     try {
       await api.put(`/clients/${clientId}`, { profileHe: value.trim() || null })
-      toast.success('פרופיל הבוט נשמר')
+      toast.success('הפרופיל נשמר')
       onSaved()
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
@@ -50,7 +50,7 @@ export function ClientProfileCard({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-content-faint" />
-          פרופיל לבוט התמיכה
+          פרופיל לקוח
         </CardTitle>
         <Button size="sm" onClick={save} disabled={saving}>
           {saving ? 'שומר...' : 'שמירה'}
@@ -58,8 +58,8 @@ export function ClientProfileCard({
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-xs text-content-subtle">
-          כל מה שכתוב כאן גלוי לבוט — והוא עשוי להגיד את זה ללקוח. דברים פרטיים שייכים
-          להערות, לא לכאן. הבוט מוסיף בעצמו שורות למקטע &quot;מילון מונחים&quot;.
+          הערות עבודה על הלקוח, למעקב שלך בלבד. דברים פרטיים שייכים להערות, לא
+          לכאן.
         </p>
         <Textarea
           value={value}
@@ -74,7 +74,7 @@ export function ClientProfileCard({
           // selector in globals.css overrode it. Removing that selector is
           // what made this visible, so it is a decision now rather than an
           // accident either way. Mono stays where the content is ASCII - the
-          // agent-config JSON and the <kbd> in the help dialog.
+          // <kbd> in the header's help dialog, for example.
           className="text-sm"
           dir="rtl"
         />

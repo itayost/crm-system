@@ -1,7 +1,7 @@
 # 0004 — The CRM has no AI, and the portal is the only way in
 
 Date: 2026-09-18
-Status: approved, not started
+Status: approved, partially implemented — Plan 2 (the runtime teardown: `lib/ai/`, both webhooks, all four crons, the morning brief) has landed. Plans 3-7 have not started: 3 drops the five models, `profileHe` and `Request`'s AI columns; 4 finishes the Contact/Client split and reduces the lead states; 5 collapses `Priority` to a boolean; 6 merges משימות and פרויקטים into עבודה; 7 gives the portal its own intake form, a contact select and per-project quick links
 Supersedes: [0001](0001-precomputed-product-cards.md), [0002](0002-degrade-dont-die.md)
 
 ## Context
@@ -61,7 +61,9 @@ the prose was AI, and the prose was the only part that was not duplicated.
 - The `insufficient_funds` outage class, the gateway prompt-cache TTL problem,
   the Ollama tier, and the whole of ADR 0002's degradation chain stop existing
   rather than being managed. `OLLAMA_*`, `*_MODEL`, `GITHUB_TOKEN`,
-  `CRON_SECRET`, `WAHA_BOT_SESSION` and `WHATSAPP_BOT_PAUSED` are retired.
+  `CRON_SECRET` and `WHATSAPP_BOT_PAUSED` are retired. `WAHA_BOT_SESSION`
+  is not: every outbound notice (`notifyOwner()` and the three client
+  notices) still sends on that session, so it stays live.
 - **What is genuinely lost:** 24/7 first response, automatic ticket extraction
   from chat, and voice-note transcription. Clients who would rather send a
   WhatsApp voice message than fill a form are worse off, and that is accepted.
@@ -81,3 +83,18 @@ the prose was AI, and the prose was the only part that was not duplicated.
   goes. Months of indexed client conversation is not recoverable once dropped.
 - ADR 0001's ProductCard caching argument and ADR 0002's degradation chain are
   retained as history. Neither describes code that exists after this change.
+
+## Before deploying
+
+- **Unhook the WAHA webhook first, or with this deploy.** The VPS instance
+  still POSTs every inbound message to `/api/whatsapp/index` and
+  `/api/whatsapp/webhook`. Both routes are gone in this change, so once it
+  ships those calls 404 and WAHA retries against two dead endpoints until the
+  webhook is pointed at nothing (or removed) on the WAHA side.
+- **Do not remove `WAHA_BOT_SESSION` from Vercel** unless the live WAHA
+  session is literally named `bot`. Confirm its value from the Vercel
+  dashboard or the WAHA session list, not a pulled `.env` -- it is marked
+  sensitive, and `vercel env pull` returns the literal string `[SENSITIVE]`
+  for it rather than the real value.
+- `GITHUB_TOKEN`, `CRON_SECRET` and `WHATSAPP_BOT_PAUSED` are safe to remove
+  from Vercel -- nothing reads them after this change.

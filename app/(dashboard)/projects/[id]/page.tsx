@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowRight, Edit, Trash2, Calendar, User, CheckSquare, Activity } from 'lucide-react'
+import { ArrowRight, Edit, Trash2, Calendar, User, CheckSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
@@ -180,14 +179,6 @@ export default function ProjectDetailPage() {
               הפעל מחדש
             </Button>
           )}
-          {/* The agent config page was reachable only by typing its URL:
-              nothing linked to it, while it linked back. */}
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/projects/${project.id}/agent`}>
-              <Activity className="w-4 h-4" />
-              ניטור
-            </Link>
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowEditForm(true)}>
             <Edit className="w-4 h-4" />
             עריכה

@@ -34,7 +34,7 @@ SupportConversation, AgentProjectConfig) are covered in `docs/CODEMAPS/data.md`.
 - `LEAD_STATUSES` and `CLIENT_STATUSES` live in `lib/validations/enums.ts` and are the single source for the `phase` filter (`lead` | `client`). **LOST is in neither** -- the לידים tab is the active pipeline, and LOST shows under "הכל" or via the status filter
 - **Status is not settable on create.** `ContactsService.create` derives it: a contact created with a `clientId` is born CLIENT (with `convertedAt` left null, since it was never a lead we won). Everything else takes the schema default NEW
 - `convertedAt` marks when a lead became a client
-- `nextActionAt` + `nextActionNote`: the one thing owed to this lead next. Drives the leads-table sort and the morning brief's "פעולות להיום". Cleared automatically on reaching CLIENT / LOST / INACTIVE
+- `nextActionAt` + `nextActionNote`: the one thing owed to this lead next. Drives the leads-table sort. Cleared automatically on reaching CLIENT / LOST / INACTIVE
 - Sources: WEBSITE, PHONE, WHATSAPP, REFERRAL, OTHER
 - Hebrew labels come from `lib/design/labels.ts`, colours from `lib/design/tones.ts` -- never inline either. `tests/design-tones.test.ts` fails the build on any raw Tailwind palette class (`bg-red-100`, `text-green-600`, ...) under `app/` or `components/`
 
@@ -150,23 +150,11 @@ Required environment variables:
 - `NEXTAUTH_URL` -- Application URL for auth callbacks
 - `PUBLIC_LEAD_SECRET` -- shared secret for `/api/public/leads`; the endpoint **fails closed** while it is unset. The website holds the same value as `CRM_LEAD_SECRET` and sends it as `x-lead-secret` from its own server route
 
-WhatsApp (WAHA) variables, required for the two webhooks:
+WhatsApp (WAHA) variables, used for the outbound notices the CRM sends on its own initiative:
 
-- `WHATSAPP_WEBHOOK_SECRET` -- shared secret for both webhooks; they **fail closed** while it is unset
-- `OWNER_PHONE` -- Itay's number; the only sender routed to the owner agent on the bot session
+- `OWNER_PHONE` -- Itay's number; `notifyOwner()` (`lib/services/owner-line.ts`) falls back to it when there is no resolved chat id, and the client portal's error page (`lib/portal/whatsapp-link.ts`) offers it as a direct link
 - `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
-- `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
-- `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
-- `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
-- `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/claude-sonnet-4.6`)
-- `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL` -- the local-model tier on the VPS (Ollama behind an authenticated proxy; base URL includes `/v1`). Fallback for the support bot when the gateway fails, primary for the morning brief. Unset disables the tier and the chain still works (gateway -> canned reply). See `docs/adr/0002-degrade-dont-die.md`
-- `WHATSAPP_BOT_PAUSED` -- the pause switch, read per request by `isBotPaused()` in `lib/config/bot-pause.ts`. Optional; unset means running
-
-## Pausing the bot
-
-`WHATSAPP_BOT_PAUSED` stops the bot talking to clients. The full runbook --
-what stays running, and why both pausing and resuming cost a redeploy -- lives
-in the `pausing-the-bot` skill.
+- `WAHA_BOT_SESSION` (default `bot`) -- the WAHA session every outbound notice goes out on. `botSessionName()` in `lib/services/waha-transport.ts` is the default session for `WahaService.sendMessage`, so `notifyOwner()` and all three client notices depend on it. Not retired; nothing listens on it, but the CRM still sends from it
 
 ## Website lead intake
 
@@ -230,8 +218,8 @@ so the gate is opt-in per request and nothing written before it existed changed.
 - **The phase is born NOT_STARTED with `approvedAt` null.** The client approved
   the *quote*, not the *work*. `PhaseStatus.APPROVED` is what
   `projectOutstanding()` reads for "invoices worth chasing", so stamping it here
-  would put unearned money in the dashboard and the morning brief. Quote
-  sign-off lives on `Request.clientDecisionAt`; work sign-off stays on the phase
+  would put unearned money in the dashboard. Quote sign-off lives on
+  `Request.clientDecisionAt`; work sign-off stays on the phase
 - **The gate only bites when `billingKind` is set before approval.** Approve
   first and the Task already exists, which is the state of every request that
   predates the feature. So a decline can land on live work. It is **flagged,
@@ -245,10 +233,11 @@ so the gate is opt-in per request and nothing written before it existed changed.
   message is a reply to something he did rather than an unsolicited ping. It
   defaults to `false` so a future *automatic* sender has to opt in and think
   first -- which is the case the original bot-session-only rule was protecting
-- **Every notice goes out from the bot number**, and a paused bot drops whatever
-  comes back. So the "finished" notice asks `isBotPaused()` and swaps its
-  sign-off: `אני כאן` when the bot can hear a reply, the portal link when it
-  cannot. Never promise a channel that is switched off
+- **Every notice goes out from the bot number, but nothing listens on the other
+  end.** `replyInvitation()` in `lib/services/whatsapp-messages.ts` always
+  points the client back to the portal (or a phone fallback) rather than
+  promising `אני כאן` -- there is no session left to hear a reply. See
+  `docs/adr/0004-the-crm-has-no-ai.md`
 - **`notifyOwner()` in `lib/services/owner-line.ts` is the only way to reach
   Itay.** It owns resolving his chat id -- the stored LID, else `OWNER_PHONE` --
   plus delivery, the missing-recipient guard and swallowing failures. Never
@@ -256,19 +245,6 @@ so the gate is opt-in per request and nothing written before it existed changed.
   resolved without the phone fallback and went silent on a fresh deployment.
   Notices are Hebrew; the `about` label is short English because it is the only
   part that reaches a log, and notices carry client names
-
-## Prompt caching
-
-Both agent loops send `providerOptions: { gateway: { caching: 'auto' } }`.
-Measured 2026-07-31: caching works through the gateway (7,112-token prefix
-written once, read back at 0.1x on the next call), but the TTL is
-**effectively 5 minutes** -- a probe 6.5 minutes after the last hit had to
-re-write the full prefix. The 1-hour Anthropic TTL does not survive the
-AI SDK -> Gateway path. Consequences: the intra-turn agent steps and rapid
-message bursts get cache reads; a WhatsApp reply gap longer than ~5 minutes
-pays one fresh cache write (1.25x) on the next turn. Editing any tool
-description invalidates the whole cache (tools -> system -> messages cascade),
-so batch tool-wording changes.
 
 ## E2E Testing
 

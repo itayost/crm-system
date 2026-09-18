@@ -122,9 +122,9 @@ function isOverdue(iso: string | null) {
  * The ordering rule is who is blocked: you first, then a decision only you can
  * make, then what is sitting with the client, then the money.
  *
- * Blocks 1-6 render only when non-empty - the same discipline MorningBriefService
- * applies when it drops empty sections rather than printing eleven "אין" lines.
- * A calm day is therefore short and dignified, not a wall of zeroes.
+ * Blocks 1-6 render only when non-empty, dropping empty sections rather than
+ * printing eleven "אין" lines. A calm day is therefore short and dignified,
+ * not a wall of zeroes.
  */
 export default function TodayPage() {
   const [data, setData] = useState<DashboardData | null>(null)

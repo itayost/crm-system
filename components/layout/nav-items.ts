@@ -12,7 +12,7 @@ import {
 
 import type { TodayBadges } from '@/lib/services/today.service'
 
-/** The numeric badges. `botPaused` rides on the same payload but is not a count. */
+/** The numeric badges a nav item can carry. */
 export type BadgeKey = {
   [K in keyof TodayBadges]: TodayBadges[K] extends number ? K : never
 }[keyof TodayBadges]

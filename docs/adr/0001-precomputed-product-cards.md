@@ -4,9 +4,9 @@ Date: 2026-07-31
 Status: superseded by the decision in [0004](0004-the-crm-has-no-ai.md)
 Amended: 2026-08-01 (cards v2 — see below)
 
-> ProductCard and the support agent it fed will be removed by ADR 0004; still
-> present as of this commit. This document is kept for history and will stop
-> describing live code once that removal ships.
+> The support agent this document describes was removed by ADR 0004's Plan 2.
+> The `ProductCard` table it fed is not gone — nothing reads or writes it, but
+> the table itself goes in Plan 3. This document is kept for history.
 
 ## Context
 

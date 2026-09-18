@@ -344,44 +344,17 @@ describe('progress notices on a request with no bot history', () => {
     expect(sent.text).toContain('התחלתי לטפל')
   })
 
-  it('tells the client it is finished', async () => {
+  it('tells the client it is finished, and offers the portal rather than a reply', async () => {
+    // No bot listens on any WhatsApp number, so "אני כאן" would be a promise
+    // nobody keeps - the portal is always the correct answer.
     seed({ ...noBotHistory, status: 'IN_PROGRESS' })
 
     await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
 
-    expect((wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text).toContain('סיימתי לטפל')
-  })
-
-  it('does not invite a reply into a paused bot, and offers the portal instead', async () => {
-    // Every notice goes out from the bot number. Paused, that number discards
-    // whatever comes back, so "אני כאן" would be a promise the system breaks.
-    const previous = process.env.WHATSAPP_BOT_PAUSED
-    process.env.WHATSAPP_BOT_PAUSED = '1'
-    seed({ ...noBotHistory, status: 'IN_PROGRESS' })
-
-    try {
-      await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
-
-      const text = (wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text
-      expect(text).not.toContain('אני כאן')
-      expect(text).toContain(`/r/${TOKEN}`)
-    } finally {
-      process.env.WHATSAPP_BOT_PAUSED = previous
-    }
-  })
-
-  it('says "אני כאן" again once the bot is back', async () => {
-    const previous = process.env.WHATSAPP_BOT_PAUSED
-    process.env.WHATSAPP_BOT_PAUSED = '0'
-    seed({ ...noBotHistory, status: 'IN_PROGRESS' })
-
-    try {
-      await RequestsService.update('user-1', 'request-1', { status: 'RESOLVED' })
-
-      expect((wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text).toContain('אני כאן')
-    } finally {
-      process.env.WHATSAPP_BOT_PAUSED = previous
-    }
+    const text = (wahaMock.sendMessage.mock.calls[0][0] as { text: string }).text
+    expect(text).toContain('סיימתי לטפל')
+    expect(text).not.toContain('אני כאן')
+    expect(text).toContain(`/r/${TOKEN}`)
   })
 })
 

@@ -3,9 +3,9 @@
 Date: 2026-08-01
 Status: superseded by the decision in [0004](0004-the-crm-has-no-ai.md)
 
-> The chain described below protects model calls that will stop happening once
-> the AI layer is removed by ADR 0004; still present as of this commit. This
-> document is kept for history.
+> The chain described below protected model calls that no longer happen: ADR
+> 0004's teardown removed `lib/ai/`, and with it every model call this document
+> describes. This document is kept for history.
 
 ## Context
 

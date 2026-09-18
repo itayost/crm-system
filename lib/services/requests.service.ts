@@ -12,7 +12,6 @@ import {
   startedWorkClientNotice,
 } from './whatsapp-messages'
 import { notifyOwner } from './owner-line'
-import { isBotPaused } from '@/lib/config/bot-pause'
 import { BILLING_NEEDS_APPROVAL } from '@/lib/validations/enums'
 import type {
   CreateRequestInput,
@@ -306,7 +305,7 @@ async function notifyClientOfProgress(
           : resolvedRequestClientNotice(
               chat.contactName,
               chat.title,
-              replyInvitation({ paused: isBotPaused(), portalUrl: await clientPortalUrl(userId, requestId) }),
+              replyInvitation(await clientPortalUrl(userId, requestId)),
             ),
     })
   } catch (error) {

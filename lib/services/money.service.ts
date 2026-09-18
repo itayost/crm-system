@@ -1,4 +1,4 @@
-import { startOfIsraelDay } from '@/lib/services/morning-brief.service'
+import { startOfIsraelDay } from '@/lib/utils/israel-day'
 import { fullLedger, type LedgerRow } from '@/lib/money/ledger.server'
 import { awaitingApproval, collectable, receivedSince } from '@/lib/money/ledger'
 
