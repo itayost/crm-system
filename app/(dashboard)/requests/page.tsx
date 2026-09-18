@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RequestForm } from '@/components/forms/request-form'
-import { AiMark, SourceIcon } from '@/components/requests/request-badges'
+import { SourceIcon } from '@/components/requests/request-badges'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
 import { RequestAge } from '@/components/requests/request-age'
 import {
@@ -206,7 +206,6 @@ export default function RequestsPage() {
       cell: (r) => (
         <span className="inline-flex items-center gap-2">
           <span>{r.title}</span>
-          <AiMark isAiGenerated={r.isAiGenerated} />
           <SourceIcon source={r.source} />
           <AttachmentLinks
             attachments={r.attachments}

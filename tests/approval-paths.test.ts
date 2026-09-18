@@ -14,7 +14,6 @@ const requestsServiceMock = {
   getByClient: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
-  createDrafts: vi.fn(),
 }
 
 vi.mock('@/lib/services/requests.service', () => ({ RequestsService: requestsServiceMock }))

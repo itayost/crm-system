@@ -231,9 +231,8 @@ export interface ClientRequestView {
  *
  * Built by naming what goes out rather than deleting what must not, because the
  * failure mode of the other direction is silent: someone adds an internal field
- * to Request, nobody updates a delete list, and aiNote ends up on a client's
- * screen. aiNote, aiConfidence, isAiGenerated, userId, taskId and
- * sourceMessageId must never appear in this function.
+ * to Request, nobody updates a delete list, and it ends up on a client's
+ * screen. userId and taskId must never appear in this function.
  */
 export function toClientRequest(row: {
   id: string
@@ -289,9 +288,9 @@ export function toClientRequest(row: {
  *
  * This cannot reuse buildTimeline() from request-timeline.ts, and the reason is
  * not styling: that one is written from the owner's chair - "הלקוח אישר",
- * "נוצרה משימה", "סווג כבתשלום" - and reads `request.task` and `isAiGenerated`,
- * neither of which is in the whitelist above. Told to a client, half of its
- * events are either meaningless or none of their business.
+ * "נוצרה משימה", "סווג כבתשלום" - and reads `request.task`, which is not in
+ * the whitelist above. Told to a client, half of its events are either
+ * meaningless or none of their business.
  *
  * Same honest limit, inherited deliberately: Request has no `startedAt`, so
  * "work started" cannot be dated. The current step is emitted with `at: null`

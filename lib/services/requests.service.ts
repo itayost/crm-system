@@ -16,7 +16,6 @@ import { BILLING_NEEDS_APPROVAL } from '@/lib/validations/enums'
 import type {
   CreateRequestInput,
   UpdateRequestInput,
-  BulkDraftRequestsInput,
   SendQuoteInput,
   ClientDecisionInput,
 } from '@/lib/validations/request'
@@ -473,7 +472,6 @@ export class RequestsService {
         priority: data.priority ?? 'MEDIUM',
         source: data.source ?? 'MANUAL',
         status: 'OPEN',
-        isAiGenerated: false,
         clientId: data.clientId,
         contactId: data.contactId || undefined,
         projectId: data.projectId || undefined,
@@ -923,38 +921,5 @@ export class RequestsService {
     // Remove any stored attachments so deleting a request does not orphan files.
     await StorageService.removeAttachments(request.attachments)
     return deleted
-  }
-
-  /**
-   * Bulk-create AI-drafted requests for review. Used by the extraction pass.
-   * Forces the draft lifecycle: PENDING_REVIEW + isAiGenerated + WHATSAPP source.
-   */
-  static async createDrafts(userId: string, drafts: BulkDraftRequestsInput) {
-    if (drafts.length === 0) return []
-
-    return prisma.$transaction(
-      drafts.map((d) =>
-        prisma.request.create({
-          data: {
-            title: d.title,
-            description: d.description,
-            type: d.type ?? 'OTHER',
-            priority: d.priority ?? 'MEDIUM',
-            source: 'WHATSAPP',
-            status: 'PENDING_REVIEW',
-            isAiGenerated: true,
-            aiConfidence: d.aiConfidence,
-            aiNote: d.aiNote,
-            attachments: d.attachments ?? [],
-            intake: (d.intake ?? undefined) as Prisma.InputJsonValue | undefined,
-            sourceMessageId: d.sourceMessageId,
-            clientId: d.clientId,
-            contactId: d.contactId || undefined,
-            projectId: d.projectId || undefined,
-            userId,
-          },
-        })
-      )
-    )
   }
 }

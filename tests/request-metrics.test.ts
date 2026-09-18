@@ -57,7 +57,6 @@ describe('the derived timeline', () => {
     createdAt: string
     updatedAt: string
     resolvedAt: string | null
-    isAiGenerated: boolean
     billingKind: string | null
     quotedAt: string | null
     clientDecision: string | null
@@ -73,7 +72,6 @@ describe('the derived timeline', () => {
     createdAt: '2026-08-01T00:00:00Z',
     updatedAt: '2026-08-02T00:00:00Z',
     resolvedAt: null,
-    isAiGenerated: false,
     billingKind: null,
     quotedAt: null,
     clientDecision: null,

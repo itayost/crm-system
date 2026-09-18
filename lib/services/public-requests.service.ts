@@ -103,7 +103,6 @@ export class PublicRequestsService {
           status: 'PENDING_REVIEW',
           source: 'FORM',
           priority: 'MEDIUM',
-          isAiGenerated: false,
           attachments: input.attachments,
           clientId: client.id,
           contactId,

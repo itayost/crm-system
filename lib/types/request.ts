@@ -33,16 +33,12 @@ export interface RequestRecord {
   status: RequestStatus
   priority: RequestPriority
   source: RequestSource
-  isAiGenerated: boolean
-  aiConfidence: number | null
-  aiNote: string | null
   attachments: string[]
   intake: Intake | null
   clientId: string
   contactId: string | null
   projectId: string | null
   taskId: string | null
-  sourceMessageId: string | null
   resolvedAt: string | null
   createdAt: string
   updatedAt: string

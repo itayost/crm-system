@@ -36,7 +36,7 @@ import { RequestForm } from '@/components/forms/request-form'
 import { IntakeDetails } from '@/components/requests/intake-details'
 import { IntakeEditForm } from '@/components/requests/intake-edit-form'
 import { AttachmentLinks } from '@/components/requests/attachment-links'
-import { SourceBadge, AiBadge } from '@/components/requests/request-badges'
+import { SourceBadge } from '@/components/requests/request-badges'
 import { CommercialCard } from '@/components/requests/commercial-card'
 import { RequestTimeline } from '@/components/requests/request-timeline'
 import { ClientViewCard } from '@/components/requests/client-view-card'
@@ -207,11 +207,6 @@ export default function RequestDetailPage() {
               {label(REQUEST_TYPE_LABELS, request.type)}
             </StatusPill>
             <SourceBadge source={request.source} showManual />
-            <AiBadge
-              isAiGenerated={request.isAiGenerated}
-              aiConfidence={request.aiConfidence}
-              aiNote={request.aiNote}
-            />
           </div>
         </div>
         <div className="flex gap-2">
@@ -330,11 +325,6 @@ export default function RequestDetailPage() {
               </div>
             )}
           </div>
-          {request.aiNote && (
-            <p className="text-xs text-content-subtle mt-4 whitespace-pre-wrap">
-              הערת הסוכן: {request.aiNote}
-            </p>
-          )}
         </CardContent>
       </Card>
 

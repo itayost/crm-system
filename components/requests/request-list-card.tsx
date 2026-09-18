@@ -7,7 +7,7 @@ import { StatusPill } from '@/components/ui/status-pill'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toneOf, REQUEST_STATUS_TONES } from '@/lib/design/tones'
 import { label, REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from '@/lib/design/labels'
-import { SourceBadge, AiBadge } from './request-badges'
+import { SourceBadge } from './request-badges'
 import type { RequestRecord } from '@/lib/types/request'
 
 /**
@@ -19,10 +19,7 @@ import type { RequestRecord } from '@/lib/types/request'
  * חדשה" button there, and the project page passes nothing, because RequestForm
  * has no defaultProjectId to open it with.
  */
-export type RequestListItem = Pick<
-  RequestRecord,
-  'id' | 'title' | 'type' | 'status' | 'source' | 'isAiGenerated' | 'aiConfidence' | 'aiNote'
->
+export type RequestListItem = Pick<RequestRecord, 'id' | 'title' | 'type' | 'status' | 'source'>
 
 export function RequestListCard({
   requests,
@@ -68,11 +65,6 @@ export function RequestListCard({
                     {label(REQUEST_TYPE_LABELS, request.type)}
                   </span>
                   <SourceBadge source={request.source} />
-                  <AiBadge
-                    isAiGenerated={request.isAiGenerated}
-                    aiConfidence={request.aiConfidence}
-                    aiNote={request.aiNote}
-                  />
                 </div>
                 <StatusPill tone={toneOf(REQUEST_STATUS_TONES, request.status)} dot>
                   {label(REQUEST_STATUS_LABELS, request.status)}

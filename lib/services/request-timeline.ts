@@ -35,7 +35,6 @@ export function buildTimeline(request: RequestRecord): TimelineEvent[] {
     label: 'הפניה נפתחה',
     at: request.createdAt,
     tone: 'info',
-    note: request.isAiGenerated ? 'נוצרה אוטומטית מהודעה' : undefined,
   })
 
   if (request.billingKind) {

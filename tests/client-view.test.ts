@@ -136,13 +136,10 @@ describe('the field whitelist', () => {
     const view = toClientRequest({
       ...FULL_ROW,
       // Fields a future refactor might add to the select by accident.
-      ...({ aiNote: 'ניחוש', aiConfidence: 0.4, isAiGenerated: true, taskId: 't-1', userId: 'u-1' } as Record<
-        string,
-        unknown
-      >),
+      ...({ taskId: 't-1', userId: 'u-1' } as Record<string, unknown>),
     } as Parameters<typeof toClientRequest>[0])!
 
-    for (const forbidden of ['aiNote', 'aiConfidence', 'isAiGenerated', 'taskId', 'userId', 'status']) {
+    for (const forbidden of ['taskId', 'userId', 'status']) {
       expect(Object.keys(view)).not.toContain(forbidden)
     }
   })
