@@ -11,7 +11,7 @@
 **Spec:** [`docs/superpowers/specs/2026-09-18-agent-teardown-and-crm-restructure-design.md`](../specs/2026-09-18-agent-teardown-and-crm-restructure-design.md)
 **Decision record:** [`docs/adr/0004-the-crm-has-no-ai.md`](../../adr/0004-the-crm-has-no-ai.md)
 
-This is **Plan 2 of 5**.
+This is **Plan 2 of 7**.
 
 ## Dependencies and ordering
 
@@ -196,11 +196,11 @@ clause that reads it. whatsapp-identity survives: public-leads still needs it."
 - Delete: `lib/services/request-extraction.service.ts`, `intake-extraction.service.ts`, `media-understanding.service.ts`
 - Delete: `app/api/cron/extract-requests/route.ts` and its directory
 - Delete tests: `tests/request-extraction.test.ts`, `tests/media-understanding.test.ts`
-- Modify: `tests/intake.test.ts` — **keep it.** `Request.intake` survives and Plan 4 repoints it at the client's own form. Strip only the cases that exercise model extraction.
+- Modify: `tests/intake.test.ts` — **keep it.** `Request.intake` survives and Plan 7 repoints it at the client's own form. Strip only the cases that exercise model extraction.
 - Modify: `vercel.json` (remove the `extract-requests` cron)
 
 **Interfaces:**
-- Produces: `Request.intake` is now written by nothing. Plan 4 gives it a writer (the portal form). It stays nullable, so existing rows keep their data and the portal keeps playing them back.
+- Produces: `Request.intake` is now written by nothing. Plan 7 gives it a writer (the portal form). It stays nullable, so existing rows keep their data and the portal keeps playing them back.
 
 - [ ] **Step 1: Delete the services, the cron and the two tests**
 
@@ -213,7 +213,7 @@ git rm tests/request-extraction.test.ts tests/media-understanding.test.ts
 
 - [ ] **Step 2: Trim `tests/intake.test.ts` rather than deleting it**
 
-Read it. Keep every case that tests the `intakeSchema` in `lib/validations/intake.ts` — that schema is Plan 4's ticket form. Remove only cases that call an extraction service.
+Read it. Keep every case that tests the `intakeSchema` in `lib/validations/intake.ts` — that schema is Plan 7's ticket form. Remove only cases that call an extraction service.
 
 - [ ] **Step 3: Remove the cron entry from `vercel.json`**
 
@@ -228,7 +228,7 @@ git add -A
 git commit -m "feat(teardown): delete AI extraction
 
 Request.intake keeps its schema, its portal playback and its operator edit
-form; only the thing that filled it from chat goes. Plan 4 repoints it at the
+form; only the thing that filled it from chat goes. Plan 7 repoints it at the
 client's own form, at which point כך הבנתי אותך becomes literally true."
 ```
 
@@ -443,9 +443,9 @@ Run: `grep -n "Retires under ADR 0004\|still present as of this commit\|approved
 | מוצר | Drop "the thing support conversations are about" — support conversations are gone |
 | לתשלום | Drop the morning-brief paragraph — the brief is gone |
 | הערות | Still complements `profileHe` until Plan 3 |
-| פנייה | Intake is no longer model-extracted, and not yet client-written. Say it has no writer until Plan 4 |
+| פנייה | Intake is no longer model-extracted, and not yet client-written. Say it has no writer until Plan 7 |
 | דיברתי | Now genuinely the only writer of `lastContactedAt`. Remove the "one of three" wording |
-| ליד | Unchanged — the state reduction is Plan 3's |
+| ליד | Unchanged — the state reduction is Plan 4's |
 
 - [ ] **Step 3: Update the ADR block quotes**
 

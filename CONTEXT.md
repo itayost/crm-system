@@ -54,7 +54,7 @@ business), optionally linked to a Project and to the Contact who filed it.
 A תקלה additionally carries **אבחון (intake)**: structured answers to איפה, מה
 ציפית, כמה פעמים, חוסם. The extraction agent that used to infer those from the
 WhatsApp conversation is gone, and the portal's own form does not yet ask for
-them — `Request.intake` has no writer until Plan 4 gives it one. The portal's
+them — `Request.intake` has no writer until Plan 7 gives it one. The portal's
 כך הבנתי אותך playback still runs and shows whatever an existing request
 already has; a new request arrives with nothing to play back.
 

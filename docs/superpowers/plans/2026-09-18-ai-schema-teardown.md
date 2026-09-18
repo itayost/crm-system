@@ -11,13 +11,13 @@
 **Spec:** [`docs/superpowers/specs/2026-09-18-agent-teardown-and-crm-restructure-design.md`](../specs/2026-09-18-agent-teardown-and-crm-restructure-design.md)
 **Decision record:** [`docs/adr/0004-the-crm-has-no-ai.md`](../../adr/0004-the-crm-has-no-ai.md)
 
-This is **Plan 3 of 5**.
+This is **Plan 3 of 7**.
 
 ## Dependencies and ordering
 
 - **Plan 2 (agent runtime teardown) must merge first.** It deletes every service that writes these tables. Running this plan first would drop columns while live code still writes them. Verify: `test -d lib/ai && echo BLOCKED || echo OK` must print `OK`.
-- **Plan 4** is the schema *cuts* and IA rebuild (Contact/Client split, `Priority` to boolean, lead-state reduction, the four-surface nav). Not here. This plan removes only what the AI owned.
-- **Plan 5** is the portal and per-project quick links.
+- **Plan 4** finishes the Contact/Client split and reduces the lead states. **Plan 5** collapses `Priority` to a boolean (40 files, alone). **Plan 6** merges משימות and פרויקטים into עבודה. None are here; this plan removes only what the AI owned.
+- **Plan 7** is the portal's contact select, its type-conditional intake form, and per-project quick links.
 
 ## Global Constraints
 
