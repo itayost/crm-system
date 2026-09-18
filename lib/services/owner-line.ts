@@ -4,11 +4,10 @@
  *
  * Nine places used to hand-roll this — resolve his chat id, guard against not
  * finding it, send, swallow the failure — and three of them resolved
- * differently and lost the phone fallback: the morning-brief cron, the new-lead
- * notice and the new-request notice. So on a fresh deployment the daily brief
- * failed silently, and worse, a lead from the website and a request from the
- * client portal reached no one either, while every other notice still got
- * through.
+ * differently and lost the phone fallback: the morning-brief cron (since
+ * retired), the new-lead notice and the new-request notice. A lead from the
+ * website and a request from the client portal reached no one either, while
+ * every other notice still got through.
  *
  * The transport is imported rather than injected on purpose. Production has
  * exactly one way to reach him, and a test double is not production variance;
@@ -18,10 +17,8 @@
 import { prisma } from '@/lib/db/prisma'
 import { WahaService } from '@/lib/services/waha.service'
 
-// Also imported by whatsapp-agent.service.ts, which upserts the same
-// BotConversation row on a different column (`messages`, vs. `ownerChatId`
-// here). Exported from here rather than there so this module's import graph
-// stays free of the agent loop's `ai` / `@ai-sdk/gateway` dependency.
+// The id of the one BotConversation row this module reads and writes.
+// Exported as a constant so it is written in one place.
 export const CONVERSATION_ID = 'singleton'
 
 /** The chat id he actually writes from, learned the first time he does. */
@@ -61,7 +58,7 @@ async function ownerChatId(): Promise<string | null> {
   }
 }
 
-/** The nine events a caller can name in a log line. Add here, not as a raw string. */
+/** The eight events a caller can name in a log line. Add here, not as a raw string. */
 type OwnerNoticeSubject =
   | 'a phase review'
   | 'a possibly missed request'
@@ -70,17 +67,14 @@ type OwnerNoticeSubject =
   | 'a degraded turn'
   | 'an unknown sender'
   | 'a new lead'
-  | 'the morning brief'
   | 'a new request'
 
 /**
  * Tell Itay something happened. Returns whether it actually reached him.
  *
- * Fire-and-forget for almost every caller: the domain write has already
- * happened by the time we get here, and a WAHA outage must not turn a client's
- * sign-off into an error on their screen. The morning-brief cron is the one
- * caller that reads the result, because a scheduled job nobody is watching
- * needs to fail loudly when it reaches no one.
+ * Fire-and-forget for every caller: the domain write has already happened by
+ * the time we get here, and a WAHA outage must not turn a client's sign-off
+ * into an error on their screen.
  *
  * `about` names the event for the log. It is a short English label rather than
  * the notice itself, because notices carry client names and logs must not.

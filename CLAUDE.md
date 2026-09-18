@@ -155,18 +155,7 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `WHATSAPP_WEBHOOK_SECRET` -- shared secret for both webhooks; they **fail closed** while it is unset
 - `OWNER_PHONE` -- Itay's number; the only sender routed to the owner agent on the bot session
 - `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
-- `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
-- `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
-- `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
-- `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/claude-sonnet-4.6`)
-- `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL` -- the local-model tier on the VPS (Ollama behind an authenticated proxy; base URL includes `/v1`). Fallback for the support bot when the gateway fails, primary for the morning brief. Unset disables the tier and the chain still works (gateway -> canned reply). See `docs/adr/0002-degrade-dont-die.md`
-- `WHATSAPP_BOT_PAUSED` -- the pause switch, read per request by `isBotPaused()` in `lib/config/bot-pause.ts`. Optional; unset means running
-
-## Pausing the bot
-
-`WHATSAPP_BOT_PAUSED` stops the bot talking to clients. The full runbook --
-what stays running, and why both pausing and resuming cost a redeploy -- lives
-in the `pausing-the-bot` skill.
+- `WAHA_PERSONAL_SESSION` (default `personal`)
 
 ## Website lead intake
 
@@ -256,19 +245,6 @@ so the gate is opt-in per request and nothing written before it existed changed.
   resolved without the phone fallback and went silent on a fresh deployment.
   Notices are Hebrew; the `about` label is short English because it is the only
   part that reaches a log, and notices carry client names
-
-## Prompt caching
-
-Both agent loops send `providerOptions: { gateway: { caching: 'auto' } }`.
-Measured 2026-07-31: caching works through the gateway (7,112-token prefix
-written once, read back at 0.1x on the next call), but the TTL is
-**effectively 5 minutes** -- a probe 6.5 minutes after the last hit had to
-re-write the full prefix. The 1-hour Anthropic TTL does not survive the
-AI SDK -> Gateway path. Consequences: the intra-turn agent steps and rapid
-message bursts get cache reads; a WhatsApp reply gap longer than ~5 minutes
-pays one fresh cache write (1.25x) on the next turn. Editing any tool
-description invalidates the whole cache (tools -> system -> messages cascade),
-so batch tool-wording changes.
 
 ## E2E Testing
 

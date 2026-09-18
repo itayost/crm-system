@@ -263,33 +263,7 @@ WhatsApp (WAHA) variables, required for the two webhooks:
 - `WHATSAPP_WEBHOOK_SECRET` -- shared secret for both webhooks; they **fail closed** while it is unset
 - `OWNER_PHONE` -- Itay's number; the only sender routed to the owner agent on the bot session
 - `WAHA_API_URL`, `WAHA_API_KEY` -- self-hosted WAHA instance
-- `WAHA_PERSONAL_SESSION` (default `personal`), `WAHA_BOT_SESSION` (default `bot`)
-- `GITHUB_TOKEN` -- fine-grained **read-only** token; lets the support agent consult a client project's repo. Optional
-- `SUPPORT_MEDIA_MODEL` -- transcription model id (default `google/gemini-2.5-flash`)
-- `PRODUCT_CARD_MODEL`, `INTAKE_MODEL` -- optional model overrides for the card generator and the per-message intake/relation pre-pass (both default `anthropic/Codex-sonnet-4.6`)
-- `OLLAMA_BASE_URL`, `OLLAMA_API_KEY`, `OLLAMA_MODEL` -- the local-model tier on the VPS (Ollama behind an authenticated proxy; base URL includes `/v1`). Fallback for the support bot when the gateway fails, primary for the morning brief. Unset disables the tier and the chain still works (gateway -> canned reply). See `docs/adr/0002-degrade-dont-die.md`
-- `WHATSAPP_BOT_PAUSED` -- the pause switch, read per request by `isBotPaused()` in `lib/config/bot-pause.ts`. Optional; unset means running
-
-## Pausing the bot
-
-`WHATSAPP_BOT_PAUSED=1` (any value other than `0`/`false`/`off`/`no`/empty) plus a
-redeploy stops the bot talking to clients:
-
-- the bot webhook drops **CLIENT and UNKNOWN** senders whole -- no reply, no
-  `WhatsAppMessage` row, and therefore no ticket from `extract-requests`. A
-  message sent to the bot while it is paused reaches WhatsApp and nothing else
-- the hourly `support-followups` sweep sends no reminders; unanswered
-  confirmations keep waiting and are swept once the bot is back
-
-Deliberately **not** paused: the owner agent (Itay's own line into the CRM), the
-morning brief, the personal-session indexing webhook, and the other crons.
-Sender classification runs before the check -- it is the only way to tell the
-owner from a client, and it reads without sending or writing anything.
-
-Because Vercel env changes only reach new deployments, both pausing and
-resuming cost a redeploy. For an instant stop with no deploy, stop the `bot`
-session on WAHA instead -- but WhatsApp then queues everything and delivers it
-in a burst on restart.
+- `WAHA_PERSONAL_SESSION` (default `personal`)
 
 ## Website lead intake
 
@@ -380,19 +354,6 @@ so the gate is opt-in per request and nothing written before it existed changed.
   Notices are Hebrew; the `about` label is short English because it is the only
   part that reaches a log, and notices carry client names
 
-## Prompt caching
-
-Both agent loops send `providerOptions: { gateway: { caching: 'auto' } }`.
-Measured 2026-07-31: caching works through the gateway (7,112-token prefix
-written once, read back at 0.1x on the next call), but the TTL is
-**effectively 5 minutes** -- a probe 6.5 minutes after the last hit had to
-re-write the full prefix. The 1-hour Anthropic TTL does not survive the
-AI SDK -> Gateway path. Consequences: the intra-turn agent steps and rapid
-message bursts get cache reads; a WhatsApp reply gap longer than ~5 minutes
-pays one fresh cache write (1.25x) on the next turn. Editing any tool
-description invalidates the whole cache (tools -> system -> messages cascade),
-so batch tool-wording changes.
-
 ## E2E Testing
 
 62 Playwright tests across 8 spec files covering:
@@ -435,3 +396,13 @@ Canonical label names used as-is: needs-triage, needs-info, ready-for-agent, rea
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily by /domain-modeling). See `docs/agents/domain.md`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

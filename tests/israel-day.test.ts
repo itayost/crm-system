@@ -11,6 +11,14 @@ import { startOfIsraelDay } from '@/lib/utils/israel-day'
  * deleted tests/morning-brief-next-actions.test.ts). These tests replace
  * that coverage at the helper's new home, plus the DST cases nothing
  * previously verified.
+ *
+ * Coverage stops at each transition day's own transition instant: both
+ * "picks the ... day itself" cases below pick a `now` that is still on the
+ * pre-jump side of the clock change. `startOfIsraelDay` has a genuine,
+ * pre-existing off-by-one-hour bug for `now` values after that instant (for
+ * example 2026-03-27 10:00 local returns the previous calendar day) -
+ * tracked as issue #26 and deliberately not fixed here. Do not read these two
+ * tests as proof DST is handled correctly across the whole transition day.
  */
 
 const IST_OFFSET_MS = 2 * 60 * 60 * 1000
@@ -84,6 +92,8 @@ describe('startOfIsraelDay', () => {
     // 01:15 local on that day, still IST (the jump has not happened yet) -
     // the case a fixed-offset implementation would get wrong by assuming the
     // wrong side of the jump for the whole day.
+    // Coverage stops there: a `now` after the 02:00 jump hits the off-by-one
+    // bug tracked in issue #26 and is not asserted here.
     const now = new Date('2026-03-26T23:15:00.000Z') // 2026-03-27T01:15 IST
     const result = startOfIsraelDay(now)
 
@@ -97,6 +107,8 @@ describe('startOfIsraelDay', () => {
     // Israel moves clocks back on the last Sunday of October; in 2026 that is
     // October 25, 02:00 IDT -> 01:00 IST. `now` here is 00:45 local on that
     // day, still IDT (before the repeated hour).
+    // Coverage stops there: a `now` after the 02:00 jump hits the off-by-one
+    // bug tracked in issue #26 and is not asserted here.
     const now = new Date('2026-10-24T21:45:00.000Z') // 2026-10-25T00:45 IDT
     const result = startOfIsraelDay(now)
 
