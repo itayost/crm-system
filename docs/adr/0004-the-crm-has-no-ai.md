@@ -1,7 +1,7 @@
 # 0004 — The CRM has no AI, and the portal is the only way in
 
 Date: 2026-09-18
-Status: approved, not started
+Status: approved, partially implemented — Plan 2 (the runtime teardown: `lib/ai/`, both webhooks, all four crons, the morning brief) has landed. Plans 3-5 (dropping the five models and `profileHe`/intake columns, the operator IA rebuild, and the portal's own intake form) have not started
 Supersedes: [0001](0001-precomputed-product-cards.md), [0002](0002-degrade-dont-die.md)
 
 ## Context
