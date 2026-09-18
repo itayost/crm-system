@@ -62,6 +62,11 @@ A Contact in the active pipeline (`NEW → CONTACTED → MEETING_SCHEDULED →
 QUOTED`). `LOST` ends a lead; `INACTIVE` ends a client. A contact born with a
 business attached was never a lead.
 
+_Reduces to `NEW → QUOTED` under the pending agent-teardown-and-crm-restructure
+design, which drops `CONTACTED` and `MEETING_SCHEDULED`: neither says anything
+**פעולה הבאה** does not already say in Itay's own words, while both have to be
+advanced by hand._
+
 ### דיברתי (Spoke to them)
 
 The single lead action: stamps `lastContactedAt` and captures the **פעולה

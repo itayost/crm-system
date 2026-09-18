@@ -81,7 +81,7 @@ export function SpokeButton({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>דיברתי איתו</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-content-muted">
               נרשום שדיברתם עכשיו. מה צריך לעשות אחר כך?
             </DialogDescription>
           </DialogHeader>
