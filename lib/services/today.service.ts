@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { LEAD_STATUSES } from '@/lib/validations/enums'
-import { startOfIsraelDay } from '@/lib/services/morning-brief.service'
+import { startOfIsraelDay } from '@/lib/utils/israel-day'
 import { openLedger } from '@/lib/money/ledger.server'
 import { collectable, isCollectable } from '@/lib/money/ledger'
 
