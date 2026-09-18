@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/morning-brief",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/refresh-product-cards",
-      "schedule": "0 3 * * *"
     }
   ]
 }
