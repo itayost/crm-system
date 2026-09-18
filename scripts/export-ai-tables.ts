@@ -49,6 +49,37 @@ async function main() {
 
   writeFileSync(`${OUT}/profileHe.md`, md)
   console.log(`profileHe: ${clients.length} clients with a profile`)
+
+  // Request keeps four AI-provenance columns that Task 4 also drops. The
+  // request rows themselves survive teardown, so this is a scoped select of
+  // just those columns, not a dump of every request. sourceMessageId is the
+  // only surviving link to the WhatsAppMessage a ticket came from -- it
+  // resolves against whatsAppMessage.json above, so the id alone is enough;
+  // no need to denormalise the message text in here.
+  const requestAiColumns = await prisma.request.findMany({
+    where: {
+      OR: [
+        { isAiGenerated: true },
+        { aiConfidence: { not: null } },
+        { aiNote: { not: null } },
+        { sourceMessageId: { not: null } },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+      clientId: true,
+      isAiGenerated: true,
+      aiConfidence: true,
+      aiNote: true,
+      sourceMessageId: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  writeFileSync(`${OUT}/requestAiColumns.json`, JSON.stringify(requestAiColumns, null, 2))
+  console.log(`requestAiColumns: ${requestAiColumns.length} requests`)
 }
 
 main()
