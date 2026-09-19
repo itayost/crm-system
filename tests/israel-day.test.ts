@@ -12,13 +12,13 @@ import { startOfIsraelDay } from '@/lib/utils/israel-day'
  * that coverage at the helper's new home, plus the DST cases nothing
  * previously verified.
  *
- * Coverage stops at each transition day's own transition instant: both
- * "picks the ... day itself" cases below pick a `now` that is still on the
- * pre-jump side of the clock change. `startOfIsraelDay` has a genuine,
- * pre-existing off-by-one-hour bug for `now` values after that instant (for
- * example 2026-03-27 10:00 local returns the previous calendar day) -
- * tracked as issue #26 and deliberately not fixed here. Do not read these two
- * tests as proof DST is handled correctly across the whole transition day.
+ * Both transition days are now covered on both sides of the clock change.
+ * They were not always: the helper had an off-by-one-hour bug after each
+ * jump (2026-03-27 10:00 local returned the previous calendar day), filed as
+ * issue #26 and fixed by replacing elapsed-time subtraction with a direct
+ * offset lookup. The "agrees with itself either side of a transition" case
+ * below is the regression guard - it asserts the property the money layer
+ * actually needs, that a calendar day has one boundary no matter when you ask.
  */
 
 const IST_OFFSET_MS = 2 * 60 * 60 * 1000
@@ -92,8 +92,6 @@ describe('startOfIsraelDay', () => {
     // 01:15 local on that day, still IST (the jump has not happened yet) -
     // the case a fixed-offset implementation would get wrong by assuming the
     // wrong side of the jump for the whole day.
-    // Coverage stops there: a `now` after the 02:00 jump hits the off-by-one
-    // bug tracked in issue #26 and is not asserted here.
     const now = new Date('2026-03-26T23:15:00.000Z') // 2026-03-27T01:15 IST
     const result = startOfIsraelDay(now)
 
@@ -107,8 +105,6 @@ describe('startOfIsraelDay', () => {
     // Israel moves clocks back on the last Sunday of October; in 2026 that is
     // October 25, 02:00 IDT -> 01:00 IST. `now` here is 00:45 local on that
     // day, still IDT (before the repeated hour).
-    // Coverage stops there: a `now` after the 02:00 jump hits the off-by-one
-    // bug tracked in issue #26 and is not asserted here.
     const now = new Date('2026-10-24T21:45:00.000Z') // 2026-10-25T00:45 IDT
     const result = startOfIsraelDay(now)
 
@@ -116,6 +112,44 @@ describe('startOfIsraelDay', () => {
     expect(israelWallClock(result)).toBe('2026-10-25, 00:00:00')
     // Not shifted by the hour the fall-back jump moves.
     expect(result.getUTCHours()).toBe(21)
+  })
+
+  it('still picks the spring-forward day after the clocks jump', () => {
+    // The case issue #26 was filed for. 10:00 local on the spring-forward day
+    // is 9 real hours after local midnight but 10 wall-clock hours, because
+    // the 02:00 hour never happened. Subtracting wall-clock elapsed from a
+    // real instant therefore overshoots by exactly one hour, which landed the
+    // boundary on 2026-03-26 23:00 - the previous calendar day.
+    const now = new Date('2026-03-27T07:00:00.000Z') // 2026-03-27T10:00 IDT
+    const result = startOfIsraelDay(now)
+
+    expect(result.toISOString()).toBe('2026-03-26T22:00:00.000Z')
+    expect(israelWallClock(result)).toBe('2026-03-27, 00:00:00')
+  })
+
+  it('still picks the fall-back day after the clocks go back', () => {
+    // The mirror of the case above. 10:00 local on the fall-back day is 11
+    // real hours after local midnight but 10 wall-clock hours, because the
+    // 01:00 hour happened twice, so the same subtraction undershoots by an
+    // hour and the boundary landed on 01:00 instead of midnight.
+    const now = new Date('2026-10-25T08:00:00.000Z') // 2026-10-25T10:00 IST
+    const result = startOfIsraelDay(now)
+
+    expect(result.toISOString()).toBe('2026-10-24T21:00:00.000Z')
+    expect(israelWallClock(result)).toBe('2026-10-25, 00:00:00')
+  })
+
+  it('agrees with itself either side of a transition', () => {
+    // Whatever time of day you ask, the boundary for a given calendar day is
+    // one instant. This is the property the money layer actually depends on:
+    // two ledger reads on the same day must not disagree about when it began.
+    const springBefore = startOfIsraelDay(new Date('2026-03-26T23:30:00.000Z'))
+    const springAfter = startOfIsraelDay(new Date('2026-03-27T07:00:00.000Z'))
+    expect(springAfter.toISOString()).toBe(springBefore.toISOString())
+
+    const fallBefore = startOfIsraelDay(new Date('2026-10-24T21:30:00.000Z'))
+    const fallAfter = startOfIsraelDay(new Date('2026-10-25T08:00:00.000Z'))
+    expect(fallAfter.toISOString()).toBe(fallBefore.toISOString())
   })
 
   it('rolls the year and month over correctly just after New Year midnight', () => {
