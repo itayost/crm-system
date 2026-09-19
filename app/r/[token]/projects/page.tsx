@@ -13,8 +13,8 @@ export const dynamic = 'force-dynamic'
  * The client's own projects and what they have agreed to pay.
  *
  * Everything here goes through client-view.ts rather than Prisma directly, so
- * the whitelist that keeps aiNote and productCard away from a client covers
- * this page too.
+ * the whitelist that keeps internal fields away from a client covers this
+ * page too.
  */
 export default async function PortalProjectsPage({
   params,

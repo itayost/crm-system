@@ -15,7 +15,6 @@ import { ClientForm } from '@/components/forms/client-form'
 import { ContactForm } from '@/components/forms/contact-form'
 import { RequestForm } from '@/components/forms/request-form'
 import { RequestListCard, type RequestListItem } from '@/components/requests/request-list-card'
-import { ClientProfileCard } from '@/components/clients/profile-card'
 import { ClientMessagesCard } from '@/components/clients/client-messages-card'
 import {
   DetailHeader,
@@ -64,14 +63,13 @@ interface ClientDetail {
   address?: string | null
   taxId?: string | null
   notes?: string | null
-  profileHe?: string | null
   createdAt: string
   formToken: string | null
   contacts: ClientContact[]
   projects: ClientProject[]
 }
 
-const TABS = ['projects', 'requests', 'people', 'profile', 'whatsapp'] as const
+const TABS = ['projects', 'requests', 'people', 'whatsapp'] as const
 type Tab = (typeof TABS)[number]
 
 export default function ClientDetailPage() {
@@ -460,7 +458,6 @@ export default function ClientDetailPage() {
             <TabsTrigger value="projects">פרויקטים {client.projects.length || ''}</TabsTrigger>
             <TabsTrigger value="requests">פניות {openRequests || ''}</TabsTrigger>
             <TabsTrigger value="people">אנשים {client.contacts.length || ''}</TabsTrigger>
-            <TabsTrigger value="profile">פרופיל הבוט</TabsTrigger>
             <TabsTrigger value="whatsapp">וואטסאפ</TabsTrigger>
           </TabsList>
 
@@ -543,14 +540,6 @@ export default function ClientDetailPage() {
                 </div>
               </>
             )}
-          </TabsContent>
-
-          <TabsContent value="profile" className="m-0">
-            <ClientProfileCard
-              clientId={client.id}
-              profileHe={client.profileHe ?? null}
-              onSaved={fetchClient}
-            />
           </TabsContent>
 
           <TabsContent value="whatsapp" className="m-0">
